@@ -4,6 +4,7 @@ import arc.Core;
 import arc.graphics.Color;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
+import arc.scene.Group;
 import arc.scene.ui.Label;
 import arc.struct.ObjectMap;
 import arc.struct.Seq;
@@ -33,11 +34,11 @@ public class FactoryRecipe extends RecipeType {
   boolean doubleInput, doubleOutput;
 
   @Override
-  public void buildView(RecipeView view) {
+  public void buildView(Group view) {
     Label label = new Label(Core.bundle.get("misc.factory"), Styles.outlineLabel);
     label.layout();
 
-    label.update(() -> label.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + label.getPrefWidth()/2, blockPos.y, Align.center));
+    label.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + label.getPrefWidth()/2, blockPos.y, Align.center);
     view.addChild(label);
   }
 
@@ -50,7 +51,7 @@ public class FactoryRecipe extends RecipeType {
     int materialNum = recipe.materials.size;
     int productionNum = recipe.productions.size;
     doubleInput = materialNum > DOUBLE_LIMIT;
-    doubleOutput = recipe.productions.size > DOUBLE_LIMIT;
+    doubleOutput = productionNum > DOUBLE_LIMIT;
 
     bound.setZero();
 
@@ -72,7 +73,7 @@ public class FactoryRecipe extends RecipeType {
     float offY = SIZE/2;
 
     if (materialNum > 0){
-      Seq<RecipeItemStack> seq = recipe.materials.orderedItems();
+      Seq<RecipeItemStack> seq = recipe.materials.values().toSeq();
       offY = handleNode(seq, consPos, offMatX, offY, false);
       offY += ROW_PAD;
     }
@@ -80,14 +81,14 @@ public class FactoryRecipe extends RecipeType {
     offY += SIZE;
     if (productionNum > 0){
       offY += ROW_PAD;
-      Seq<RecipeItemStack> seq = recipe.productions.orderedItems();
+      Seq<RecipeItemStack> seq = recipe.productions.values().toSeq();
       handleNode(seq, prodPos, offProdX, offY, true);
     }
 
     return bound;
   }
 
-  private float handleNode(Seq<RecipeItemStack> seq, ObjectMap<UnlockableContent, Vec2> pos, float offX, float offY, boolean turn) {
+  protected float handleNode(Seq<RecipeItemStack> seq, ObjectMap<UnlockableContent, Vec2> pos, float offX, float offY, boolean turn) {
     float dx = SIZE / 2;
     if (seq.size > DOUBLE_LIMIT) {
       for (int i = 0; i < seq.size; i++) {
@@ -112,7 +113,7 @@ public class FactoryRecipe extends RecipeType {
     return offY;
   }
 
-  private float handleBound(int num, boolean isDouble) {
+  protected float handleBound(int num, boolean isDouble) {
     float res;
     if (isDouble) {
       int n = Mathf.ceil(num/2f);

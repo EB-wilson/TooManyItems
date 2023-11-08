@@ -4,20 +4,13 @@ import arc.Events;
 import arc.util.Time;
 import mindustry.game.EventType;
 import mindustry.mod.Mod;
-import mindustry.type.ItemStack;
-import mindustry.type.LiquidStack;
-import mindustry.type.PayloadStack;
-import mindustry.world.consumers.ConsumeItems;
-import mindustry.world.consumers.ConsumeLiquid;
-import mindustry.world.consumers.ConsumeLiquids;
-import mindustry.world.consumers.ConsumePayloads;
 import tmi.recipe.RecipeType;
 import tmi.recipe.RecipesManager;
 import tmi.recipe.parser.*;
+import tmi.recipe.types.HeatMark;
+import tmi.recipe.types.PowerMark;
 import tmi.ui.RecipesDialog;
 import tmi.util.Consts;
-
-import static tmi.recipe.parser.ConsumerParser.registerVanillaConsParser;
 
 public class TooManyItems extends Mod {
   public static RecipesManager recipesManager;
@@ -29,7 +22,7 @@ public class TooManyItems extends Mod {
     api = new ModAPI();
     recipesManager = new RecipesManager();
 
-    registerConsumeParser();
+    ConsumerParser.registerVanillaConsumeParser();
     registerRecipeParser();
 
     Events.on(EventType.ClientLoadEvent.class, e -> Time.runTask(0, () -> {
@@ -38,33 +31,6 @@ public class TooManyItems extends Mod {
 
       recipesDialog.show();
     }));
-  }
-
-  private static void registerConsumeParser() {
-    //items
-    registerVanillaConsParser(c -> c instanceof ConsumeItems, (recipe, consume) -> {
-      for (ItemStack item : ((ConsumeItems) consume).items) {
-        recipe.addMaterial(item.item, item.amount);
-      }
-    });
-
-    //liquids
-    registerVanillaConsParser(c -> c instanceof ConsumeLiquids, (recipe, consume) -> {
-      for (LiquidStack liquid : ((ConsumeLiquids) consume).liquids) {
-        recipe.addMaterialPresec(liquid.liquid, liquid.amount);
-      }
-    });
-    registerVanillaConsParser(c -> c instanceof ConsumeLiquid, (recipe, consume) -> {
-      recipe.addMaterialPresec(((ConsumeLiquid) consume).liquid,  ((ConsumeLiquid) consume).amount);
-    });
-
-    //payloads
-    registerVanillaConsParser(c -> c instanceof ConsumePayloads, (recipe, consume) -> {
-      for (PayloadStack stack : ((ConsumePayloads) consume).payloads) {
-        if (stack.amount > 1) recipe.addMaterial(stack.item, stack.amount);
-        else recipe.addMaterial(stack.item);
-      }
-    });
   }
 
   private void registerRecipeParser() {
@@ -77,6 +43,14 @@ public class TooManyItems extends Mod {
     recipesManager.registerParser(new DrillParser());
     recipesManager.registerParser(new BeamDrillParser());
     recipesManager.registerParser(new SeparatorParser());
+    recipesManager.registerParser(new GeneratorParser());
+    recipesManager.registerParser(new ConsGeneratorParser());
+    recipesManager.registerParser(new HeatGeneratorParser());
+    recipesManager.registerParser(new ThermalGeneratorParser());
+    recipesManager.registerParser(new VariableReactorParser());
+    recipesManager.registerParser(new HeatCrafterParser());
+    recipesManager.registerParser(new HeatProducerParser());
+    recipesManager.registerParser(new AttributeCrafterParser());
   }
 
   @Override
@@ -89,5 +63,13 @@ public class TooManyItems extends Mod {
     api.init();
 
     recipesManager.init();
+  }
+
+  @Override
+  public void loadContent() {
+    super.loadContent();
+
+    PowerMark.INSTANCE = new PowerMark();
+    HeatMark.INSTANCE = new HeatMark();
   }
 }

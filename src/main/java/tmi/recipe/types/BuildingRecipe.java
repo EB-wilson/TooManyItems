@@ -5,6 +5,7 @@ import arc.graphics.Color;
 import arc.math.Angles;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
+import arc.scene.Group;
 import arc.scene.ui.Label;
 import arc.struct.ObjectMap;
 import arc.struct.Seq;
@@ -31,12 +32,12 @@ public class BuildingRecipe extends RecipeType {
   final ObjectMap<UnlockableContent, Vec2> materialPos = new ObjectMap<>();
 
   @Override
-  public void buildView(RecipeView view) {
+  public void buildView(Group view) {
     Label label = new Label(Core.bundle.get("misc.building"), Styles.outlineLabel);
     label.getStyle().background = Consts.grayUI;
     label.layout();
 
-    label.update(() -> label.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + label.getPrefWidth()/2, blockPos.y, Align.center));
+    label.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + label.getPrefWidth()/2, blockPos.y, Align.center);
     view.addChild(label);
   }
 
@@ -46,7 +47,7 @@ public class BuildingRecipe extends RecipeType {
     blockPos.setZero();
     materialPos.clear();
 
-    Seq<RecipeItemStack> seq = recipe.materials.orderedItems();
+    Seq<RecipeItemStack> seq = recipe.materials.values().toSeq();
     float radians = 2f*Mathf.pi/seq.size;
     float radius = Math.max(MIN_RAD, (SIZE + ITEM_PAD)/radians);
 

@@ -2,10 +2,12 @@ package tmi.recipe.parser;
 
 import arc.Core;
 import arc.Events;
+import arc.struct.ObjectMap;
 import arc.struct.ObjectSet;
 import arc.struct.Seq;
 import mindustry.Vars;
 import mindustry.game.EventType;
+import mindustry.type.Liquid;
 import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.environment.Floor;
@@ -46,7 +48,7 @@ public class PumpParser extends ConsumerParser<Pump>{
 
   @Override
   public Seq<Recipe> parse(Pump content) {
-    Seq<Recipe> res = new Seq<>();
+    ObjectMap<Liquid, Recipe> res = new ObjectMap<>();
     for (Floor drop : floorDrops) {
       markerTile.setFloor(drop);
       try {
@@ -55,15 +57,17 @@ public class PumpParser extends ConsumerParser<Pump>{
         throw new RuntimeException(e);
       }
 
-      Recipe recipe = new Recipe(RecipeType.collecting);
-      recipe.block = content;
+      Recipe recipe = res.get(drop.liquidDrop, () -> {
+        Recipe r = new Recipe(RecipeType.collecting);
+        r.block = content;
+        r.addProduction(drop.liquidDrop);
+        registerCons(r, content.nonOptionalConsumers);
+
+        return r;
+      });
+
       recipe.addMaterial(drop);
-      recipe.addProduction(drop.liquidDrop);
-
-      registerCons(recipe, content.nonOptionalConsumers);
-
-      res.add(recipe);
     }
-    return res;
+    return res.values().toSeq();
   }
 }

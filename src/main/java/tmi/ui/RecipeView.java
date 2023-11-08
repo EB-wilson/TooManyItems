@@ -4,6 +4,7 @@ import arc.func.Prov;
 import arc.graphics.Color;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
+import arc.scene.ui.layout.WidgetGroup;
 import arc.struct.FloatSeq;
 import arc.struct.Seq;
 import mindustry.ctype.UnlockableContent;
@@ -16,15 +17,19 @@ public class RecipeView extends Group {
   public final Seq<LineMeta> lines = new Seq<>();
   public final Recipe recipe;
 
+  final Group childGroup;
+
   public RecipeView(Recipe recipe) {
     this.recipe = recipe;
+    childGroup = new Group() {};
+    childGroup.setFillParent(true);
 
-    for (RecipeItemStack content : recipe.materials) {
+    for (RecipeItemStack content : recipe.materials.values()) {
       nodes.add(new RecipeNode(content) {{
         isMaterial = true;
       }});
     }
-    for (RecipeItemStack content : recipe.productions) {
+    for (RecipeItemStack content : recipe.productions.values()) {
       nodes.add(new RecipeNode(content) {{
         isProduction = true;
       }});
@@ -36,11 +41,7 @@ public class RecipeView extends Group {
 
     nodes.forEach(this::addChild);
 
-    buildElem();
-  }
-
-  public void buildElem(){
-    recipe.recipeType.buildView(this);
+    addChild(childGroup);
   }
 
   @Override
@@ -55,6 +56,8 @@ public class RecipeView extends Group {
       LineMeta line = recipe.recipeType.line(node, center);
       if (line != null) lines.add(line);
     }
+
+    recipe.recipeType.buildView(childGroup);
   }
 
   @Override

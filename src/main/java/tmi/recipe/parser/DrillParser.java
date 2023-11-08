@@ -1,8 +1,11 @@
 package tmi.recipe.parser;
 
+import arc.struct.ObjectMap;
 import arc.struct.ObjectSet;
 import arc.struct.Seq;
 import mindustry.Vars;
+import mindustry.type.Item;
+import mindustry.type.Liquid;
 import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.environment.OreBlock;
@@ -29,7 +32,7 @@ public class DrillParser extends ConsumerParser<Drill>{
 
   @Override
   public Seq<Recipe> parse(Drill content) {
-    Seq<Recipe> res = new Seq<>();
+    ObjectMap<Item, Recipe> res = new ObjectMap<>();
 
     for (Floor drop : itemDrops) {
       if (drop instanceof OreBlock) markerTile.setOverlay(drop);
@@ -37,16 +40,18 @@ public class DrillParser extends ConsumerParser<Drill>{
 
       if (!content.canMine(markerTile)) continue;
 
-      Recipe recipe = new Recipe(RecipeType.collecting);
-      recipe.block = content;
+      Recipe recipe = res.get(drop.itemDrop, () -> {
+        Recipe r = new Recipe(RecipeType.collecting);
+        r.block = content;
+        r.addProduction(drop.itemDrop);
+        registerCons(r, content.nonOptionalConsumers);
+
+        return r;
+      });
+
       recipe.addMaterial(drop);
-      recipe.addProduction(drop.itemDrop);
-
-      registerCons(recipe, content.nonOptionalConsumers);
-
-      res.add(recipe);
     }
 
-    return res;
+    return res.values().toSeq();
   }
 }

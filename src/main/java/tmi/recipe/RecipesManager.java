@@ -4,6 +4,7 @@ import arc.struct.ObjectMap;
 import arc.struct.ObjectSet;
 import arc.struct.Seq;
 import mindustry.Vars;
+import mindustry.content.Blocks;
 import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Nulls;
 import mindustry.type.*;
@@ -11,7 +12,7 @@ import mindustry.world.Block;
 import tmi.util.Consts;
 
 public class RecipesManager{
-  protected Seq<RecipeParser<?>> parsers = new Seq<>();
+  protected Seq<RecipeParser<?>> parsers = new Seq<>(RecipeParser.class);
   protected ObjectMap<Recipe, Seq<Recipe>> sameGroups = new ObjectMap<>();
 
   private final Seq<Recipe> recipes = new Seq<>();
@@ -36,10 +37,10 @@ public class RecipesManager{
 
   public void addRecipe(Recipe recipe) {
     recipes.add(recipe);
-    for (RecipeItemStack stack : recipe.materials) {
+    for (RecipeItemStack stack : recipe.materials.values()) {
       materials.add(stack.content);
     }
-    for (RecipeItemStack stack : recipe.productions) {
+    for (RecipeItemStack stack : recipe.productions.values()) {
       productions.add(stack.content);
     }
     if (recipe.block != null) blocks.add(recipe.block);
@@ -72,8 +73,16 @@ public class RecipesManager{
   @SuppressWarnings("unchecked")
   public void parseRecipes(){
     for (Block block : Vars.content.blocks()) {
-      for (RecipeParser<?> parser : parsers) {
-        if (parser.isTarget(block)) addRecipe(((RecipeParser<Block>)parser).parse(block));
+      t: for (int i = 0; i < parsers.size; i++) {
+        RecipeParser<?> parser = parsers.get(i);
+
+        if (parser.isTarget(block)){
+          for (int l = i + 1; l < parsers.size; l++) {
+            if (parsers.get(l).isTarget(block) && parsers.get(l).exclude(parser)) continue t;
+          }
+
+          addRecipe(((RecipeParser<Block>)parser).parse(block));
+        }
       }
 
       if (block.requirements.length > 0 && block.placeablePlayer){

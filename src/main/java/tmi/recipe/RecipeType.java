@@ -1,13 +1,13 @@
 package tmi.recipe;
 
-import arc.graphics.Color;
 import arc.graphics.g2d.Lines;
 import arc.math.geom.Vec2;
-import arc.struct.FloatSeq;
+import arc.scene.Group;
 import arc.struct.Seq;
 import tmi.recipe.types.BuildingRecipe;
 import tmi.recipe.types.CollectingRecipe;
 import tmi.recipe.types.FactoryRecipe;
+import tmi.recipe.types.GeneratorRecipe;
 import tmi.ui.RecipeNode;
 import tmi.ui.RecipeView;
 
@@ -16,9 +16,10 @@ public abstract class RecipeType {
 
   public static RecipeType factory,
   building,
-  collecting;
+  collecting,
+  generator;
 
-  public void buildView(RecipeView view){}
+  public void buildView(Group view){}
   public abstract Vec2 initial(Recipe recipe);
   public abstract void layout(RecipeNode recipeNode);
   public abstract RecipeView.LineMeta line(RecipeNode from, RecipeNode to);
@@ -27,6 +28,7 @@ public abstract class RecipeType {
     factory = new FactoryRecipe();
     building = new BuildingRecipe();
     collecting = new CollectingRecipe();
+    generator = new GeneratorRecipe();
   }
 
   public RecipeType(){

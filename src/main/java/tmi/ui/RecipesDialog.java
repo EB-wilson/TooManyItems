@@ -284,7 +284,7 @@ public class RecipesDialog extends BaseDialog {
       rebuildRecipe = () -> {
         main.clearChildren();
         RecipeView view = recipeViews.get(recipeIndex);
-        view.layout();
+        view.validate();
         main.add(view).fill();
       };
       rebuildRecipe.run();
@@ -298,7 +298,10 @@ public class RecipesDialog extends BaseDialog {
       butt.table(modes -> {
         modeTab = new Table(grayUI, ta -> {
           for (Mode mode : Mode.values()) {
-            if (mode == Mode.factory && !(currentSelect instanceof Block)) continue;
+            if (mode == Mode.factory && (!(currentSelect instanceof Block b) || TooManyItems.recipesManager.getRecipesByFactory(b).isEmpty())) continue;
+            else if (mode == Mode.recipe && TooManyItems.recipesManager.getRecipesByProduction(currentSelect).isEmpty()) continue;
+            else if (mode == Mode.usage && TooManyItems.recipesManager.getRecipesByMaterial(currentSelect).isEmpty()) continue;
+
             ta.button(t -> {
               t.defaults().left().pad(5);
               t.image(mode.icon()).size(24).scaling(Scaling.fit);
@@ -310,6 +313,8 @@ public class RecipesDialog extends BaseDialog {
         });
         modeTab.visible = false;
         modes.add(new Button(Styles.clearNonei){{
+          touchable = modeTab.hasChildren()? Touchable.enabled: Touchable.disabled;
+
           image().scaling(Scaling.fit).size(32).update(i -> i.setDrawable(recipeMode.icon()));
           add("").padLeft(4).update(l -> l.setText(recipeMode.localized()));
 
