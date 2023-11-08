@@ -1,10 +1,9 @@
 {
-name: "singularity",
-displayName: "Singularity",
+name: "tmi",
+displayName: "Too Many Items",
 author: "EBwilson",
-main: "singularity.Singularity",
-description: "A large tech mod, and more things you can interested\n\n大型科技向mod，有很多东西你会感兴趣的\n\n ==================== \n based on UniverseCore mod",
-version: "0.9.1",
-minGameVersion: 144,
-hideBrowser: true
+main: "tmi.TooManyItems",
+description: "An auxiliary mod that provides you with quick retrieval of production and collection guidance information for materials, units, buildings, minerals, etc., so that you are no longer overwhelmed by installing too many mods.\n====================\n一个辅助mod，为您提供快速检索材料，单位，建筑和矿物等的生产与采集引导信息，让您不再因为安装了太多mod而不知所措",
+version: "0.1",
+minGameVersion: 145
 }

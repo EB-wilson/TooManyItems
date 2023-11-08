@@ -1,37 +1,41 @@
-package singularity.ui.dialogs;
+package tmi.ui;
 
 import arc.Core;
+import arc.func.Prov;
 import arc.graphics.Color;
-import arc.graphics.g2d.Draw;
-import arc.graphics.g2d.Fill;
-import arc.graphics.g2d.GlyphLayout;
-import arc.graphics.g2d.Lines;
+import arc.graphics.g2d.*;
 import arc.math.Mathf;
 import arc.scene.Element;
+import arc.scene.Group;
 import arc.scene.event.Touchable;
 import arc.scene.style.Drawable;
+import arc.scene.ui.Button;
 import arc.scene.ui.ImageButton;
 import arc.scene.ui.ScrollPane;
+import arc.scene.ui.layout.Collapser;
 import arc.scene.ui.layout.Table;
+import arc.struct.ObjectSet;
 import arc.struct.Seq;
-import arc.util.Align;
-import arc.util.Scaling;
-import arc.util.Time;
-import arc.util.Tmp;
+import arc.util.*;
 import mindustry.Vars;
 import mindustry.ctype.ContentType;
 import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Icon;
+import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
 import mindustry.ui.Fonts;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
 import mindustry.world.Block;
-import singularity.Sgl;
-import singularity.graphic.SglDrawConst;
+import rhino.Sorting;
+import tmi.TooManyItems;
+import tmi.recipe.Recipe;
+import tmi.util.Consts;
 
 import java.text.Collator;
 import java.util.Comparator;
+
+import static tmi.util.Consts.*;
 
 public class RecipesDialog extends BaseDialog {
   private final static Collator compare = Collator.getInstance(Core.bundle.getLocale());
@@ -50,7 +54,7 @@ public class RecipesDialog extends BaseDialog {
     };
   }}, new Sorting(){{
     localized = Core.bundle.get("misc.nameSort");
-    icon = SglDrawConst.a_z;
+    icon = a_z;
     sort = (a, b) -> compare.compare(a.localizedName, b.localizedName);
   }}, new Sorting(){{
     localized = Core.bundle.get("misc.modSort");
@@ -78,18 +82,20 @@ public class RecipesDialog extends BaseDialog {
     };
   }});
 
-  Table recipesTable, contentsTable, sortingTab;
+  Table recipesTable, contentsTable, sortingTab, modeTab;
   ScrollPane contentPane;
   UnlockableContent currentSelect;
+
+  @Nullable Mode recipeMode = null;
 
   String contentSearch = "";
   Sorting sorting = sortings.first();
   boolean reverse;
-  int fold;
+  int fold, recipeIndex;
 
   Seq<UnlockableContent> ucSeq = new Seq<>();
 
-  Runnable contentsRebuild;
+  Runnable contentsRebuild, rebuildRecipe;
 
   public RecipesDialog() {
     super(Core.bundle.get("dialog.recipes.title"));
@@ -104,16 +110,26 @@ public class RecipesDialog extends BaseDialog {
     cont.clearChildren();
 
     if (Core.graphics.isPortrait()){
-      recipesTable = cont.table(SglDrawConst.padGrayUI).growX().height(Core.graphics.getHeight()/2f).pad(5).get();
+      recipesTable = cont.table(padGrayUI).grow().pad(5).get();
       cont.row();
-      cont.image().color(Pal.accent).growX().pad(0).height(4);
-      cont.row();
-      contentsTable = cont.table(SglDrawConst.padGrayUI).grow().pad(5).get();
+
+      Collapser coll = new Collapser(t -> contentsTable = t.table(padGrayUI).growX().height(Core.graphics.getHeight()/2f).get(), true).setDuration(0.5f);
+      Table tab = new Table(Consts.grayUI, ta -> ta.add(coll).growX().fillY());
+      cont.addChild(tab);
+      contentsTable.setSize(tab.parent.getWidth(), tab.getPrefHeight());
+
+      cont.button(Icon.up, Styles.clearNonei, 32, () -> {
+        coll.setCollapsed(!coll.isCollapsed(), true);
+      }).growX().height(40).update(i -> {
+        i.getStyle().imageUp = coll.isCollapsed() ? Icon.upOpen : Icon.downOpen;
+        tab.setSize(tab.parent.getWidth(), tab.getPrefHeight());
+        tab.setPosition(i.x, i.y + i.getPrefHeight() + 4, Align.bottomLeft);
+      });
     }
     else {
-      recipesTable = cont.table(SglDrawConst.padGrayUI).grow().pad(5).get();
+      recipesTable = cont.table(padGrayUI).grow().pad(5).get();
       cont.image().color(Pal.accent).growY().pad(0).width(4);
-      contentsTable = cont.table(SglDrawConst.padGrayUI).growY().width(Core.graphics.getWidth()/2.5f).pad(5).get();
+      contentsTable = cont.table(padGrayUI).growY().width(Core.graphics.getWidth()/2.5f).pad(5).get();
     }
 
     buildContents();
@@ -133,7 +149,7 @@ public class RecipesDialog extends BaseDialog {
         contentsRebuild.run();
       }).growX();
 
-      sortingTab = new Table(SglDrawConst.grayUI, ta -> {
+      sortingTab = new Table(grayUI, ta -> {
         for (Sorting sort : sortings) {
           ta.button(t -> {
             t.defaults().left().pad(5);
@@ -174,7 +190,7 @@ public class RecipesDialog extends BaseDialog {
         ucSeq.clear();
         for (ContentType type : ContentType.all) {
           Vars.content.getBy(type).each(e -> {
-            if (e instanceof UnlockableContent uc && Sgl.recipes.anyRecipe(uc)) ucSeq.add(uc);
+            if (e instanceof UnlockableContent uc && TooManyItems.recipesManager.anyRecipe(uc)) ucSeq.add(uc);
           });
         }
 
@@ -207,8 +223,117 @@ public class RecipesDialog extends BaseDialog {
     contentsTable.addChild(sortingTab);
   }
 
-  protected void buildRecipes() {
+  protected boolean buildRecipes() {
+    Seq<Recipe> recipes;
 
+    if (currentSelect != null && !(currentSelect instanceof Block) && recipeMode == Mode.factory) recipeMode = null;
+
+    if (currentSelect == null){
+      recipes = null;
+    }
+    else {
+      if (recipeMode == null) {
+        recipeMode = TooManyItems.recipesManager.anyMaterial(currentSelect) ? Mode.usage :
+            TooManyItems.recipesManager.anyProduction(currentSelect) ? Mode.recipe :
+            currentSelect instanceof Block ? Mode.factory : null;
+      }
+
+      recipes = recipeMode == null? null: switch (recipeMode) {
+        case usage -> TooManyItems.recipesManager.getRecipesByMaterial(currentSelect);
+        case recipe -> TooManyItems.recipesManager.getRecipesByProduction(currentSelect);
+        case factory -> TooManyItems.recipesManager.getRecipesByFactory((Block) currentSelect);
+      };
+    }
+
+    Seq<RecipeView> recipeViews = new Seq<>();
+    if (recipes != null) {
+      ObjectSet<Seq<Recipe>> groups = new ObjectSet<>();
+      for (Recipe recipe : recipes) {
+        Seq<Recipe> group = TooManyItems.recipesManager.getRecipeGroup(recipe);
+        if (group != null){
+          if (!groups.add(group)) continue;
+
+        }
+        else {
+          RecipeView view = new RecipeView(recipe);
+          recipeViews.add(view);
+        }
+      }
+    }
+
+    if (recipes == null || recipeViews.isEmpty()) return false;
+
+    recipesTable.clearChildren();
+    recipesTable.table(top -> {
+      top.table(t -> {
+        t.table(Tex.buttonTrans).size(90).get().image(currentSelect.uiIcon).size(60).scaling(Scaling.fit);
+        t.row();
+        t.add(Core.bundle.get("dialog.recipes.currSelected")).growX().color(Color.lightGray).get().setAlignment(Align.center);
+      });
+      top.table(infos -> {
+        infos.left().top().defaults().left();
+        infos.add(currentSelect.localizedName).color(Pal.accent);
+        infos.row();
+        infos.add(currentSelect.name).color(Color.gray);
+      }).grow().padLeft(12).padTop(8);
+    }).left().growX().fillY().pad(8);
+    recipesTable.row();
+
+    recipesTable.pane(p -> p.table(main -> {
+      recipeIndex = 0;
+      rebuildRecipe = () -> {
+        main.clearChildren();
+        RecipeView view = recipeViews.get(recipeIndex);
+        view.layout();
+        main.add(view).fill();
+      };
+      rebuildRecipe.run();
+    }).grow()).grow().pad(8).center();
+    recipesTable.row();
+    recipesTable.table(butt -> {
+      butt.button(Icon.leftOpen, Styles.clearNonei, 32, () -> {
+        recipeIndex--;
+        rebuildRecipe.run();
+      }).disabled(b -> recipeIndex <= 0).size(45);
+      butt.table(modes -> {
+        modeTab = new Table(grayUI, ta -> {
+          for (Mode mode : Mode.values()) {
+            if (mode == Mode.factory && !(currentSelect instanceof Block)) continue;
+            ta.button(t -> {
+              t.defaults().left().pad(5);
+              t.image(mode.icon()).size(24).scaling(Scaling.fit);
+              t.add(mode.localized()).growX();
+            }, Styles.clearNoneTogglei, () -> setRecipeMode(mode))
+                .margin(6).growX().fillY().update(e -> e.setChecked(mode.equals(recipeMode)));
+            ta.row();
+          }
+        });
+        modeTab.visible = false;
+        modes.add(new Button(Styles.clearNonei){{
+          image().scaling(Scaling.fit).size(32).update(i -> i.setDrawable(recipeMode.icon()));
+          add("").padLeft(4).update(l -> l.setText(recipeMode.localized()));
+
+          clicked(() -> modeTab.visible = !modeTab.visible);
+
+          update(() -> {
+            modeTab.setSize(modeTab.getPrefWidth(), modeTab.getPrefHeight());
+            modeTab.setPosition(x, y + getHeight(), Align.bottomLeft);
+          });
+        }}).margin(8).fill().get();
+
+        modes.addChild(modeTab);
+      });
+      butt.add("").update(l -> {
+        l.setAlignment(Align.center);
+        l.setText(Core.bundle.format("dialog.recipes.pages", recipeIndex + 1, recipeViews.size));
+      }).growX();
+      butt.button(Icon.rightOpen, Styles.clearNonei, 32, () -> {
+        recipeIndex++;
+        rebuildRecipe.run();
+      }).disabled(b -> recipeIndex >= recipeViews.size - 1).size(45);
+    }).pad(8).growX().fillY();
+
+    return true;
   }
 
   private void buildItem(Table t, UnlockableContent content) {
@@ -221,7 +346,7 @@ public class RecipesDialog extends BaseDialog {
         touchable = Touchable.enabled;
 
         defaults().padLeft(8).padRight(8);
-        
+
         hovered(() -> activity = true);
         exited(() -> activity = false);
         tapped(() -> {
@@ -231,7 +356,7 @@ public class RecipesDialog extends BaseDialog {
         released(() -> {
           touched = false;
           if (Time.time - time < 12){
-            currentSelect = content;
+            setCurrSelecting(content, Core.input.ctrl()? content instanceof Block b && TooManyItems.recipesManager.getRecipesByFactory(b).any()? Mode.factory: Mode.usage: Mode.recipe);
           }
           else {
             if (progress >= 0.92f) Vars.ui.content.show(content);
@@ -261,7 +386,7 @@ public class RecipesDialog extends BaseDialog {
             super.draw();
 
             float backWidth = elemWidth + 12, backHeight = height;
-            Draw.color(SglDrawConst.matrixNet, 0.25f*alpha);
+            Draw.color(Color.lightGray, 0.25f*alpha);
             Fill.rect(x + width/2, y + height/2, backWidth*progress, backHeight);
 
             Fonts.outline.draw(content.localizedName, x + width/2, y + backHeight/2 + elemHeight/2, Tmp.c1.set(Color.white).a(alpha), 1, false, Align.center);
@@ -287,9 +412,69 @@ public class RecipesDialog extends BaseDialog {
     });
   }
 
+  public void setCurrSelecting(UnlockableContent content, Mode mode) {
+    if (currentSelect == content && mode == recipeMode) return;
+    UnlockableContent old = currentSelect;
+    Mode oldMode = recipeMode;
+
+    currentSelect = content;
+    recipeMode = mode;
+    if (!buildRecipes()){
+      currentSelect = old;
+      recipeMode = oldMode;
+    }
+  }
+
+  public void setCurrSelecting(UnlockableContent content) {
+    if (currentSelect == content) return;
+    UnlockableContent old = currentSelect;
+
+    currentSelect = content;
+    if (!buildRecipes()){
+      currentSelect = old;
+    }
+  }
+
+  public void setRecipeMode(Mode mode){
+    if (mode == recipeMode) return;
+    Mode oldMode = recipeMode;
+
+    recipeMode = mode;
+    if (!buildRecipes()){
+      recipeMode = oldMode;
+    }
+  }
+
   public static class Sorting{
     public String localized;
     public Drawable icon;
     public Comparator<UnlockableContent> sort;
+  }
+
+  public enum Mode{
+    usage {
+      @Override
+      public Drawable icon() {
+        return Icon.info;
+      }
+    },
+    recipe {
+      @Override
+      public Drawable icon() {
+        return Icon.tree;
+      }
+    },
+    factory {
+      @Override
+      public Drawable icon() {
+        return Icon.production;
+      }
+    };
+
+    public String localized() {
+      return Core.bundle.get("dialog.recipes.mode_" + name());
+    }
+
+    public abstract Drawable icon();
   }
 }
