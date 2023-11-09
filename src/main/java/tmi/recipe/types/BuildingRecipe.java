@@ -11,8 +11,12 @@ import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import arc.util.Align;
 import arc.util.Log;
+import arc.util.Strings;
+import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
 import mindustry.ui.Styles;
+import mindustry.world.meta.Stat;
+import mindustry.world.meta.StatUnit;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
 import tmi.recipe.RecipeType;
@@ -31,18 +35,31 @@ public class BuildingRecipe extends RecipeType {
   final Vec2 blockPos = new Vec2();
   final ObjectMap<UnlockableContent, Vec2> materialPos = new ObjectMap<>();
 
+  float time;
+
   @Override
   public void buildView(Group view) {
     Label label = new Label(Core.bundle.get("misc.building"), Styles.outlineLabel);
     label.getStyle().background = Consts.grayUI;
-    label.layout();
+    label.validate();
 
     label.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + label.getPrefWidth()/2, blockPos.y, Align.center);
     view.addChild(label);
+
+    if (time > 0){
+      Label time = new Label(Stat.buildTime.localized() + ": " + (this.time > 3600? UI.formatTime(this.time): Strings.autoFixed(this.time/60, 2) + StatUnit.seconds.localized()), Styles.outlineLabel);
+      time.getStyle().background = Consts.grayUI;
+      time.validate();
+
+      time.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + time.getPrefWidth()/2, blockPos.y - label.getHeight() - 4, Align.center);
+      view.addChild(time);
+    }
   }
 
   @Override
   public Vec2 initial(Recipe recipe) {
+    time = recipe.time;
+
     bound.setZero();
     blockPos.setZero();
     materialPos.clear();

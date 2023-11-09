@@ -24,7 +24,8 @@ public class UnitFactoryParser extends ConsumerParser<UnitFactory>{
 
     for (UnitFactory.UnitPlan plan : factory.plans) {
       Recipe recipe = new Recipe(RecipeType.factory);
-      recipe.block = factory;
+      recipe.setBlock(factory);
+      recipe.setTime(plan.time);
 
       recipe.addProduction(plan.unit);
 

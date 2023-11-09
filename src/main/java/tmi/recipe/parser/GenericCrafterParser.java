@@ -17,7 +17,8 @@ public class GenericCrafterParser extends ConsumerParser<GenericCrafter>{
   @Override
   public Seq<Recipe> parse(GenericCrafter crafter) {
     Recipe res = new Recipe(RecipeType.factory);
-    res.block = crafter;
+    res.setBlock(crafter);
+    res.setTime(crafter.craftTime);
 
     registerCons(res, crafter.consumers);
 

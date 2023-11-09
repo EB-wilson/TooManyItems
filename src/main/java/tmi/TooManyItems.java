@@ -2,24 +2,29 @@ package tmi;
 
 import arc.Core;
 import arc.Events;
+import arc.input.KeyCode;
 import arc.util.Time;
 import mindustry.Vars;
 import mindustry.game.EventType;
 import mindustry.gen.Icon;
+import mindustry.input.Binding;
 import mindustry.mod.Mod;
 import tmi.recipe.RecipeType;
 import tmi.recipe.RecipesManager;
 import tmi.recipe.parser.*;
 import tmi.recipe.types.HeatMark;
 import tmi.recipe.types.PowerMark;
+import tmi.ui.EntryAssigner;
 import tmi.ui.RecipesDialog;
 import tmi.util.Consts;
+import tmi.util.KeyBinds;
 
 public class TooManyItems extends Mod {
   public static RecipesManager recipesManager;
   public static ModAPI api;
 
   public static RecipesDialog recipesDialog;
+  public static KeyBinds binds;
 
   public TooManyItems() {
     api = new ModAPI();
@@ -29,10 +34,7 @@ public class TooManyItems extends Mod {
     registerRecipeParser();
 
     Events.on(EventType.ClientLoadEvent.class, e -> Time.runTask(0, () -> {
-      Vars.ui.database.buttons.button(Core.bundle.get("recipes.open"), Icon.book, () -> {
-        recipesDialog.setCurrSelecting(null);
-        recipesDialog.show();
-      });
+      EntryAssigner.assign();
 
       api.afterInit();
       recipesManager.mergeGroup();
@@ -64,8 +66,10 @@ public class TooManyItems extends Mod {
     Consts.load();
     RecipeType.init();
 
+    binds = new KeyBinds();
     recipesDialog = new RecipesDialog();
 
+    binds.load();
     api.init();
 
     recipesManager.init();

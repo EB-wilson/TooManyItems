@@ -9,6 +9,7 @@ import arc.scene.event.Touchable;
 import arc.scene.style.Drawable;
 import arc.scene.ui.Button;
 import arc.scene.ui.Dialog;
+import arc.scene.ui.Image;
 import arc.scene.ui.ImageButton;
 import arc.scene.ui.layout.Collapser;
 import arc.scene.ui.layout.Table;
@@ -33,6 +34,7 @@ import tmi.util.Consts;
 import java.text.Collator;
 import java.util.Comparator;
 
+import static tmi.TooManyItems.binds;
 import static tmi.util.Consts.*;
 
 public class RecipesDialog extends BaseDialog {
@@ -90,7 +92,7 @@ public class RecipesDialog extends BaseDialog {
   boolean reverse;
   int total, fold, recipeIndex, itemPages, pageItems, currPage;
 
-  Seq<UnlockableContent> ucSeq = new Seq<>();
+  final Seq<UnlockableContent> ucSeq = new Seq<>();
 
   Runnable contentsRebuild, refreshSeq, rebuildRecipe;
 
@@ -101,10 +103,18 @@ public class RecipesDialog extends BaseDialog {
 
     shown(this::buildBase);
     resized(this::buildBase);
+
+    hidden(() -> {
+      currentSelect = null;
+      recipeMode = null;
+      currPage = 0;
+      sorting = sortings.first();
+      cont.clear();
+    });
   }
 
   protected void buildBase() {
-    cont.clearChildren();
+    cont.clear();
 
     if (Core.graphics.isPortrait()){
       recipesTable = cont.table(padGrayUI).grow().pad(5).get();
@@ -212,6 +222,11 @@ public class RecipesDialog extends BaseDialog {
 
         int curX = 0;
 
+        if (currPage < 0) {
+          int index = ucSeq.indexOf(currentSelect);
+          currPage = index / pageItems;
+        }
+
         currPage = Mathf.clamp(currPage, 0, itemPages - 1);
         int from = currPage*pageItems;
         int to = currPage*pageItems + pageItems;
@@ -251,7 +266,7 @@ public class RecipesDialog extends BaseDialog {
 
     contentsTable.addChild(sortingTab);
 
-    scrolled(s -> {
+    cont.scrolled(s -> {
       if (s < 0 && currPage > 0){
         currPage--;
         contentsRebuild.run();
@@ -292,7 +307,7 @@ public class RecipesDialog extends BaseDialog {
       if (recipeMode == null) {
         recipeMode = TooManyItems.recipesManager.anyMaterial(currentSelect) ? Mode.usage :
             TooManyItems.recipesManager.anyProduction(currentSelect) ? Mode.recipe :
-            currentSelect instanceof Block ? Mode.factory : null;
+            currentSelect instanceof Block b ? TooManyItems.recipesManager.getRecipesByFactory(b).any()? Mode.factory: Mode.recipe : null;
       }
 
       recipes = recipeMode == null? null: switch (recipeMode) {
@@ -332,6 +347,11 @@ public class RecipesDialog extends BaseDialog {
         infos.add(currentSelect.localizedName).color(Pal.accent);
         infos.row();
         infos.add(currentSelect.name).color(Color.gray);
+
+        if (!currentSelect.unlockedNow()){
+          infos.row();
+          infos.add(Core.bundle.get("dialog.recipes.locked")).color(Color.gray);
+        }
       }).grow().padLeft(12).padTop(8);
     }).left().growX().fillY().pad(8);
     recipesTable.row();
@@ -354,7 +374,7 @@ public class RecipesDialog extends BaseDialog {
       });
       modeTab.visible = false;
       modes.add(new Button(Styles.clearNonei){{
-        touchable = modeTab.hasChildren()? Touchable.enabled: Touchable.disabled;
+        touchable = modeTab.getChildren().size > 1? Touchable.enabled: Touchable.disabled;
 
         image().scaling(Scaling.fit).size(32).update(i -> i.setDrawable(recipeMode.icon()));
         add("").padLeft(4).update(l -> l.setText(recipeMode.localized()));
@@ -419,10 +439,12 @@ public class RecipesDialog extends BaseDialog {
         released(() -> {
           touched = false;
           if (Time.time - time < 12){
-            setCurrSelecting(content, Core.input.ctrl()? content instanceof Block b && TooManyItems.recipesManager.getRecipesByFactory(b).any()? Mode.factory: Mode.usage: Mode.recipe);
+            setCurrSelecting(content, Core.input.keyDown(binds.hotKey)? content instanceof Block b && TooManyItems.recipesManager.getRecipesByFactory(b).any()? Mode.factory: Mode.usage: Mode.recipe);
           }
           else {
-            if (progress >= 0.92f) Vars.ui.content.show(content);
+            if (progress >= 0.95f){
+              Vars.ui.content.show(content);
+            }
           }
         });
 
@@ -456,7 +478,19 @@ public class RecipesDialog extends BaseDialog {
           }
         }).height(35);
         row();
-        image(content.uiIcon).grow().scaling(Scaling.fit).padBottom(10);
+
+        if (content.unlockedNow()){
+          image(content.uiIcon).scaling(Scaling.fit).grow().padBottom(10);
+        }
+        else {
+          stack(
+              new Image(content.uiIcon).setScaling(Scaling.fit),
+              new Table(t -> {
+                t.right().bottom().defaults().right().bottom().pad(4);
+                t.image(Icon.lock).scaling(Scaling.fit).size(10).color(Color.lightGray);
+              })
+          ).grow().padBottom(10);
+        }
       }
 
       @Override
@@ -508,6 +542,13 @@ public class RecipesDialog extends BaseDialog {
     if (!buildRecipes()){
       recipeMode = oldMode;
     }
+  }
+
+  public void show(UnlockableContent content) {
+    recipeMode = null;
+    currentSelect = content;
+    currPage = -1;
+    show();
   }
 
   public static class Sorting{

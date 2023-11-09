@@ -21,7 +21,8 @@ public class HeatCrafterParser extends ConsumerParser<HeatCrafter>{
   @Override
   public Seq<Recipe> parse(HeatCrafter crafter) {
     Recipe res = new Recipe(RecipeType.factory);
-    res.block = crafter;
+    res.setBlock(crafter);
+    res.setTime(crafter.craftTime);
 
     res.addMaterial(HeatMark.INSTANCE, crafter.heatRequirement);
 

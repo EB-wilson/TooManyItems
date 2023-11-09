@@ -22,7 +22,8 @@ public class HeatProducerParser extends ConsumerParser<HeatProducer>{
   @Override
   public Seq<Recipe> parse(HeatProducer crafter) {
     Recipe res = new Recipe(RecipeType.factory);
-    res.block = crafter;
+    res.setBlock(crafter);
+    res.setTime(crafter.craftTime);
 
     registerCons(res, crafter.consumers);
 

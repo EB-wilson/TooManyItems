@@ -26,10 +26,13 @@ public class GeneratorRecipe extends FactoryRecipe {
     view.addChild(label);
 
     buildOpts(view);
+    buildTime(view, label.getHeight());
   }
 
   @Override
   public Vec2 initial(Recipe recipe) {
+    time = recipe.time;
+
     consPos.clear();
     prodPos.clear();
     blockPos.setZero();

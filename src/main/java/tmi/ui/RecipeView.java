@@ -2,6 +2,7 @@ package tmi.ui;
 
 import arc.func.Prov;
 import arc.graphics.Color;
+import arc.graphics.g2d.Draw;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
 import arc.scene.ui.layout.WidgetGroup;
@@ -62,6 +63,7 @@ public class RecipeView extends Group {
 
   @Override
   public void draw() {
+    Draw.alpha(parentAlpha);
     recipe.recipeType.drawLine(this);
     super.draw();
   }

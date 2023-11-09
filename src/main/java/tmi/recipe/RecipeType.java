@@ -1,5 +1,6 @@
 package tmi.recipe;
 
+import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.Lines;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
@@ -39,7 +40,9 @@ public abstract class RecipeType {
     for (RecipeView.LineMeta line : recipeView.lines) {
       if (line.vertices.size < 2) continue;
 
+      float a = Draw.getColor().a;
       Lines.stroke(5, line.color.get());
+      Draw.alpha(Draw.getColor().a*a);
 
       if (line.vertices.size <= 4){
         Lines.line(

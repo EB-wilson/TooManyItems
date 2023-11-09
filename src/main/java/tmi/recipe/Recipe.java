@@ -14,6 +14,7 @@ public class Recipe {
   //type
   public final RecipeType recipeType;
   //meta
+  public float time = -1;
   public OrderedMap<UnlockableContent, RecipeItemStack> productions = new OrderedMap<>();
   public OrderedMap<UnlockableContent, RecipeItemStack> materials = new OrderedMap<>();
 
@@ -26,12 +27,6 @@ public class Recipe {
     this.recipeType = recipeType;
   }
 
-  public RecipeItemStack addMaterial(UnlockableContent item, String amount) {
-    RecipeItemStack res = new RecipeItemStack(item, amount);
-    materials.put(item, res);
-    return res;
-  }
-
   public RecipeItemStack addMaterial(UnlockableContent item) {
     RecipeItemStack res = new RecipeItemStack(item);
     materials.put(item, res);
@@ -39,20 +34,26 @@ public class Recipe {
   }
 
   public RecipeItemStack addMaterial(UnlockableContent item, int amount){
-    return addMaterial(item, amount > 1000? UI.formatAmount(amount): Integer.toString(amount));
+    RecipeItemStack res = new RecipeItemStack(item, amount).setIntegerFormat();
+    materials.put(item, res);
+    return res;
   }
 
   public RecipeItemStack addMaterial(UnlockableContent item, float amount){
-    return addMaterial(item, amount > 1000? UI.formatAmount((long) (amount)): Strings.autoFixed(amount, 2));
+    RecipeItemStack res = new RecipeItemStack(item, amount).setFloatFormat();
+    materials.put(item, res);
+    return res;
   }
 
   public RecipeItemStack addMaterialPresec(UnlockableContent item, float preSeq){
-    return addMaterial(item, (preSeq*60 > 1000? UI.formatAmount((long) (preSeq*60)): Strings.autoFixed(preSeq*60, 2)) + "/" + StatUnit.seconds.localized());
+    RecipeItemStack res = new RecipeItemStack(item, preSeq).setPresecFormat();
+    materials.put(item, res);
+    return res;
   }
 
-  public RecipeItemStack addProduction(UnlockableContent item, String amount) {
-    RecipeItemStack res = new RecipeItemStack(item, amount);
-    productions.put(item, res);
+  public RecipeItemStack addMaterial(UnlockableContent item, String amount) {
+    RecipeItemStack res = new RecipeItemStack(item, 0).setFormat(f -> amount);
+    materials.put(item, res);
     return res;
   }
 
@@ -63,15 +64,37 @@ public class Recipe {
   }
 
   public RecipeItemStack addProduction(UnlockableContent item, int amount){
-    return addProduction(item, amount > 1000? UI.formatAmount(amount): Integer.toString(amount));
+    RecipeItemStack res = new RecipeItemStack(item, amount).setIntegerFormat();
+    productions.put(item, res);
+    return res;
   }
 
   public RecipeItemStack addProduction(UnlockableContent item, float amount){
-    return addProduction(item, amount > 1000? UI.formatAmount((long) (amount)): Strings.autoFixed(amount, 2));
+    RecipeItemStack res = new RecipeItemStack(item, amount).setFloatFormat();
+    productions.put(item, res);
+    return res;
   }
 
   public RecipeItemStack addProductionPresec(UnlockableContent item, float preSeq){
-    return addProduction(item, (preSeq*60 > 1000? UI.formatAmount((long) (preSeq*60)): Strings.autoFixed(preSeq*60, 2)) + "/" + StatUnit.seconds.localized());
+    RecipeItemStack res = new RecipeItemStack(item, preSeq).setPresecFormat();
+    productions.put(item, res);
+    return res;
+  }
+
+  public RecipeItemStack addProduction(UnlockableContent item, String amount) {
+    RecipeItemStack res = new RecipeItemStack(item, 0).setFormat(f -> amount);
+    productions.put(item, res);
+    return res;
+  }
+
+  public Recipe setBlock(Block block){
+    this.block = block;
+    return this;
+  }
+
+  public Recipe setTime(float time){
+    this.time = time;
+    return this;
   }
 
   public boolean containsProduction(UnlockableContent production) {

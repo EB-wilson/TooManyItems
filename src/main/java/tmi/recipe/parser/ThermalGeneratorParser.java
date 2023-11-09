@@ -1,8 +1,10 @@
 package tmi.recipe.parser;
 
+import arc.math.Mathf;
 import arc.struct.Seq;
 import mindustry.Vars;
 import mindustry.world.Block;
+import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.power.ThermalGenerator;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeType;
@@ -27,8 +29,14 @@ public class ThermalGeneratorParser extends ConsumerParser<ThermalGenerator>{
 
     for (Block block : Vars.content.blocks()) {
       if (block.attributes.get(content.attribute) <= 0) continue;
-      res.addMaterial(block);
+
+      float eff = content.displayEfficiencyScale*content.size*content.size*block.attributes.get(content.attribute);
+      if (eff <= content.minEfficiency) continue;
+      res.addMaterial(block)
+          .setEfficiency(eff)
+          .setFormat(f -> "[#98ffa9]" + Mathf.round(eff*100) + "%");
     }
+
     if (content.outputLiquid != null) res.addProductionPresec(content.outputLiquid.liquid, content.outputLiquid.amount);
 
     return Seq.with(res);

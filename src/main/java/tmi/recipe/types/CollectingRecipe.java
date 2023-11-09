@@ -7,11 +7,14 @@ import arc.scene.ui.Label;
 import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import arc.util.Align;
+import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
 import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
+import mindustry.world.meta.Stat;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
+import tmi.util.Consts;
 
 import static tmi.ui.RecipeNode.SIZE;
 
@@ -28,10 +31,13 @@ public class CollectingRecipe extends FactoryRecipe {
     view.addChild(label);
 
     buildOpts(view);
+    buildTime(view, label.getHeight());
   }
 
   @Override
   public Vec2 initial(Recipe recipe) {
+    time = recipe.time;
+
     consPos.clear();
     prodPos.clear();
     optPos.setZero();

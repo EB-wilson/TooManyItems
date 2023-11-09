@@ -9,16 +9,21 @@ import arc.scene.ui.Label;
 import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import arc.util.Align;
+import arc.util.Strings;
 import arc.util.Time;
 import arc.util.Tmp;
+import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
 import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
+import mindustry.world.meta.Stat;
+import mindustry.world.meta.StatUnit;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
 import tmi.recipe.RecipeType;
 import tmi.ui.RecipeNode;
 import tmi.ui.RecipeView;
+import tmi.util.Consts;
 
 import static tmi.ui.RecipeNode.SIZE;
 
@@ -33,6 +38,7 @@ public class FactoryRecipe extends RecipeType {
   final Vec2 optPos = new Vec2();
 
   boolean doubleInput, doubleOutput, hasOptionals;
+  float time;
 
   @Override
   public void buildView(Group view) {
@@ -43,6 +49,17 @@ public class FactoryRecipe extends RecipeType {
     view.addChild(label);
 
     buildOpts(view);
+    buildTime(view, label.getHeight());
+  }
+
+  protected void buildTime(Group view, float offY) {
+    if (time > 0){
+      Label time = new Label(Stat.productionTime.localized() + ": " + (this.time > 3600? UI.formatTime(this.time): Strings.autoFixed(this.time/60, 2) + StatUnit.seconds.localized()), Styles.outlineLabel);
+      time.validate();
+
+      time.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + time.getPrefWidth()/2, blockPos.y - offY - 4, Align.center);
+      view.addChild(time);
+    }
   }
 
   protected void buildOpts(Group view) {
@@ -57,6 +74,8 @@ public class FactoryRecipe extends RecipeType {
 
   @Override
   public Vec2 initial(Recipe recipe) {
+    time = recipe.time;
+
     consPos.clear();
     prodPos.clear();
     optPos.setZero();

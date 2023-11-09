@@ -16,12 +16,15 @@ import arc.util.Time;
 import mindustry.Vars;
 import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
+import mindustry.gen.Icon;
 import mindustry.gen.Tex;
 import mindustry.ui.ItemDisplay;
 import mindustry.ui.ItemImage;
 import mindustry.ui.Styles;
 import tmi.TooManyItems;
 import tmi.recipe.RecipeItemStack;
+
+import static tmi.TooManyItems.binds;
 
 public class RecipeNode extends Button {
   public static final float SIZE = 80;
@@ -34,7 +37,6 @@ public class RecipeNode extends Button {
   boolean activity, touched;
   float time;
 
-  @SuppressWarnings("StringOperationCanBeSimplified")
   public RecipeNode(RecipeItemStack stack){
     setBackground(Tex.button);
     this.stack = stack;
@@ -55,10 +57,12 @@ public class RecipeNode extends Button {
     released(() -> {
       touched = false;
       if (Time.time - time < 12){
-        TooManyItems.recipesDialog.setCurrSelecting(stack.content(), Core.input.ctrl()? isBlock? RecipesDialog.Mode.factory: RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
+        TooManyItems.recipesDialog.setCurrSelecting(stack.content(), Core.input.keyDown(binds.hotKey)? isBlock? RecipesDialog.Mode.factory: RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
       }
       else {
-        if (progress >= 0.92f) Vars.ui.content.show(stack.content());
+        if (progress >= 0.95f){
+          Vars.ui.content.show(stack.content());
+        }
       }
     });
 
@@ -68,15 +72,21 @@ public class RecipeNode extends Button {
     });
 
     stack(
-      new Table(t -> t.add(new Table(o -> {
-        o.add(new Image(stack.content.uiIcon)).size(SIZE/2).scaling(Scaling.fit);
-      })).grow()),
+        new Table(t -> t.add(new Table(o -> {
+          o.add(new Image(stack.content.uiIcon)).size(SIZE/2).scaling(Scaling.fit);
+        })).grow()),
 
-     new Table(t -> t.add(new Table(ta -> {
-       ta.left().bottom();
-       ta.add(stack.amount, Styles.outlineLabel);
-       ta.pack();
-     })).grow())
+        new Table(t -> t.add(new Table(ta -> {
+          ta.left().bottom();
+          ta.add(stack.getAmount(), Styles.outlineLabel);
+          ta.pack();
+        })).grow()),
+
+        new Table(t -> {
+          if (stack.content.unlockedNow()) return;
+          t.right().bottom().defaults().right().bottom().pad(4);
+          t.image(Icon.lock).scaling(Scaling.fit).size(10).color(Color.lightGray);
+        })
     ).grow().pad(5);
   }
 

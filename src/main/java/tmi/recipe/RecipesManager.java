@@ -87,7 +87,8 @@ public class RecipesManager{
 
       if (block.requirements.length > 0 && block.placeablePlayer){
         Recipe recipe = new Recipe(RecipeType.building);
-        recipe.block = block;
+        recipe.setBlock(block);
+        recipe.setTime(block.buildCost);
         for (ItemStack stack : recipe.block.requirements) {
           recipe.addMaterial(stack.item, stack.amount);
         }
