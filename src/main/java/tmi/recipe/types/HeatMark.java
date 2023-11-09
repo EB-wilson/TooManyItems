@@ -15,6 +15,11 @@ public class HeatMark extends UnlockableContent {
   public void loadIcon() {}
 
   @Override
+  public boolean isHidden() {
+    return true;
+  }
+
+  @Override
   public void init() {
     super.init();
     fullIcon = Icon.waves.getRegion();

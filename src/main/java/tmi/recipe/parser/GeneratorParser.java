@@ -18,7 +18,7 @@ public class GeneratorParser extends ConsumerParser<PowerGenerator>{
     Recipe res = new Recipe(RecipeType.generator);
     res.block = content;
 
-    registerCons(res, content.nonOptionalConsumers);
+    registerCons(res, content.consumers);
 
     res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction);
 

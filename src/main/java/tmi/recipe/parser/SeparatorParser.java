@@ -19,7 +19,7 @@ public class SeparatorParser extends ConsumerParser<Separator>{
     Recipe res = new Recipe(RecipeType.factory);
     res.block = content;
 
-    registerCons(res, content.nonOptionalConsumers);
+    registerCons(res, content.consumers);
 
     float n = 0;
     for (ItemStack stack : content.results) {

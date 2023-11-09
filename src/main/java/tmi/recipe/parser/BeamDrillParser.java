@@ -42,7 +42,7 @@ public class BeamDrillParser extends ConsumerParser<BeamDrill>{
       recipe.addMaterial(drop);
       recipe.addProduction(drop.itemDrop);
 
-      registerCons(recipe, content.nonOptionalConsumers);
+      registerCons(recipe, content.consumers);
 
       res.add(recipe);
     }

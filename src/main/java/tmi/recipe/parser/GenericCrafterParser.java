@@ -19,7 +19,7 @@ public class GenericCrafterParser extends ConsumerParser<GenericCrafter>{
     Recipe res = new Recipe(RecipeType.factory);
     res.block = crafter;
 
-    registerCons(res, crafter.nonOptionalConsumers);
+    registerCons(res, crafter.consumers);
 
     if (crafter.outputItems == null) {
       if (crafter.outputItem != null) res.addProduction(crafter.outputItem.item, crafter.outputItem.amount);

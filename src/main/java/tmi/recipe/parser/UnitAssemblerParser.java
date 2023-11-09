@@ -32,7 +32,7 @@ public class UnitAssemblerParser extends ConsumerParser<UnitAssembler>{
         recipe.addMaterial(stack.item, stack.amount);
       }
 
-      registerCons(recipe, assem.nonOptionalConsumers);
+      registerCons(recipe, assem.consumers);
 
       res.add(recipe);
     }

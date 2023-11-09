@@ -23,13 +23,13 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
     res.block = pump;
     res.addProduction(pump.result);
 
-    registerCons(res, pump.nonOptionalConsumers);
+    registerCons(res, pump.consumers);
 
-    if (pump.baseEfficiency <= 0.0001f) {
-      for (Block block : Vars.content.blocks()) {
-        if (block.attributes.get(pump.attribute) <= 0) continue;
-        res.addMaterial(block);
-      }
+    for (Block block : Vars.content.blocks()) {
+      if (block.attributes.get(pump.attribute) <= 0) continue;
+      res.addMaterial(block)
+          .setOptionalCons(pump.baseEfficiency > 0.001f)
+          .setEfficiency(pump.baseEfficiency + pump.size*pump.size*block.attributes.get(pump.attribute));
     }
 
     return Seq.with(res);

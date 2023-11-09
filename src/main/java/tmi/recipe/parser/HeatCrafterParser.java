@@ -25,7 +25,7 @@ public class HeatCrafterParser extends ConsumerParser<HeatCrafter>{
 
     res.addMaterial(HeatMark.INSTANCE, crafter.heatRequirement);
 
-    registerCons(res, crafter.nonOptionalConsumers);
+    registerCons(res, crafter.consumers);
 
     if (crafter.outputItems == null) {
       if (crafter.outputItem != null) res.addProduction(crafter.outputItem.item, crafter.outputItem.amount);

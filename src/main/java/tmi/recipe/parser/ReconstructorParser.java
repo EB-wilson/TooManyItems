@@ -27,7 +27,7 @@ public class ReconstructorParser extends ConsumerParser<Reconstructor>{
       recipe.addMaterial(upgrade[0]);
       recipe.addProduction(upgrade[1]);
 
-      registerCons(recipe, reconstructor.nonOptionalConsumers);
+      registerCons(recipe, reconstructor.consumers);
 
       res.add(recipe);
     }

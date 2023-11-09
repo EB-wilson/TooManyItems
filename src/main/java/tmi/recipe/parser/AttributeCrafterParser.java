@@ -25,13 +25,13 @@ public class AttributeCrafterParser extends ConsumerParser<AttributeCrafter>{
     Recipe res = new Recipe(RecipeType.factory);
     res.block = crafter;
 
-    registerCons(res, crafter.nonOptionalConsumers);
+    registerCons(res, crafter.consumers);
 
-    if (crafter.baseEfficiency <= 0.0001f) {
-      for (Block block : Vars.content.blocks()) {
-        if (block.attributes.get(crafter.attribute) <= 0) continue;
-        res.addMaterial(block);
-      }
+    for (Block block : Vars.content.blocks()) {
+      if (block.attributes.get(crafter.attribute) <= 0) continue;
+      res.addMaterial(block)
+          .setOptionalCons(crafter.baseEfficiency > 0.001f)
+          .setEfficiency(crafter.baseEfficiency + Math.min(crafter.boostScale*crafter.size*crafter.size*block.attributes.get(crafter.attribute), crafter.maxBoost));
     }
 
     if (crafter.outputItems == null) {

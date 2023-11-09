@@ -30,33 +30,54 @@ public class FactoryRecipe extends RecipeType {
   final Vec2 bound = new Vec2();
   final Vec2 blockPos = new Vec2();
   final ObjectMap<UnlockableContent, Vec2> consPos = new ObjectMap<>(), prodPos = new ObjectMap<>();
+  final Vec2 optPos = new Vec2();
 
-  boolean doubleInput, doubleOutput;
+  boolean doubleInput, doubleOutput, hasOptionals;
 
   @Override
   public void buildView(Group view) {
     Label label = new Label(Core.bundle.get("misc.factory"), Styles.outlineLabel);
-    label.layout();
+    label.validate();
 
     label.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + label.getPrefWidth()/2, blockPos.y, Align.center);
     view.addChild(label);
+
+    buildOpts(view);
+  }
+
+  protected void buildOpts(Group view) {
+    if (!hasOptionals) return;
+
+    Label optionals = new Label(Core.bundle.get("misc.optional"), Styles.outlineLabel);
+    optionals.setColor(Pal.accent);
+    optionals.validate();
+    optionals.setPosition(optPos.x, optPos.y - optionals.getHeight(), Align.center);
+    view.addChild(optionals);
   }
 
   @Override
   public Vec2 initial(Recipe recipe) {
     consPos.clear();
     prodPos.clear();
+    optPos.setZero();
     blockPos.setZero();
 
-    int materialNum = recipe.materials.size;
+    Seq<RecipeItemStack> mats = recipe.materials.values().toSeq().select(e -> !e.optionalCons);
+    Seq<RecipeItemStack> opts = recipe.materials.values().toSeq().select(e -> e.optionalCons);
+    int materialNum = mats.size;
     int productionNum = recipe.productions.size;
+    hasOptionals = opts.size > 0;
     doubleInput = materialNum > DOUBLE_LIMIT;
     doubleOutput = productionNum > DOUBLE_LIMIT;
 
     bound.setZero();
 
-    float wMat = 0, wProd = 0;
+    float wOpt = 0, wMat = 0, wProd = 0;
 
+    if (hasOptionals){
+      wOpt = handleBound(opts.size, false);
+      bound.y += ROW_PAD;
+    }
     if (materialNum > 0) {
       wMat = handleBound(materialNum, doubleInput);
       bound.y += ROW_PAD;
@@ -67,14 +88,18 @@ public class FactoryRecipe extends RecipeType {
       wProd = handleBound(productionNum, doubleOutput);
     }
 
-    float offMatX = (bound.x - wMat)/2, offProdX = (bound.x - wProd)/2;
+    float offOptX = (bound.x - wOpt)/2, offMatX = (bound.x - wMat)/2, offProdX = (bound.x - wProd)/2;
 
     float centX = bound.x / 2f;
     float offY = SIZE/2;
 
+    if (hasOptionals){
+      offY = handleNode(opts, consPos, offOptX, offY, false, false);
+      optPos.set(bound.x/2, offY);
+      offY += ROW_PAD;
+    }
     if (materialNum > 0){
-      Seq<RecipeItemStack> seq = recipe.materials.values().toSeq();
-      offY = handleNode(seq, consPos, offMatX, offY, false);
+      offY = handleNode(mats, consPos, offMatX, offY, doubleInput, false);
       offY += ROW_PAD;
     }
     blockPos.set(centX, offY);
@@ -82,15 +107,15 @@ public class FactoryRecipe extends RecipeType {
     if (productionNum > 0){
       offY += ROW_PAD;
       Seq<RecipeItemStack> seq = recipe.productions.values().toSeq();
-      handleNode(seq, prodPos, offProdX, offY, true);
+      handleNode(seq, prodPos, offProdX, offY, doubleOutput, true);
     }
 
     return bound;
   }
 
-  protected float handleNode(Seq<RecipeItemStack> seq, ObjectMap<UnlockableContent, Vec2> pos, float offX, float offY, boolean turn) {
+  protected float handleNode(Seq<RecipeItemStack> seq, ObjectMap<UnlockableContent, Vec2> pos, float offX, float offY, boolean isDouble, boolean turn) {
     float dx = SIZE / 2;
-    if (seq.size > DOUBLE_LIMIT) {
+    if (isDouble) {
       for (int i = 0; i < seq.size; i++) {
         if (turn) {
           if (i % 2 == 0) pos.put(seq.get(i).content(), new Vec2(offX + dx, offY + SIZE + ITEM_PAD));
@@ -146,6 +171,9 @@ public class FactoryRecipe extends RecipeType {
   @Override
   public RecipeView.LineMeta line(RecipeNode from, RecipeNode to) {
     RecipeView.LineMeta res = new RecipeView.LineMeta();
+
+    if (from.stack.optionalCons) return res;
+
     res.color = from.isMaterial? () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.time/8 + Mathf.pi, 1, 1), 3)):
         () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.time/8, 1, 1), 3));
 

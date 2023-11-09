@@ -1,5 +1,7 @@
 package tmi.recipe.parser;
 
+import arc.func.Boolf;
+import arc.func.Cons2;
 import arc.struct.ObjectMap;
 import arc.struct.ObjectSet;
 import arc.struct.Seq;
@@ -10,6 +12,8 @@ import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.environment.OreBlock;
 import mindustry.world.blocks.production.Drill;
+import mindustry.world.consumers.Consume;
+import mindustry.world.consumers.ConsumeLiquidBase;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeType;
 
@@ -44,7 +48,16 @@ public class DrillParser extends ConsumerParser<Drill>{
         Recipe r = new Recipe(RecipeType.collecting);
         r.block = content;
         r.addProduction(drop.itemDrop);
-        registerCons(r, content.nonOptionalConsumers);
+
+        if(content.liquidBoostIntensity != 1){
+          registerCons(r, Seq.with(content.consumers).select(e -> !(e.optional && e instanceof ConsumeLiquidBase)).toArray(Consume.class));
+          if(content.findConsumer(f -> f instanceof ConsumeLiquidBase) instanceof ConsumeLiquidBase consBase) {
+            registerCons(r, content.liquidBoostIntensity, consBase);
+          }
+        }
+        else{
+          registerCons(r, content.consumers);
+        }
 
         return r;
       });

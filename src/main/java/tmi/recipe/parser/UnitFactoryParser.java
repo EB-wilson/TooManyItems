@@ -32,7 +32,7 @@ public class UnitFactoryParser extends ConsumerParser<UnitFactory>{
         recipe.addProduction(stack.item, stack.amount);
       }
 
-      registerCons(recipe, factory.nonOptionalConsumers);
+      registerCons(recipe, factory.consumers);
     }
 
     return res;

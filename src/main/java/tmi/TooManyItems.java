@@ -1,8 +1,11 @@
 package tmi;
 
+import arc.Core;
 import arc.Events;
 import arc.util.Time;
+import mindustry.Vars;
 import mindustry.game.EventType;
+import mindustry.gen.Icon;
 import mindustry.mod.Mod;
 import tmi.recipe.RecipeType;
 import tmi.recipe.RecipesManager;
@@ -26,10 +29,13 @@ public class TooManyItems extends Mod {
     registerRecipeParser();
 
     Events.on(EventType.ClientLoadEvent.class, e -> Time.runTask(0, () -> {
+      Vars.ui.database.buttons.button(Core.bundle.get("recipes.open"), Icon.book, () -> {
+        recipesDialog.setCurrSelecting(null);
+        recipesDialog.show();
+      });
+
       api.afterInit();
       recipesManager.mergeGroup();
-
-      recipesDialog.show();
     }));
   }
 

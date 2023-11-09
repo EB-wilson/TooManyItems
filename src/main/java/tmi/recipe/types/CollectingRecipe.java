@@ -8,6 +8,7 @@ import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import arc.util.Align;
 import mindustry.ctype.UnlockableContent;
+import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
@@ -25,21 +26,31 @@ public class CollectingRecipe extends FactoryRecipe {
 
     label.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + label.getPrefWidth()/2, blockPos.y, Align.center);
     view.addChild(label);
+
+    buildOpts(view);
   }
 
   @Override
   public Vec2 initial(Recipe recipe) {
     consPos.clear();
     prodPos.clear();
+    optPos.setZero();
     blockPos.setZero();
 
-    int materialNum = recipe.materials.size;
+    Seq<RecipeItemStack> mats = recipe.materials.values().toSeq().select(e -> !e.optionalCons);
+    Seq<RecipeItemStack> opts = recipe.materials.values().toSeq().select(e -> e.optionalCons);
+    hasOptionals = opts.size > 0;
+    int materialNum = mats.size;
     int productionNum = recipe.productions.size;
 
     bound.setZero();
 
-    float wMat = 0, wProd = 0;
+    float wOpt = 0, wMat = 0, wProd = 0;
 
+    if (hasOptionals){
+      wOpt = handleBound(opts.size);
+      bound.y += ROW_PAD;
+    }
     if (materialNum > 0) {
       wMat = handleBound(materialNum);
       bound.y += ROW_PAD;
@@ -50,14 +61,18 @@ public class CollectingRecipe extends FactoryRecipe {
       wProd = handleBound(productionNum);
     }
 
-    float offMatX = (bound.x - wMat)/2, offProdX = (bound.x - wProd)/2;
+    float offOptX = (bound.x - wOpt)/2, offMatX = (bound.x - wMat)/2, offProdX = (bound.x - wProd)/2;
 
     float centX = bound.x / 2f;
     float offY = SIZE/2;
 
+    if (hasOptionals){
+      offY = handleNode(opts, consPos, offOptX, offY);
+      optPos.set(bound.x/2, offY);
+      offY += ROW_PAD;
+    }
     if (materialNum > 0){
-      Seq<RecipeItemStack> seq = recipe.materials.values().toSeq();
-      offY = handleNode(seq, consPos, offMatX, offY);
+      offY = handleNode(mats, consPos, offMatX, offY);
       offY += ROW_PAD;
     }
     blockPos.set(centX, offY);

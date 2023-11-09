@@ -7,6 +7,9 @@ public class RecipeItemStack {
   public final UnlockableContent content;
   public final String amount;
 
+  public float efficiency = 1;
+  public boolean optionalCons = false;
+
   public RecipeItemStack(UnlockableContent content, String amount) {
     this.content = content;
     this.amount = amount;
@@ -22,5 +25,15 @@ public class RecipeItemStack {
 
   public String amount() {
     return amount;
+  }
+
+  public RecipeItemStack setEfficiency(float efficiency) {
+    this.efficiency = efficiency;
+    return this;
+  }
+
+  public RecipeItemStack setOptionalCons(boolean optionalCons) {
+    this.optionalCons = optionalCons;
+    return this;
   }
 }

@@ -24,7 +24,7 @@ public class HeatProducerParser extends ConsumerParser<HeatProducer>{
     Recipe res = new Recipe(RecipeType.factory);
     res.block = crafter;
 
-    registerCons(res, crafter.nonOptionalConsumers);
+    registerCons(res, crafter.consumers);
 
     res.addProduction(HeatMark.INSTANCE, crafter.heatOutput);
 

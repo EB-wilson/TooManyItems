@@ -39,7 +39,7 @@ public class RecipeView extends Group {
       isBlock = true;
     }});
 
-    nodes.forEach(this::addChild);
+    nodes.each(this::addChild);
 
     addChild(childGroup);
   }
