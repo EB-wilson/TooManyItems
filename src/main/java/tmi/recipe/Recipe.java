@@ -22,7 +22,7 @@ public class Recipe {
 
   //infos
   public Block block;
-  @Nullable public Cons<Table> buildInfo = t -> t.add("testing");
+  @Nullable public Cons<Table> buildInfo;
 
   public Recipe(RecipeType recipeType) {
     this.recipeType = recipeType;
