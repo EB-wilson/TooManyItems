@@ -162,7 +162,7 @@ public class FactoryRecipe extends RecipeType {
     float res;
     if (isDouble) {
       int n = Mathf.ceil(num/2f);
-      bound.x = Math.max(bound.x, res = SIZE*n + ITEM_PAD*(n - 1) + (1 - num%2)*(SIZE/2 + ITEM_PAD/2));
+      bound.x = Math.max(bound.x, res = SIZE*n + ITEM_PAD*(n - 2 + n%2) + (num%2)*(SIZE/2));
       bound.y += SIZE*2 + ITEM_PAD;
     }
     else {

@@ -14,6 +14,8 @@ import tmi.recipe.Recipe;
 import tmi.recipe.RecipeType;
 
 public class SolidPumpParser extends ConsumerParser<SolidPump>{
+  {excludes.add(PumpParser.class);}
+
   @Override
   public boolean isTarget(Block content) {
     return content instanceof SolidPump;
@@ -30,7 +32,7 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
     for (Block block : Vars.content.blocks()) {
       if (block.attributes.get(pump.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
-      float eff = pump.size*pump.size*block.attributes.get(pump.attribute);
+      float eff = block.attributes.get(pump.attribute);
       res.addMaterial(block)
           .setOptionalCons(pump.baseEfficiency > 0.001f)
           .setEfficiency(pump.baseEfficiency + eff)

@@ -1,28 +1,43 @@
 package tmi.ui;
 
 import arc.Core;
+import arc.Events;
 import arc.graphics.Color;
 import arc.input.KeyCode;
 import arc.scene.Element;
+import arc.scene.event.DragListener;
 import arc.scene.event.InputEvent;
 import arc.scene.event.InputListener;
+import arc.scene.ui.Button;
 import arc.scene.ui.Dialog;
+import arc.scene.ui.ImageButton;
 import arc.scene.ui.ScrollPane;
+import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Stack;
 import arc.scene.ui.layout.Table;
+import arc.scene.utils.Elem;
+import arc.util.Align;
 import arc.util.Time;
 import mindustry.Vars;
 import mindustry.ctype.UnlockableContent;
+import mindustry.game.EventType;
 import mindustry.gen.Icon;
+import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.ContentInfoDialog;
+import mindustry.ui.fragments.HudFragment;
+import mindustry.ui.fragments.PlacementFragment;
 import tmi.TooManyItems;
+
+import java.lang.reflect.Field;
 
 import static arc.Core.*;
 import static tmi.TooManyItems.recipesDialog;
 
 public class EntryAssigner {
+  private static ImageButton tmiEntry;
+
   public static void assign(){
     {//hot key bind
       ScrollPane pane = (ScrollPane) Vars.ui.controls.cont.getChildren().find(e -> e instanceof ScrollPane);
@@ -73,6 +88,43 @@ public class EntryAssigner {
           }
         }
       };
+    }
+
+    {//HUD entry
+      scene.root.addChild(new ImageButton(Icon.book, Styles.cleari){{
+        tmiEntry = this;
+        tmiEntry.setSize(Scl.scl(60));
+
+        setPosition(0, 0, Align.bottomLeft);
+
+        addListener(new InputListener(){
+          boolean click;
+
+          @Override
+          public void touchDragged(InputEvent event, float mx, float my, int pointer){
+            if(Core.app.isMobile() && pointer != 0) return;
+
+            click = false;
+
+            setPosition(x + mx, y + my, Align.center);
+          }
+
+          @Override
+          public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button){
+            if(Core.app.isMobile() && pointer != 0) return false;
+            click = true;
+            return true;
+          }
+
+          @Override
+          public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode button) {
+            super.touchUp(event, x, y, pointer, button);
+            if (click) recipesDialog.show();
+          }
+        });
+
+        Vars.ui.hudGroup.addChild(tmiEntry);
+      }});
     }
   }
 

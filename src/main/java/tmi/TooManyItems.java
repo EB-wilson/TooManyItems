@@ -48,6 +48,7 @@ public class TooManyItems extends Mod {
     recipesManager.registerParser(new UnitAssemblerParser());
     recipesManager.registerParser(new PumpParser());
     recipesManager.registerParser(new SolidPumpParser());
+    recipesManager.registerParser(new FrackerParser());
     recipesManager.registerParser(new DrillParser());
     recipesManager.registerParser(new BeamDrillParser());
     recipesManager.registerParser(new SeparatorParser());

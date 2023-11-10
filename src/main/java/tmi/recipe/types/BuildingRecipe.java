@@ -2,10 +2,14 @@ package tmi.recipe.types;
 
 import arc.Core;
 import arc.graphics.Color;
+import arc.graphics.g2d.Draw;
 import arc.math.Angles;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
+import arc.scene.ui.Button;
+import arc.scene.ui.Dialog;
+import arc.scene.ui.ImageButton;
 import arc.scene.ui.Label;
 import arc.scene.ui.layout.Scl;
 import arc.struct.ObjectMap;
@@ -13,9 +17,13 @@ import arc.struct.Seq;
 import arc.util.Align;
 import arc.util.Log;
 import arc.util.Strings;
+import mindustry.Vars;
 import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
+import mindustry.gen.Icon;
 import mindustry.ui.Styles;
+import mindustry.ui.fragments.PlacementFragment;
+import mindustry.world.Block;
 import mindustry.world.meta.Stat;
 import mindustry.world.meta.StatUnit;
 import tmi.recipe.Recipe;
@@ -25,6 +33,7 @@ import tmi.ui.RecipeNode;
 import tmi.ui.RecipeView;
 import tmi.util.Consts;
 
+import static mindustry.Vars.state;
 import static tmi.ui.RecipeNode.SIZE;
 
 public class BuildingRecipe extends RecipeType {
@@ -37,6 +46,7 @@ public class BuildingRecipe extends RecipeType {
   final ObjectMap<UnlockableContent, Vec2> materialPos = new ObjectMap<>();
 
   float time;
+  Block build;
 
   @Override
   public void buildView(Group view) {
@@ -55,10 +65,28 @@ public class BuildingRecipe extends RecipeType {
       time.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + time.getPrefWidth()/2, blockPos.y - label.getHeight() - 4, Align.center);
       view.addChild(time);
     }
+
+    if (Vars.state.isGame()){
+      ImageButton button = new ImageButton(Icon.hammer, Styles.clearNonei);
+
+      button.setDisabled(() -> build == null || !build.unlockedNow() || !build.placeablePlayer || !build.environmentBuildable() || !build.supportsEnv(state.rules.env));
+      button.clicked(() -> {
+        while (Core.scene.hasDialog()) {
+          Core.scene.getDialog().hide();
+        }
+
+        Vars.control.input.block = build;
+      });
+      button.margin(5);
+      button.setSize(40);
+      button.setPosition(bound.x, 0, Align.topRight);
+      view.addChild(button);
+    }
   }
 
   @Override
   public Vec2 initial(Recipe recipe) {
+    build = recipe.block;
     time = recipe.time;
 
     bound.setZero();

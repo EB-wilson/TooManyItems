@@ -27,7 +27,7 @@ public class WallCrafterParser extends ConsumerParser<WallCrafter>{
     for (Block block : Vars.content.blocks()) {
       if (block.attributes.get(content.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
-      float eff = content.size*content.size*block.attributes.get(content.attribute);
+      float eff = block.attributes.get(content.attribute);
       res.addMaterial(block)
           .setEfficiency(eff)
           .setFormat(f -> "[#98ffa9]" + Mathf.round(eff*100) + "%");

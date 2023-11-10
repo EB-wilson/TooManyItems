@@ -3,6 +3,7 @@ package tmi.recipe.parser;
 import arc.math.Mathf;
 import arc.struct.Seq;
 import mindustry.Vars;
+import mindustry.content.Blocks;
 import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.power.ThermalGenerator;
