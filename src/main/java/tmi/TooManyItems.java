@@ -59,6 +59,7 @@ public class TooManyItems extends Mod {
     recipesManager.registerParser(new HeatCrafterParser());
     recipesManager.registerParser(new HeatProducerParser());
     recipesManager.registerParser(new AttributeCrafterParser());
+    recipesManager.registerParser(new WallCrafterParser());
   }
 
   @Override

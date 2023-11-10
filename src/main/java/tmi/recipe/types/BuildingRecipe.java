@@ -7,6 +7,7 @@ import arc.math.Mathf;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
 import arc.scene.ui.Label;
+import arc.scene.ui.layout.Scl;
 import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import arc.util.Align;
@@ -27,9 +28,9 @@ import tmi.util.Consts;
 import static tmi.ui.RecipeNode.SIZE;
 
 public class BuildingRecipe extends RecipeType {
-  public static final float ITEM_PAD = 30;
-  public static final float RAND = 65;
-  public static final float MIN_RAD = 125;
+  public static final float ITEM_PAD = Scl.scl(30);
+  public static final float RAND = Scl.scl(65);
+  public static final float MIN_RAD = Scl.scl(125);
 
   final Vec2 bound = new Vec2();
   final Vec2 blockPos = new Vec2();

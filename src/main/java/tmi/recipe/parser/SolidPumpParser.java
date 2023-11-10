@@ -22,7 +22,7 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
   @Override
   public Seq<Recipe> parse(SolidPump pump) {
     Recipe res = new Recipe(RecipeType.collecting);
-    res.block = pump;
+    res.setBlock(pump);
     res.addProduction(pump.result);
 
     registerCons(res, pump.consumers);

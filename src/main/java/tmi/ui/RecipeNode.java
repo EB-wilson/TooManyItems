@@ -10,6 +10,7 @@ import arc.scene.ui.Button;
 import arc.scene.ui.Image;
 import arc.scene.ui.Label;
 import arc.scene.ui.Tooltip;
+import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
 import arc.util.Scaling;
 import arc.util.Time;
@@ -21,13 +22,15 @@ import mindustry.gen.Tex;
 import mindustry.ui.ItemDisplay;
 import mindustry.ui.ItemImage;
 import mindustry.ui.Styles;
+import mindustry.ui.dialogs.SettingsMenuDialog;
 import tmi.TooManyItems;
 import tmi.recipe.RecipeItemStack;
 
+import static mindustry.Vars.mobile;
 import static tmi.TooManyItems.binds;
 
 public class RecipeNode extends Button {
-  public static final float SIZE = 80;
+  public static final float SIZE = Scl.scl(80);
 
   public final RecipeItemStack stack;
 
@@ -36,6 +39,7 @@ public class RecipeNode extends Button {
   float progress, alpha;
   boolean activity, touched;
   float time;
+  int clicked;
 
   public RecipeNode(RecipeItemStack stack){
     setBackground(Tex.button);
@@ -56,8 +60,18 @@ public class RecipeNode extends Button {
     });
     released(() -> {
       touched = false;
+
       if (Time.time - time < 12){
-        TooManyItems.recipesDialog.setCurrSelecting(stack.content(), Core.input.keyDown(binds.hotKey)? isBlock? RecipesDialog.Mode.factory: RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
+        if (!mobile || Core.settings.getBool("keyboard")) {
+          TooManyItems.recipesDialog.setCurrSelecting(stack.content(), Core.input.keyDown(binds.hotKey) ? isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
+        }
+        else {
+          clicked++;
+          if (clicked >= 2){
+            TooManyItems.recipesDialog.setCurrSelecting(stack.content(), isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
+            clicked = 0;
+          }
+        }
       }
       else {
         if (progress >= 0.95f){
@@ -69,6 +83,10 @@ public class RecipeNode extends Button {
     update(() -> {
       alpha = Mathf.lerpDelta(alpha, touched || activity ? 1 : 0, 0.08f);
       progress = Mathf.approachDelta(progress, touched? 1 : 0, 1/60f);
+      if (Time.time - time > 12 && clicked == 1){
+        TooManyItems.recipesDialog.setCurrSelecting(stack.content(), RecipesDialog.Mode.recipe);
+        clicked = 0;
+      }
     });
 
     stack(
@@ -93,9 +111,9 @@ public class RecipeNode extends Button {
   @Override
   protected void drawBackground(float x, float y) {
     super.drawBackground(x, y);
-    Lines.stroke(30, Color.lightGray);
+    Lines.stroke(Scl.scl(32), Color.lightGray);
     Draw.alpha(0.5f);
 
-    Lines.arc(x + width/2, y + height/2, 18, progress, 90);
+    Lines.arc(x + width/2, y + height/2, Scl.scl(18), progress, 90);
   }
 }

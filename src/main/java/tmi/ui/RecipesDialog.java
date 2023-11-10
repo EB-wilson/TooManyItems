@@ -12,6 +12,7 @@ import arc.scene.ui.Dialog;
 import arc.scene.ui.Image;
 import arc.scene.ui.ImageButton;
 import arc.scene.ui.layout.Collapser;
+import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
 import arc.struct.ObjectSet;
 import arc.struct.Seq;
@@ -34,6 +35,7 @@ import tmi.util.Consts;
 import java.text.Collator;
 import java.util.Comparator;
 
+import static mindustry.Vars.mobile;
 import static tmi.TooManyItems.binds;
 import static tmi.util.Consts.*;
 
@@ -111,24 +113,44 @@ public class RecipesDialog extends BaseDialog {
       sorting = sortings.first();
       cont.clear();
     });
+
+    scrolled(s -> {
+      if (s < 0 && currPage > 0){
+        currPage--;
+        contentsRebuild.run();
+      }
+      else if (s > 0 && currPage < itemPages - 1){
+        currPage++;
+        contentsRebuild.run();
+      }
+    });
   }
 
   protected void buildBase() {
-    cont.clear();
+    cont.clearChildren();
 
     if (Core.graphics.isPortrait()){
       recipesTable = cont.table(padGrayUI).grow().pad(5).get();
       cont.row();
 
-      Collapser coll = new Collapser(t -> contentsTable = t.table(padGrayUI).growX().height(Core.graphics.getHeight()/2f).get(), true).setDuration(0.5f);
-      Table tab = new Table(Consts.grayUI, ta -> ta.add(coll).growX().fillY());
+      Table tab = new Table(Consts.grayUI, t -> contentsTable = t.table(padGrayUI).growX().height(Core.graphics.getHeight()/2f/Scl.scl()).get()){
+        @Override
+        public void validate() {
+          parent.invalidateHierarchy();
+          if (getWidth() != parent.getWidth() || getHeight() != getPrefHeight()){
+            setSize(parent.getWidth(), getPrefHeight());
+            invalidate();
+          }
+          super.validate();
+        }
+      };
+      tab.visible = false;
       cont.addChild(tab);
-      contentsTable.setSize(tab.parent.getWidth(), tab.getPrefHeight());
 
       cont.button(Icon.up, Styles.clearNonei, 32, () -> {
-        coll.setCollapsed(!coll.isCollapsed(), true);
+        tab.visible = !tab.visible;
       }).growX().height(40).update(i -> {
-        i.getStyle().imageUp = coll.isCollapsed() ? Icon.upOpen : Icon.downOpen;
+        i.getStyle().imageUp = tab.visible ? Icon.downOpen : Icon.upOpen;
         tab.setSize(tab.parent.getWidth(), tab.getPrefHeight());
         tab.setPosition(i.x, i.y + i.getPrefHeight() + 4, Align.bottomLeft);
       });
@@ -136,7 +158,7 @@ public class RecipesDialog extends BaseDialog {
     else {
       recipesTable = cont.table(padGrayUI).grow().pad(5).get();
       cont.image().color(Pal.accent).growY().pad(0).width(4);
-      contentsTable = cont.table(padGrayUI).growY().width(Core.graphics.getWidth()/2.5f).pad(5).get();
+      contentsTable = cont.table(padGrayUI).growY().width(Core.graphics.getWidth()/2.5f/Scl.scl()).pad(5).get();
     }
 
     buildContents();
@@ -211,11 +233,14 @@ public class RecipesDialog extends BaseDialog {
       contentsRebuild = () -> {
         t.validate();
         float width = t.getWidth(), height = t.getHeight();
+
         t.clearChildren();
         t.left().top().defaults().size(60, 90);
 
-        int xn = (int) (width/60);
-        int yn = (int) (height/90);
+        int xn = (int) (width/Scl.scl(60));
+
+        Log.info("w:" + width + " h:" + height);
+        int yn = (int) (height/Scl.scl(90));
 
         pageItems = xn*yn;
         itemPages = Mathf.ceil((float) ucSeq.size/pageItems);
@@ -265,17 +290,6 @@ public class RecipesDialog extends BaseDialog {
     contentsTable.add("").color(Color.gray).left().growX().update(l -> l.setText(Core.bundle.format("dialog.recipes.total", total, fold)));
 
     contentsTable.addChild(sortingTab);
-
-    cont.scrolled(s -> {
-      if (s < 0 && currPage > 0){
-        currPage--;
-        contentsRebuild.run();
-      }
-      else if (s > 0 && currPage < itemPages - 1){
-        currPage++;
-        contentsRebuild.run();
-      }
-    });
 
     Core.app.post(() -> refreshSeq.run());
   }
@@ -426,6 +440,7 @@ public class RecipesDialog extends BaseDialog {
       float progress, alpha;
       boolean activity, touched;
       float time;
+      int clicked;
       
       {
         defaults().padLeft(8).padRight(8);
@@ -438,8 +453,15 @@ public class RecipesDialog extends BaseDialog {
         });
         released(() -> {
           touched = false;
+
           if (Time.time - time < 12){
-            setCurrSelecting(content, Core.input.keyDown(binds.hotKey)? content instanceof Block b && TooManyItems.recipesManager.getRecipesByFactory(b).any()? Mode.factory: Mode.usage: Mode.recipe);
+            if (!mobile || Core.settings.getBool("keyboard")) {
+              TooManyItems.recipesDialog.setCurrSelecting(content, Core.input.keyDown(binds.hotKey)? content instanceof Block b && TooManyItems.recipesManager.getRecipesByFactory(b).any()? Mode.factory: Mode.usage: Mode.recipe);
+            }
+            else {
+              clicked++;
+              TooManyItems.recipesDialog.setCurrSelecting(content, clicked%2 == 0? content instanceof Block b && TooManyItems.recipesManager.getRecipesByFactory(b).any()? Mode.factory: Mode.usage: Mode.recipe);
+            }
           }
           else {
             if (progress >= 0.95f){
@@ -451,6 +473,7 @@ public class RecipesDialog extends BaseDialog {
         update(() -> {
           alpha = Mathf.lerpDelta(alpha, currentSelect == content || touched || activity ? 1 : 0, 0.08f);
           progress = Mathf.approachDelta(progress, touched? 1 : 0, 1/60f);
+          if (clicked > 0 && Time.time - time > 12) clicked = 0;
         });
         add(new Element(){
           final float elemWidth;
@@ -460,8 +483,8 @@ public class RecipesDialog extends BaseDialog {
             GlyphLayout layout = GlyphLayout.obtain();
             layout.setText(Fonts.outline, content.localizedName);
 
-            elemWidth = layout.width;
-            elemHeight = layout.height;
+            elemWidth = layout.width*Scl.scl();
+            elemHeight = layout.height*Scl.scl();
 
             layout.free();
           }
@@ -470,11 +493,11 @@ public class RecipesDialog extends BaseDialog {
           public void draw() {
             super.draw();
 
-            float backWidth = elemWidth + 12, backHeight = height;
+            float backWidth = elemWidth + Scl.scl(12), backHeight = height;
             Draw.color(Color.lightGray, 0.25f*alpha);
             Fill.rect(x + width/2, y + height/2, backWidth*progress, backHeight);
 
-            Fonts.outline.draw(content.localizedName, x + width/2, y + backHeight/2 + elemHeight/2, Tmp.c1.set(Color.white).a(alpha), 1, false, Align.center);
+            Fonts.outline.draw(content.localizedName, x + width/2, y + backHeight/2 + elemHeight/2, Tmp.c1.set(Color.white).a(alpha), Scl.scl(), false, Align.center);
           }
         }).height(35);
         row();

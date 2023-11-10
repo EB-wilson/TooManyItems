@@ -6,6 +6,7 @@ import arc.math.Mathf;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
 import arc.scene.ui.Label;
+import arc.scene.ui.layout.Scl;
 import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import arc.util.Align;
@@ -28,8 +29,8 @@ import tmi.util.Consts;
 import static tmi.ui.RecipeNode.SIZE;
 
 public class FactoryRecipe extends RecipeType {
-  public static final float ROW_PAD = 60;
-  public static final float ITEM_PAD = 10;
+  public static final float ROW_PAD = Scl.scl(60);
+  public static final float ITEM_PAD = Scl.scl(10);
   public static final int DOUBLE_LIMIT = 5;
 
   final Vec2 bound = new Vec2();
