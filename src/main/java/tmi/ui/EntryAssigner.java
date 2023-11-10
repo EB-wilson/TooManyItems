@@ -95,6 +95,8 @@ public class EntryAssigner {
         tmiEntry = this;
         tmiEntry.setSize(Scl.scl(60));
 
+        visibility = () -> settings.getBool("tmi_button", true);
+
         setPosition(0, 0, Align.bottomLeft);
 
         addListener(new InputListener(){

@@ -14,6 +14,7 @@ import mindustry.ctype.UnlockableContent;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
 
+/**配方表显示的布局元素，用于为添加的{@link RecipeNode}设置正确的位置并将他们显示到界面容器当中*/
 public class RecipeView extends Group {
   private final Vec2 bound = new Vec2();
   private final Seq<RecipeNode> nodes = new Seq<>();

@@ -29,6 +29,7 @@ import tmi.recipe.RecipeItemStack;
 import static mindustry.Vars.mobile;
 import static tmi.TooManyItems.binds;
 
+/**在{@link tmi.recipe.RecipeType}进行布局时所操作的元素对象，用于显示单个条目信息和提供控制逻辑*/
 public class RecipeNode extends Button {
   public static final float SIZE = Scl.scl(80);
 

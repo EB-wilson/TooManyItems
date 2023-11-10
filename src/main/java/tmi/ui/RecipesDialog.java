@@ -8,10 +8,8 @@ import arc.scene.Element;
 import arc.scene.event.Touchable;
 import arc.scene.style.Drawable;
 import arc.scene.ui.Button;
-import arc.scene.ui.Dialog;
 import arc.scene.ui.Image;
 import arc.scene.ui.ImageButton;
-import arc.scene.ui.layout.Collapser;
 import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
 import arc.struct.ObjectSet;
@@ -27,7 +25,6 @@ import mindustry.ui.Fonts;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
 import mindustry.world.Block;
-import rhino.Sorting;
 import tmi.TooManyItems;
 import tmi.recipe.Recipe;
 import tmi.util.Consts;
@@ -412,8 +409,8 @@ public class RecipesDialog extends BaseDialog {
         main.row();
         main.table(t -> {
           t.center().defaults().center();
-          if (view.recipe.buildInfo != null){
-            view.recipe.buildInfo.get(t);
+          if (view.recipe.subInfoBuilder != null){
+            view.recipe.subInfoBuilder.get(t);
           }
         }).fill().padTop(8);
       };

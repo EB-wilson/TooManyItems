@@ -35,6 +35,7 @@ public class TooManyItems extends Mod {
 
     Events.on(EventType.ClientLoadEvent.class, e -> Time.runTask(0, () -> {
       EntryAssigner.assign();
+      Vars.ui.settings.game.checkPref("tmi_button", true);
 
       api.afterInit();
       recipesManager.mergeGroup();
