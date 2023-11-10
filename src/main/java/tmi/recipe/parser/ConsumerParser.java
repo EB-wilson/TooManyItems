@@ -2,7 +2,6 @@ package tmi.recipe.parser;
 
 import arc.func.Boolf;
 import arc.func.Cons;
-import arc.func.Cons2;
 import arc.func.Cons3;
 import arc.struct.ObjectMap;
 import mindustry.type.*;
@@ -18,7 +17,6 @@ import static mindustry.Vars.content;
 public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
   protected static ObjectMap<Boolf<Consume>, Cons3<Recipe, Consume, Cons<RecipeItemStack>>> vanillaConsParser = new ObjectMap<>();
 
-
   public static void registerVanillaConsParser(Boolf<Consume> type, Cons3<Recipe, Consume, Cons<RecipeItemStack>> handle){
     vanillaConsParser.put(type, handle);
   }
@@ -33,7 +31,10 @@ public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
     registerVanillaConsParser(c -> c instanceof ConsumeItemFilter, (recipe, consume, handle) -> {
       ConsumeItemFilter cf = ((ConsumeItemFilter) consume);
       for (Item item : content.items().select(i -> cf.filter.get(i))) {
-        handle.get(recipe.addMaterial(item, 1).setOptionalCons(consume.optional));
+        handle.get(recipe.addMaterial(item, 1)
+            .setOptionalCons(consume.optional)
+            .setAttribute(cf)
+        );
       }
     });
 
@@ -49,7 +50,10 @@ public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
     registerVanillaConsParser(c -> c instanceof ConsumeLiquidFilter, (recipe, consume, handle) -> {
       ConsumeLiquidFilter cf = ((ConsumeLiquidFilter) consume);
       for (Liquid liquid : content.liquids().select(i -> cf.filter.get(i))) {
-        handle.get(recipe.addMaterialPresec(liquid, cf.amount).setOptionalCons(consume.optional));
+        handle.get(recipe.addMaterialPresec(liquid, cf.amount)
+            .setOptionalCons(consume.optional)
+            .setAttribute(cf)
+        );
       }
     });
 

@@ -1,6 +1,5 @@
 package tmi.recipe;
 
-import arc.func.Func;
 import arc.util.Strings;
 import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
@@ -14,6 +13,8 @@ public class RecipeItemStack {
 
   public float efficiency = 1;
   public boolean optionalCons = false;
+  public boolean isAttribute = false;
+  public Object attributeGroup = null;
 
   public RecipeItemStack(UnlockableContent content, float amount) {
     this.content = content;
@@ -43,6 +44,20 @@ public class RecipeItemStack {
 
   public RecipeItemStack setOptionalCons(boolean optionalCons) {
     this.optionalCons = optionalCons;
+    return this;
+  }
+
+  public RecipeItemStack setOptionalCons() {
+    return setOptionalCons(true);
+  }
+
+  public RecipeItemStack setAttribute(){
+    this.isAttribute = true;
+    return this;
+  }
+
+  public RecipeItemStack setAttribute(Object group){
+    this.attributeGroup = group;
     return this;
   }
 

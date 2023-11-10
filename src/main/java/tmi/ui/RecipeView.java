@@ -5,9 +5,11 @@ import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
+import arc.scene.ui.layout.Table;
 import arc.scene.ui.layout.WidgetGroup;
 import arc.struct.FloatSeq;
 import arc.struct.Seq;
+import arc.util.Align;
 import mindustry.ctype.UnlockableContent;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
@@ -19,10 +21,12 @@ public class RecipeView extends Group {
   public final Recipe recipe;
 
   final Group childGroup;
+  public float heightDelta;
 
   public RecipeView(Recipe recipe) {
     this.recipe = recipe;
     childGroup = new Group() {};
+
     childGroup.setFillParent(true);
 
     for (RecipeItemStack content : recipe.materials.values()) {
@@ -48,6 +52,7 @@ public class RecipeView extends Group {
   @Override
   public void layout() {
     super.layout();
+    heightDelta = 0;
     lines.clear();
     bound.set(recipe.recipeType.initial(recipe));
 
@@ -75,7 +80,7 @@ public class RecipeView extends Group {
 
   @Override
   public float getPrefHeight() {
-    return bound.y;
+    return bound.y + heightDelta;
   }
 
   public static class LineMeta{

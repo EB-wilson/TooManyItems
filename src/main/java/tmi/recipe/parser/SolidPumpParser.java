@@ -1,15 +1,11 @@
 package tmi.recipe.parser;
 
-import arc.func.Boolf;
-import arc.func.Cons2;
 import arc.math.Mathf;
-import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import mindustry.Vars;
 import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.production.SolidPump;
-import mindustry.world.consumers.Consume;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeType;
 
@@ -33,11 +29,14 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
       if (block.attributes.get(pump.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = block.attributes.get(pump.attribute);
-      res.addMaterial(block)
+      res.addMaterial(block, pump.size*pump.size)
           .setOptionalCons(pump.baseEfficiency > 0.001f)
           .setEfficiency(pump.baseEfficiency + eff)
+          .setAttribute()
           .setFormat(f -> "[#98ffa9]" + (pump.baseEfficiency > 0.001f? "+": "") + Mathf.round(eff*100) + "%");
     }
+
+    res.efficiency = Recipe.getDefaultEff(pump.baseEfficiency);
 
     return Seq.with(res);
   }

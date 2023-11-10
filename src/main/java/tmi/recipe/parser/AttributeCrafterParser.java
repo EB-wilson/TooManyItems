@@ -3,17 +3,13 @@ package tmi.recipe.parser;
 import arc.math.Mathf;
 import arc.struct.Seq;
 import mindustry.Vars;
-import mindustry.graphics.Pal;
 import mindustry.type.ItemStack;
 import mindustry.type.LiquidStack;
 import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
-import mindustry.world.blocks.heat.HeatProducer;
 import mindustry.world.blocks.production.AttributeCrafter;
-import mindustry.world.meta.StatUnit;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeType;
-import tmi.recipe.types.HeatMark;
 
 public class AttributeCrafterParser extends ConsumerParser<AttributeCrafter>{
   {excludes.add(GenericCrafterParser.class);}
@@ -35,11 +31,14 @@ public class AttributeCrafterParser extends ConsumerParser<AttributeCrafter>{
       if (block.attributes.get(crafter.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = Math.min(crafter.boostScale*crafter.size*crafter.size*block.attributes.get(crafter.attribute), crafter.maxBoost);
-      res.addMaterial(block)
-          .setOptionalCons(crafter.baseEfficiency > 0.001f)
-          .setEfficiency(crafter.baseEfficiency + eff)
+      res.addMaterial(block, crafter.size*crafter.size)
+          .setAttribute()
+          .setOptionalCons(crafter.baseEfficiency < 0.001f)
+          .setEfficiency(eff)
           .setFormat(f -> "[#98ffa9]" + (crafter.baseEfficiency > 0.001f? "+": "") + Mathf.round(eff*100) + "%");
     }
+
+    res.efficiency = Recipe.getDefaultEff(crafter.baseEfficiency);
 
     if (crafter.outputItems == null) {
       if (crafter.outputItem != null) res.addProduction(crafter.outputItem.item, crafter.outputItem.amount);

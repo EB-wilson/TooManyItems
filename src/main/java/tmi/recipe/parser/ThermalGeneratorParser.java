@@ -8,6 +8,7 @@ import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.power.ThermalGenerator;
 import tmi.recipe.Recipe;
+import tmi.recipe.RecipeItemStack;
 import tmi.recipe.RecipeType;
 import tmi.recipe.types.PowerMark;
 
@@ -33,8 +34,9 @@ public class ThermalGeneratorParser extends ConsumerParser<ThermalGenerator>{
 
       float eff = content.displayEfficiencyScale*content.size*content.size*block.attributes.get(content.attribute);
       if (eff <= content.minEfficiency) continue;
-      res.addMaterial(block)
+      res.addMaterial(block, content.size*content.size)
           .setEfficiency(eff)
+          .setAttribute()
           .setFormat(f -> "[#98ffa9]" + Mathf.round(eff*100) + "%");
     }
 

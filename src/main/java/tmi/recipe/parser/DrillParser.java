@@ -19,6 +19,7 @@ import mindustry.world.consumers.Consume;
 import mindustry.world.consumers.ConsumeLiquidBase;
 import mindustry.world.meta.StatUnit;
 import tmi.recipe.Recipe;
+import tmi.recipe.RecipeItemStack;
 import tmi.recipe.RecipeType;
 
 import static tmi.util.Consts.markerTile;
@@ -57,9 +58,9 @@ public class DrillParser extends ConsumerParser<Drill>{
         if(content.liquidBoostIntensity != 1){
           registerCons(r, Seq.with(content.consumers).select(e -> !(e.optional && e instanceof ConsumeLiquidBase && e.booster)).toArray(Consume.class));
           if(content.findConsumer(f -> f instanceof ConsumeLiquidBase) instanceof ConsumeLiquidBase consBase) {
-            registerCons(r, s ->
-                s.setEfficiency(content.liquidBoostIntensity)
-                  .setFormat(f -> (f*60 > 1000? UI.formatAmount((long) (f*60)): Strings.autoFixed(f*60, 2)) + "/" + StatUnit.seconds.localized() + "\n[#98ffa9]+" + Mathf.round(content.liquidBoostIntensity*100) + "%"), consBase);
+            registerCons(r, s -> s.setEfficiency(content.liquidBoostIntensity)
+                .setOptionalCons()
+                .setFormat(f -> (f*60 > 1000? UI.formatAmount((long) (f*60)): Strings.autoFixed(f*60, 2)) + "/" + StatUnit.seconds.localized() + "\n[#98ffa9]+" + Mathf.round(content.liquidBoostIntensity*100) + "%"), consBase);
           }
         }
         else{
@@ -69,7 +70,7 @@ public class DrillParser extends ConsumerParser<Drill>{
         return r;
       });
 
-      recipe.addMaterial(drop);
+      recipe.addMaterial(drop, content.size*content.size).setAttribute();
     }
 
     return res.values().toSeq();

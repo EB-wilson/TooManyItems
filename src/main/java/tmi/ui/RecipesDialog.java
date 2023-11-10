@@ -238,8 +238,6 @@ public class RecipesDialog extends BaseDialog {
         t.left().top().defaults().size(60, 90);
 
         int xn = (int) (width/Scl.scl(60));
-
-        Log.info("w:" + width + " h:" + height);
         int yn = (int) (height/Scl.scl(90));
 
         pageItems = xn*yn;
@@ -411,6 +409,13 @@ public class RecipesDialog extends BaseDialog {
         RecipeView view = recipeViews.get(recipeIndex);
         view.validate();
         main.add(view).fill();
+        main.row();
+        main.table(t -> {
+          t.center().defaults().center();
+          if (view.recipe.buildInfo != null){
+            view.recipe.buildInfo.get(t);
+          }
+        }).fill().padTop(8);
       };
       rebuildRecipe.run();
     }).grow()).grow().pad(8).center();

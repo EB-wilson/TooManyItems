@@ -66,7 +66,9 @@ public class PumpParser extends ConsumerParser<Pump>{
         return r;
       });
 
-      recipe.addMaterial(drop);
+      recipe.addMaterial(drop, content.size*content.size)
+          .setAttribute()
+          .setFormat(s -> "");
     }
     return res.values().toSeq();
   }

@@ -46,6 +46,9 @@ public class ModAPI {
   }
 
   private void readJsonAPI(Mods.LoadedMod mod) {
+    Fi modMeta = mod.root.child("recipes.json");
+    if (!modMeta.exists()) return;
+
 
   }
 }

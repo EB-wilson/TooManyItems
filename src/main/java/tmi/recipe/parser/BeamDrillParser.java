@@ -54,9 +54,9 @@ public class BeamDrillParser extends ConsumerParser<BeamDrill>{
         if(content.optionalBoostIntensity != 1){
           registerCons(r, Seq.with(content.consumers).select(e -> !(e.optional && e instanceof ConsumeLiquidBase && e.booster)).toArray(Consume.class));
           if(content.findConsumer(f -> f instanceof ConsumeLiquidBase) instanceof ConsumeLiquidBase consBase) {
-            registerCons(r, s ->
-                s.setEfficiency(content.optionalBoostIntensity)
-                    .setFormat(f -> (f*60 > 1000? UI.formatAmount((long) (f*60)): Strings.autoFixed(f*60, 2)) + "/" + StatUnit.seconds.localized() + "\n[#98ffa9]+" + Mathf.round(content.optionalBoostIntensity*100) + "%"), consBase);
+            registerCons(r, s -> s.setEfficiency(content.optionalBoostIntensity)
+                .setOptionalCons()
+                .setFormat(f -> (f*60 > 1000? UI.formatAmount((long) (f*60)): Strings.autoFixed(f*60, 2)) + "/" + StatUnit.seconds.localized() + "\n[#98ffa9]+" + Mathf.round(content.optionalBoostIntensity*100) + "%"), consBase);
           }
         }
         else{
@@ -66,7 +66,7 @@ public class BeamDrillParser extends ConsumerParser<BeamDrill>{
         return r;
       });
 
-      recipe.addMaterial(drop);
+      recipe.addMaterial(drop, content.size).setAttribute();
     }
 
     return res.values().toSeq();
