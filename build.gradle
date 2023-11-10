@@ -9,7 +9,7 @@ apply plugin: 'maven-publish'
 group 'com.github.EB-wilson'
 version '0.1'
 
-//"java SyncBundles.java ${version}".execute().waitForProcessOutput(System.out, System.err)
+"java SyncBundles.java ${version}".execute().waitForProcessOutput(System.out, System.err)
 
 ext {
     //the build number that this mod is made for
