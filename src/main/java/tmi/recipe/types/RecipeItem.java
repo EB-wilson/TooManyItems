@@ -5,7 +5,7 @@ import arc.graphics.g2d.TextureRegion;
 public abstract class RecipeItem<T> {
   public final T item;
 
-  public RecipeItem(T item) {
+  protected RecipeItem(T item) {
     this.item = item;
   }
 
@@ -15,4 +15,8 @@ public abstract class RecipeItem<T> {
   public abstract String localizedName();
   public abstract TextureRegion icon();
   public abstract boolean hidden();
+
+  public boolean locked() {
+    return false;
+  }
 }

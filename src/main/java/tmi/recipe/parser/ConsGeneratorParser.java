@@ -19,7 +19,7 @@ public class ConsGeneratorParser extends ConsumerParser<ConsumeGenerator>{
   @Override
   public Seq<Recipe> parse(ConsumeGenerator content) {
     Recipe res = new Recipe(RecipeType.generator);
-    res.setBlock(content);
+    res.setBlock(getWrap(content));
     res.setTime(content.itemDuration);
 
     registerCons(res, content.consumers);
@@ -27,7 +27,7 @@ public class ConsGeneratorParser extends ConsumerParser<ConsumeGenerator>{
     res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction);
 
     if (content.outputLiquid != null){
-      res.addProductionPresec(content.outputLiquid.liquid, content.outputLiquid.amount);
+      res.addProductionPresec(getWrap(content.outputLiquid.liquid), content.outputLiquid.amount);
     }
 
     return Seq.with(res);

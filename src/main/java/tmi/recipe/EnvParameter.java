@@ -1,18 +1,14 @@
 package tmi.recipe;
 
 import arc.struct.ObjectFloatMap;
-import arc.struct.ObjectIntMap;
-import arc.struct.ObjectMap;
-import mindustry.ctype.UnlockableContent;
-import mindustry.world.Block;
-import mindustry.world.meta.Attribute;
 import tmi.recipe.types.HeatMark;
 import tmi.recipe.types.PowerMark;
+import tmi.recipe.types.RecipeItem;
 
 public class EnvParameter {
-  public ObjectFloatMap<UnlockableContent> inputs = new ObjectFloatMap<>();
+  public ObjectFloatMap<RecipeItem<?>> inputs = new ObjectFloatMap<>();
 
-  public float getInputs(UnlockableContent b) {
+  public float getInputs(RecipeItem<?> b) {
     return inputs.get(b, 0f);
   }
 
@@ -20,7 +16,7 @@ public class EnvParameter {
     for (RecipeItemStack stack : recipe.materials.values()) {
       if (!fillOptional && stack.optionalCons) continue;
 
-      inputs.put(stack.content, stack.amount);
+      inputs.put(stack.item, stack.amount);
     }
 
     return this;

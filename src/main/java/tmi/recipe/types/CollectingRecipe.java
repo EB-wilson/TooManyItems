@@ -8,14 +8,10 @@ import arc.scene.ui.layout.Scl;
 import arc.struct.ObjectMap;
 import arc.struct.Seq;
 import arc.util.Align;
-import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
-import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
-import mindustry.world.meta.Stat;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
-import tmi.util.Consts;
 
 import static tmi.ui.RecipeNode.SIZE;
 
@@ -93,10 +89,10 @@ public class CollectingRecipe extends FactoryRecipe {
     return bound;
   }
 
-  protected float handleNode(Seq<RecipeItemStack> seq, ObjectMap<UnlockableContent, Vec2> pos, float offX, float offY) {
+  protected float handleNode(Seq<RecipeItemStack> seq, ObjectMap<RecipeItem<?>, Vec2> pos, float offX, float offY) {
     float dx = SIZE / 2;
     for (int i = 0; i < seq.size; i++) {
-      pos.put(seq.get(i).content(), new Vec2(offX + dx, offY));
+      pos.put(seq.get(i).item(), new Vec2(offX + dx, offY));
       dx += SIZE + ITEM_PAD;
     }
     offY += SIZE;

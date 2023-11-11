@@ -9,6 +9,7 @@ import mindustry.game.EventType;
 import mindustry.gen.Icon;
 import mindustry.input.Binding;
 import mindustry.mod.Mod;
+import tmi.recipe.RecipeItemManager;
 import tmi.recipe.RecipeType;
 import tmi.recipe.RecipesManager;
 import tmi.recipe.parser.*;
@@ -21,6 +22,7 @@ import tmi.util.KeyBinds;
 
 public class TooManyItems extends Mod {
   public static RecipesManager recipesManager;
+  public static RecipeItemManager itemsManager;
   public static ModAPI api;
 
   public static RecipesDialog recipesDialog;
@@ -29,6 +31,7 @@ public class TooManyItems extends Mod {
   public TooManyItems() {
     api = new ModAPI();
     recipesManager = new RecipesManager();
+    itemsManager = new RecipeItemManager();
 
     ConsumerParser.registerVanillaConsumeParser();
     registerRecipeParser();
@@ -76,13 +79,5 @@ public class TooManyItems extends Mod {
     api.init();
 
     recipesManager.init();
-  }
-
-  @Override
-  public void loadContent() {
-    super.loadContent();
-
-    PowerMark.INSTANCE = new PowerMark();
-    HeatMark.INSTANCE = new HeatMark();
   }
 }

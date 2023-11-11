@@ -24,7 +24,6 @@ import tmi.recipe.RecipeItemStack;
 import tmi.recipe.RecipeType;
 import tmi.ui.RecipeNode;
 import tmi.ui.RecipeView;
-import tmi.util.Consts;
 
 import static tmi.ui.RecipeNode.SIZE;
 
@@ -35,7 +34,7 @@ public class FactoryRecipe extends RecipeType {
 
   final Vec2 bound = new Vec2();
   final Vec2 blockPos = new Vec2();
-  final ObjectMap<UnlockableContent, Vec2> consPos = new ObjectMap<>(), prodPos = new ObjectMap<>();
+  final ObjectMap<RecipeItem<?>, Vec2> consPos = new ObjectMap<>(), prodPos = new ObjectMap<>();
   final Vec2 optPos = new Vec2();
 
   boolean doubleInput, doubleOutput, hasOptionals;
@@ -133,16 +132,16 @@ public class FactoryRecipe extends RecipeType {
     return bound;
   }
 
-  protected float handleNode(Seq<RecipeItemStack> seq, ObjectMap<UnlockableContent, Vec2> pos, float offX, float offY, boolean isDouble, boolean turn) {
+  protected float handleNode(Seq<RecipeItemStack> seq, ObjectMap<RecipeItem<?>, Vec2> pos, float offX, float offY, boolean isDouble, boolean turn) {
     float dx = SIZE / 2;
     if (isDouble) {
       for (int i = 0; i < seq.size; i++) {
         if (turn) {
-          if (i % 2 == 0) pos.put(seq.get(i).content(), new Vec2(offX + dx, offY + SIZE + ITEM_PAD));
-          else pos.put(seq.get(i).content(), new Vec2(offX + dx, offY));
+          if (i % 2 == 0) pos.put(seq.get(i).item(), new Vec2(offX + dx, offY + SIZE + ITEM_PAD));
+          else pos.put(seq.get(i).item(), new Vec2(offX + dx, offY));
         }
-        if (i % 2 == 0) pos.put(seq.get(i).content(), new Vec2(offX + dx, offY));
-        else pos.put(seq.get(i).content(), new Vec2(offX + dx, offY + SIZE + ITEM_PAD));
+        if (i % 2 == 0) pos.put(seq.get(i).item(), new Vec2(offX + dx, offY));
+        else pos.put(seq.get(i).item(), new Vec2(offX + dx, offY + SIZE + ITEM_PAD));
 
         dx += SIZE / 2 + ITEM_PAD;
       }
@@ -150,7 +149,7 @@ public class FactoryRecipe extends RecipeType {
     }
     else {
       for (int i = 0; i < seq.size; i++) {
-        pos.put(seq.get(i).content(), new Vec2(offX + dx, offY));
+        pos.put(seq.get(i).item(), new Vec2(offX + dx, offY));
         dx += SIZE + ITEM_PAD;
       }
       offY += SIZE;
@@ -176,11 +175,11 @@ public class FactoryRecipe extends RecipeType {
   @Override
   public void layout(RecipeNode recipeNode) {
     if (recipeNode.isMaterial){
-      Vec2 pos = consPos.get(recipeNode.stack.content());
+      Vec2 pos = consPos.get(recipeNode.stack.item());
       recipeNode.setPosition(pos.x, pos.y, Align.center);
     }
     else if (recipeNode.isProduction){
-      Vec2 pos = prodPos.get(recipeNode.stack.content());
+      Vec2 pos = prodPos.get(recipeNode.stack.item());
       recipeNode.setPosition(pos.x, pos.y, Align.center);
     }
     else if (recipeNode.isBlock){

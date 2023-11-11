@@ -4,6 +4,8 @@ import arc.struct.ObjectSet;
 import arc.struct.Seq;
 import mindustry.ctype.UnlockableContent;
 import mindustry.world.Block;
+import tmi.TooManyItems;
+import tmi.recipe.types.RecipeItem;
 
 @SuppressWarnings("rawtypes")
 public abstract class RecipeParser<T extends Block>{
@@ -24,4 +26,8 @@ public abstract class RecipeParser<T extends Block>{
 
   /**分析一个方块，将其可执行的所有配方以一个{@link Seq}的形式返回。生成的配方应当和设施在实际运转中的各数据保持一致。*/
   public abstract Seq<Recipe> parse(T content);
+
+  protected static <I> RecipeItem<I> getWrap(I item){
+    return TooManyItems.itemsManager.getItem(item);
+  }
 }

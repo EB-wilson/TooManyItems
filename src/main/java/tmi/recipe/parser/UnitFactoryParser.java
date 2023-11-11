@@ -24,13 +24,13 @@ public class UnitFactoryParser extends ConsumerParser<UnitFactory>{
 
     for (UnitFactory.UnitPlan plan : factory.plans) {
       Recipe recipe = new Recipe(RecipeType.factory);
-      recipe.setBlock(factory);
+      recipe.setBlock(getWrap(factory));
       recipe.setTime(plan.time);
 
-      recipe.addProduction(plan.unit);
+      recipe.addProduction(getWrap(plan.unit));
 
       for (ItemStack stack : plan.requirements) {
-        recipe.addProduction(stack.item, stack.amount);
+        recipe.addProduction(getWrap(stack.item), stack.amount);
       }
 
       registerCons(recipe, factory.consumers);

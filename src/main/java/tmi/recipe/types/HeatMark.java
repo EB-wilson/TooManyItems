@@ -1,33 +1,44 @@
 package tmi.recipe.types;
 
-import mindustry.ctype.ContentType;
-import mindustry.ctype.UnlockableContent;
+import arc.Core;
+import arc.graphics.g2d.TextureRegion;
 import mindustry.gen.Icon;
+import tmi.TooManyItems;
 
-public class HeatMark extends UnlockableContent {
-  public static HeatMark INSTANCE;
+public class HeatMark extends RecipeItem<String> {
+  public static HeatMark INSTANCE = TooManyItems.itemsManager.addItemWrap("heat-mark", new HeatMark());
 
-  public HeatMark() {
+  private HeatMark() {
     super("heat-mark");
   }
 
   @Override
-  public void loadIcon() {}
-
-  @Override
-  public boolean isHidden() {
-    return true;
+  public int ordinal() {
+    return -1;
   }
 
   @Override
-  public void init() {
-    super.init();
-    fullIcon = Icon.waves.getRegion();
-    uiIcon = fullIcon;
+  public int typeID() {
+    return -1;
   }
 
   @Override
-  public ContentType getContentType() {
-    return ContentType.typeid_UNUSED;
+  public String name() {
+    return item;
+  }
+
+  @Override
+  public String localizedName() {
+    return Core.bundle.get("tmi." + item);
+  }
+
+  @Override
+  public TextureRegion icon() {
+    return Icon.waves.getRegion();
+  }
+
+  @Override
+  public boolean hidden() {
+    return false;
   }
 }

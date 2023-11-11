@@ -5,11 +5,12 @@ import arc.util.Strings;
 import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
 import mindustry.world.meta.StatUnit;
+import tmi.recipe.types.RecipeItem;
 
 /**保存一个材料项目数据的结构类型，在{@link Recipe}中作数据记录对象使用*/
 public class RecipeItemStack {
   /**该条目表示的{@link UnlockableContent}*/
-  public final UnlockableContent content;
+  public final RecipeItem<?> item;
   /**条目附加的数量信息，这将被用作生产计算和显示数据的文本格式化*/
   public final float amount;
 
@@ -28,17 +29,17 @@ public class RecipeItemStack {
    * 该字段默认空，为空时表示该条目不从属于任何属性组*/
   @Nullable public Object attributeGroup = null;
 
-  public RecipeItemStack(UnlockableContent content, float amount) {
-    this.content = content;
+  public RecipeItemStack(RecipeItem<?> item, float amount) {
+    this.item = item;
     this.amount = amount;
   }
 
-  public RecipeItemStack(UnlockableContent content) {
-    this(content, 0);
+  public RecipeItemStack(RecipeItem<?> item) {
+    this(item, 0);
   }
 
-  public UnlockableContent content() {
-    return content;
+  public RecipeItem<?> item() {
+    return item;
   }
 
   public float amount(){

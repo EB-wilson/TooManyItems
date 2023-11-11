@@ -6,8 +6,7 @@ import arc.scene.ui.layout.Table;
 import arc.struct.ObjectFloatMap;
 import arc.struct.OrderedMap;
 import arc.util.Nullable;
-import mindustry.ctype.UnlockableContent;
-import mindustry.world.Block;
+import tmi.recipe.types.RecipeItem;
 
 /**配方信息的存储类，该类的每一个实例都表示为一个单独的配方，用于显示配方或者计算生产数据*/
 public class Recipe {
@@ -21,17 +20,17 @@ public class Recipe {
 
   /**配方的产出物列表
    * @see RecipeItemStack*/
-  public final OrderedMap<UnlockableContent, RecipeItemStack> productions = new OrderedMap<>();
+  public final OrderedMap<RecipeItem<?>, RecipeItemStack> productions = new OrderedMap<>();
   /**配方的输入材料列表
    * @see RecipeItemStack*/
-  public final OrderedMap<UnlockableContent, RecipeItemStack> materials = new OrderedMap<>();
+  public final OrderedMap<RecipeItem<?>, RecipeItemStack> materials = new OrderedMap<>();
 
   /**配方的效率计算函数，用于给定一个输入环境参数和配方数据，计算出该配方在这个输入环境下的工作效率*/
   public EffFunc efficiency = getDefaultEff();
 
   //infos
   /**执行该配方的建筑/方块*/
-  public Block block;
+  public RecipeItem<?> block;
   /**该配方在显示时的附加显示内容构建函数，若不设置则认为不添加任何附加信息*/
   @Nullable public Cons<Table> subInfoBuilder;
 
@@ -46,67 +45,67 @@ public class Recipe {
 
   //utils
 
-  public RecipeItemStack addMaterial(UnlockableContent item) {
+  public RecipeItemStack addMaterial(RecipeItem<?> item) {
     RecipeItemStack res = new RecipeItemStack(item);
     materials.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addMaterial(UnlockableContent item, int amount){
+  public RecipeItemStack addMaterial(RecipeItem<?> item, int amount){
     RecipeItemStack res = new RecipeItemStack(item, amount).setIntegerFormat();
     materials.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addMaterial(UnlockableContent item, float amount){
+  public RecipeItemStack addMaterial(RecipeItem<?> item, float amount){
     RecipeItemStack res = new RecipeItemStack(item, amount).setFloatFormat();
     materials.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addMaterialPresec(UnlockableContent item, float preSeq){
+  public RecipeItemStack addMaterialPresec(RecipeItem<?> item, float preSeq){
     RecipeItemStack res = new RecipeItemStack(item, preSeq).setPresecFormat();
     materials.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addMaterial(UnlockableContent item, String amount) {
+  public RecipeItemStack addMaterial(RecipeItem<?> item, String amount) {
     RecipeItemStack res = new RecipeItemStack(item, 0).setFormat(f -> amount);
     materials.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addProduction(UnlockableContent item) {
+  public RecipeItemStack addProduction(RecipeItem<?> item) {
     RecipeItemStack res = new RecipeItemStack(item);
     productions.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addProduction(UnlockableContent item, int amount){
+  public RecipeItemStack addProduction(RecipeItem<?> item, int amount){
     RecipeItemStack res = new RecipeItemStack(item, amount).setIntegerFormat();
     productions.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addProduction(UnlockableContent item, float amount){
+  public RecipeItemStack addProduction(RecipeItem<?> item, float amount){
     RecipeItemStack res = new RecipeItemStack(item, amount).setFloatFormat();
     productions.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addProductionPresec(UnlockableContent item, float preSeq){
+  public RecipeItemStack addProductionPresec(RecipeItem<?> item, float preSeq){
     RecipeItemStack res = new RecipeItemStack(item, preSeq).setPresecFormat();
     productions.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addProduction(UnlockableContent item, String amount) {
+  public RecipeItemStack addProduction(RecipeItem<?> item, String amount) {
     RecipeItemStack res = new RecipeItemStack(item, 0).setFormat(f -> amount);
     productions.put(item, res);
     return res;
   }
 
-  public Recipe setBlock(Block block){
+  public Recipe setBlock(RecipeItem<?> block){
     this.block = block;
     return this;
   }
@@ -116,11 +115,11 @@ public class Recipe {
     return this;
   }
 
-  public boolean containsProduction(UnlockableContent production) {
+  public boolean containsProduction(RecipeItem<?> production) {
     return productions.containsKey(production);
   }
 
-  public boolean containsMaterial(UnlockableContent material) {
+  public boolean containsMaterial(RecipeItem<?> material) {
     return materials.containsKey(material);
   }
 
@@ -141,14 +140,14 @@ public class Recipe {
 
       for (RecipeItemStack stack : recipe.materials.values()) {
         if (stack.isAttribute){
-          attr = Math.max(attr, stack.efficiency*Mathf.clamp(env.getInputs(stack.content)/stack.amount));
+          attr = Math.max(attr, stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount));
         }
         else {
           if (stack.attributeGroup != null){
-            float e = attrGroups.get(stack.attributeGroup, 1)*Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.content)/stack.amount), stack.optionalCons? 1: 0);
+            float e = attrGroups.get(stack.attributeGroup, 1)*Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount), stack.optionalCons? 1: 0);
             attrGroups.put(stack.attributeGroup, e);
           }
-          else eff *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.content)/stack.amount), stack.optionalCons? 1: 0);
+          else eff *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount), stack.optionalCons? 1: 0);
         }
       }
 

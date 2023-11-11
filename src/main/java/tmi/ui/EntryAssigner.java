@@ -29,6 +29,7 @@ import mindustry.ui.dialogs.ContentInfoDialog;
 import mindustry.ui.fragments.HudFragment;
 import mindustry.ui.fragments.PlacementFragment;
 import tmi.TooManyItems;
+import tmi.recipe.types.RecipeItem;
 
 import java.lang.reflect.Field;
 
@@ -74,7 +75,8 @@ public class EntryAssigner {
         @Override
         public void show(UnlockableContent content) {
           super.show(content);
-          if (!TooManyItems.recipesManager.anyRecipe(content)) return;
+          RecipeItem<UnlockableContent> rec = TooManyItems.itemsManager.getItem(content);
+          if (!TooManyItems.recipesManager.anyRecipe(rec)) return;
 
           Element pane = Vars.ui.content.cont.getChildren().get(0);
           if (pane instanceof ScrollPane p) {
@@ -82,7 +84,7 @@ public class EntryAssigner {
             Table t = (Table) ta.getChildren().get(0);
 
             t.button(Icon.book, Styles.clearNonei, () -> {
-              recipesDialog.show(content);
+              recipesDialog.show(TooManyItems.itemsManager.getItem(content));
               hide();
             }).padLeft(12).margin(6);
           }

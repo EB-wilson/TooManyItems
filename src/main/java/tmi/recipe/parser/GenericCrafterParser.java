@@ -17,26 +17,26 @@ public class GenericCrafterParser extends ConsumerParser<GenericCrafter>{
   @Override
   public Seq<Recipe> parse(GenericCrafter crafter) {
     Recipe res = new Recipe(RecipeType.factory);
-    res.setBlock(crafter);
+    res.setBlock(getWrap(crafter));
     res.setTime(crafter.craftTime);
 
     registerCons(res, crafter.consumers);
 
     if (crafter.outputItems == null) {
-      if (crafter.outputItem != null) res.addProduction(crafter.outputItem.item, crafter.outputItem.amount);
+      if (crafter.outputItem != null) res.addProduction(getWrap(crafter.outputItem.item), crafter.outputItem.amount);
     }
     else {
       for (ItemStack item : crafter.outputItems) {
-        res.addProduction(item.item, item.amount);
+        res.addProduction(getWrap(item.item), item.amount);
       }
     }
 
     if (crafter.outputLiquids == null) {
-      if (crafter.outputLiquid != null) res.addProductionPresec(crafter.outputLiquid.liquid, crafter.outputLiquid.amount);
+      if (crafter.outputLiquid != null) res.addProductionPresec(getWrap(crafter.outputLiquid.liquid), crafter.outputLiquid.amount);
     }
     else {
       for (LiquidStack liquid : crafter.outputLiquids) {
-        res.addProductionPresec(liquid.liquid, liquid.amount);
+        res.addProductionPresec(getWrap(liquid.liquid), liquid.amount);
       }
     }
 

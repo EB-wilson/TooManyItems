@@ -25,13 +25,13 @@ public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
     //items
     registerVanillaConsParser(c -> c instanceof ConsumeItems, (recipe, consume, handle) -> {
       for (ItemStack item : ((ConsumeItems) consume).items) {
-        handle.get(recipe.addMaterial(item.item, item.amount).setOptionalCons(consume.optional));
+        handle.get(recipe.addMaterial(getWrap(item.item), item.amount).setOptionalCons(consume.optional));
       }
     });
     registerVanillaConsParser(c -> c instanceof ConsumeItemFilter, (recipe, consume, handle) -> {
       ConsumeItemFilter cf = ((ConsumeItemFilter) consume);
       for (Item item : content.items().select(i -> cf.filter.get(i))) {
-        handle.get(recipe.addMaterial(item, 1)
+        handle.get(recipe.addMaterial(getWrap(item), 1)
             .setOptionalCons(consume.optional)
             .setAttribute(cf)
         );
@@ -41,16 +41,16 @@ public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
     //liquids
     registerVanillaConsParser(c -> c instanceof ConsumeLiquids, (recipe, consume, handle) -> {
       for (LiquidStack liquid : ((ConsumeLiquids) consume).liquids) {
-        handle.get(recipe.addMaterialPresec(liquid.liquid, liquid.amount).setOptionalCons(consume.optional));
+        handle.get(recipe.addMaterialPresec(getWrap(liquid.liquid), liquid.amount).setOptionalCons(consume.optional));
       }
     });
     registerVanillaConsParser(c -> c instanceof ConsumeLiquid, (recipe, consume, handle) -> {
-      handle.get(recipe.addMaterialPresec(((ConsumeLiquid) consume).liquid,  ((ConsumeLiquid) consume).amount).setOptionalCons(consume.optional));
+      handle.get(recipe.addMaterialPresec(getWrap(((ConsumeLiquid) consume).liquid),  ((ConsumeLiquid) consume).amount).setOptionalCons(consume.optional));
     });
     registerVanillaConsParser(c -> c instanceof ConsumeLiquidFilter, (recipe, consume, handle) -> {
       ConsumeLiquidFilter cf = ((ConsumeLiquidFilter) consume);
       for (Liquid liquid : content.liquids().select(i -> cf.filter.get(i))) {
-        handle.get(recipe.addMaterialPresec(liquid, cf.amount)
+        handle.get(recipe.addMaterialPresec(getWrap(liquid), cf.amount)
             .setOptionalCons(consume.optional)
             .setAttribute(cf)
         );
@@ -60,8 +60,8 @@ public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
     //payloads
     registerVanillaConsParser(c -> c instanceof ConsumePayloads, (recipe, consume, handle) -> {
       for (PayloadStack stack : ((ConsumePayloads) consume).payloads) {
-        if (stack.amount > 1) handle.get(recipe.addMaterial(stack.item, stack.amount));
-        else handle.get(recipe.addMaterial(stack.item).setOptionalCons(consume.optional));
+        if (stack.amount > 1) handle.get(recipe.addMaterial(getWrap(stack.item), stack.amount));
+        else handle.get(recipe.addMaterial(getWrap(stack.item)).setOptionalCons(consume.optional));
       }
     });
 

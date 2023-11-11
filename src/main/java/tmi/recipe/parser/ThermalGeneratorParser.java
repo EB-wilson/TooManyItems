@@ -23,7 +23,7 @@ public class ThermalGeneratorParser extends ConsumerParser<ThermalGenerator>{
   @Override
   public Seq<Recipe> parse(ThermalGenerator content) {
     Recipe res = new Recipe(RecipeType.generator);
-    res.block = content;
+    res.setBlock(getWrap(content));
 
     registerCons(res, content.consumers);
 
@@ -34,13 +34,13 @@ public class ThermalGeneratorParser extends ConsumerParser<ThermalGenerator>{
 
       float eff = content.displayEfficiencyScale*content.size*content.size*block.attributes.get(content.attribute);
       if (eff <= content.minEfficiency) continue;
-      res.addMaterial(block, content.size*content.size)
+      res.addMaterial(getWrap(block), content.size*content.size)
           .setEfficiency(eff)
           .setAttribute()
           .setFormat(f -> "[#98ffa9]" + Mathf.round(eff*100) + "%");
     }
 
-    if (content.outputLiquid != null) res.addProductionPresec(content.outputLiquid.liquid, content.outputLiquid.amount);
+    if (content.outputLiquid != null) res.addProductionPresec(getWrap(content.outputLiquid.liquid), content.outputLiquid.amount);
 
     return Seq.with(res);
   }

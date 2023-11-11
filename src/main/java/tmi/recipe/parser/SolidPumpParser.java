@@ -20,8 +20,8 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
   @Override
   public Seq<Recipe> parse(SolidPump pump) {
     Recipe res = new Recipe(RecipeType.collecting);
-    res.setBlock(pump);
-    res.addProduction(pump.result);
+    res.setBlock(getWrap(pump));
+    res.addProduction(getWrap(pump.result));
 
     registerCons(res, pump.consumers);
 
@@ -29,7 +29,7 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
       if (block.attributes.get(pump.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = block.attributes.get(pump.attribute);
-      res.addMaterial(block, pump.size*pump.size)
+      res.addMaterial(getWrap(block), pump.size*pump.size)
           .setOptionalCons(pump.baseEfficiency > 0.001f)
           .setEfficiency(pump.baseEfficiency + eff)
           .setAttribute()

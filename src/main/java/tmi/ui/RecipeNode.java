@@ -8,21 +8,16 @@ import arc.math.Mathf;
 import arc.scene.event.Touchable;
 import arc.scene.ui.Button;
 import arc.scene.ui.Image;
-import arc.scene.ui.Label;
 import arc.scene.ui.Tooltip;
 import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
 import arc.util.Scaling;
 import arc.util.Time;
 import mindustry.Vars;
-import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Icon;
 import mindustry.gen.Tex;
-import mindustry.ui.ItemDisplay;
-import mindustry.ui.ItemImage;
 import mindustry.ui.Styles;
-import mindustry.ui.dialogs.SettingsMenuDialog;
 import tmi.TooManyItems;
 import tmi.recipe.RecipeItemStack;
 
@@ -52,7 +47,7 @@ public class RecipeNode extends Button {
 
     setSize(SIZE);
 
-    addListener(new Tooltip(t -> t.add(stack.content().localizedName, Styles.outlineLabel)){{ allowMobile = true; }});
+    addListener(new Tooltip(t -> t.add(stack.item().localizedName(), Styles.outlineLabel)){{ allowMobile = true; }});
     hovered(() -> activity = true);
     exited(() -> activity = false);
     tapped(() -> {
@@ -64,35 +59,35 @@ public class RecipeNode extends Button {
 
       if (Time.time - time < 12){
         if (!mobile || Core.settings.getBool("keyboard")) {
-          TooManyItems.recipesDialog.setCurrSelecting(stack.content(), Core.input.keyDown(binds.hotKey) ? isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
+          TooManyItems.recipesDialog.setCurrSelecting(stack.item(), Core.input.keyDown(binds.hotKey) ? isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
         }
         else {
           clicked++;
           if (clicked >= 2){
-            TooManyItems.recipesDialog.setCurrSelecting(stack.content(), isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
+            TooManyItems.recipesDialog.setCurrSelecting(stack.item(), isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
             clicked = 0;
           }
         }
       }
       else {
-        if (progress >= 0.95f){
-          Vars.ui.content.show(stack.content());
+        if (stack.item.item instanceof UnlockableContent uc && progress >= 0.95f){
+          Vars.ui.content.show(uc);
         }
       }
     });
 
     update(() -> {
       alpha = Mathf.lerpDelta(alpha, touched || activity ? 1 : 0, 0.08f);
-      progress = Mathf.approachDelta(progress, touched? 1 : 0, 1/60f);
+      progress = Mathf.approachDelta(progress, stack.item.item instanceof UnlockableContent && touched? 1 : 0, 1/60f);
       if (Time.time - time > 12 && clicked == 1){
-        TooManyItems.recipesDialog.setCurrSelecting(stack.content(), RecipesDialog.Mode.recipe);
+        TooManyItems.recipesDialog.setCurrSelecting(stack.item(), RecipesDialog.Mode.recipe);
         clicked = 0;
       }
     });
 
     stack(
         new Table(t -> t.add(new Table(o -> {
-          o.add(new Image(stack.content.uiIcon)).size(SIZE/2).scaling(Scaling.fit);
+          o.add(new Image(stack.item.icon())).size(SIZE/2).scaling(Scaling.fit);
         })).grow()),
 
         new Table(t -> t.add(new Table(ta -> {
@@ -102,7 +97,7 @@ public class RecipeNode extends Button {
         })).grow()),
 
         new Table(t -> {
-          if (stack.content.unlockedNow()) return;
+          if (!stack.item.locked()) return;
           t.right().bottom().defaults().right().bottom().pad(4);
           t.image(Icon.lock).scaling(Scaling.fit).size(10).color(Color.lightGray);
         })

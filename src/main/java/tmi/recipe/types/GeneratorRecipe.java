@@ -6,11 +6,9 @@ import arc.scene.Group;
 import arc.scene.ui.Label;
 import arc.struct.Seq;
 import arc.util.Align;
-import mindustry.graphics.Pal;
 import mindustry.ui.Styles;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
-import tmi.recipe.RecipeType;
 import tmi.ui.RecipeNode;
 import tmi.ui.RecipeView;
 
@@ -41,7 +39,7 @@ public class GeneratorRecipe extends FactoryRecipe {
     Seq<RecipeItemStack> opts = recipe.materials.values().toSeq().select(e -> e.optionalCons);
     Seq<RecipeItemStack> prod = new Seq<>(), powers = new Seq<>();
     for (RecipeItemStack item : recipe.productions.values().toSeq()) {
-      if (item.content != PowerMark.INSTANCE && item.content != HeatMark.INSTANCE) prod.add(item);
+      if (item.item != PowerMark.INSTANCE && item.item != HeatMark.INSTANCE) prod.add(item);
       else powers.add(item);
     }
 
@@ -101,7 +99,7 @@ public class GeneratorRecipe extends FactoryRecipe {
 
   @Override
   public RecipeView.LineMeta line(RecipeNode from, RecipeNode to) {
-    if (from.stack.content == PowerMark.INSTANCE || from.stack.content == HeatMark.INSTANCE) return new RecipeView.LineMeta();
+    if (from.stack.item == PowerMark.INSTANCE || from.stack.item == HeatMark.INSTANCE) return new RecipeView.LineMeta();
     else return super.line(from, to);
   }
 }

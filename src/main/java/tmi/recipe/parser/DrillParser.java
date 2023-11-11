@@ -51,9 +51,9 @@ public class DrillParser extends ConsumerParser<Drill>{
 
       Recipe recipe = res.get(drop.itemDrop, () -> {
         Recipe r = new Recipe(RecipeType.collecting);
-        r.setBlock(content);
+        r.setBlock(getWrap(content));
         r.setTime(content.getDrillTime(drop.itemDrop));
-        r.addProduction(drop.itemDrop);
+        r.addProduction(getWrap(drop.itemDrop));
 
         if(content.liquidBoostIntensity != 1){
           registerCons(r, Seq.with(content.consumers).select(e -> !(e.optional && e instanceof ConsumeLiquidBase && e.booster)).toArray(Consume.class));
@@ -70,7 +70,7 @@ public class DrillParser extends ConsumerParser<Drill>{
         return r;
       });
 
-      recipe.addMaterial(drop, content.size*content.size).setAttribute();
+      recipe.addMaterial(getWrap(drop), content.size*content.size).setAttribute();
     }
 
     return res.values().toSeq();

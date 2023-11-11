@@ -2,13 +2,10 @@ package tmi.recipe.types;
 
 import arc.Core;
 import arc.graphics.Color;
-import arc.graphics.g2d.Draw;
 import arc.math.Angles;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
-import arc.scene.ui.Button;
-import arc.scene.ui.Dialog;
 import arc.scene.ui.ImageButton;
 import arc.scene.ui.Label;
 import arc.scene.ui.layout.Scl;
@@ -22,7 +19,6 @@ import mindustry.core.UI;
 import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Icon;
 import mindustry.ui.Styles;
-import mindustry.ui.fragments.PlacementFragment;
 import mindustry.world.Block;
 import mindustry.world.meta.Stat;
 import mindustry.world.meta.StatUnit;
@@ -43,7 +39,7 @@ public class BuildingRecipe extends RecipeType {
 
   final Vec2 bound = new Vec2();
   final Vec2 blockPos = new Vec2();
-  final ObjectMap<UnlockableContent, Vec2> materialPos = new ObjectMap<>();
+  final ObjectMap<RecipeItem<?>, Vec2> materialPos = new ObjectMap<>();
 
   float time;
   Block build;
@@ -86,7 +82,7 @@ public class BuildingRecipe extends RecipeType {
 
   @Override
   public Vec2 initial(Recipe recipe) {
-    build = recipe.block;
+    build = (Block) recipe.block.item;
     time = recipe.time;
 
     bound.setZero();
@@ -105,7 +101,7 @@ public class BuildingRecipe extends RecipeType {
       float angle = radians*i*Mathf.radDeg + off;
       float r = Mathf.random(0, RAND) + radius;
 
-      materialPos.put(seq.get(i).content(), new Vec2(blockPos.x + Angles.trnsx(angle, r), blockPos.y + Angles.trnsy(angle, r)));
+      materialPos.put(seq.get(i).item(), new Vec2(blockPos.x + Angles.trnsx(angle, r), blockPos.y + Angles.trnsy(angle, r)));
     }
 
     return bound;
@@ -114,7 +110,7 @@ public class BuildingRecipe extends RecipeType {
   @Override
   public void layout(RecipeNode recipeNode) {
     if (recipeNode.isMaterial){
-      Vec2 pos = materialPos.get(recipeNode.stack.content());
+      Vec2 pos = materialPos.get(recipeNode.stack.item());
       recipeNode.setPosition(pos.x, pos.y, Align.center);
     }
     else if (recipeNode.isBlock){

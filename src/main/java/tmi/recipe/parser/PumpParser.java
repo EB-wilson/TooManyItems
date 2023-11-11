@@ -59,14 +59,14 @@ public class PumpParser extends ConsumerParser<Pump>{
 
       Recipe recipe = res.get(drop.liquidDrop, () -> {
         Recipe r = new Recipe(RecipeType.collecting);
-        r.setBlock(content);
-        r.addProductionPresec(drop.liquidDrop, content.pumpAmount);
+        r.setBlock(getWrap(content));
+        r.addProductionPresec(getWrap(drop.liquidDrop), content.pumpAmount);
         registerCons(r, content.consumers);
 
         return r;
       });
 
-      recipe.addMaterial(drop, content.size*content.size)
+      recipe.addMaterial(getWrap(drop), content.size*content.size)
           .setAttribute()
           .setFormat(s -> "");
     }
