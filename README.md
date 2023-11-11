@@ -4,7 +4,7 @@
 
 本mod旨在提供一个便捷的界面，以供快速查询物品的生产与制造信息，在您安装了很多mod的情况下会非常有用。
 
-![preview](assets/preview.png)
+![preview](assets/git/preview.png)
 
 就像上面所展示的那样，您可以简单的从列表中选择和查询您想要了解的项目制造信息，这包括某一项目的用途，获取方式或者某个方块的建筑成本和工厂可用于的加工过程等。
 
@@ -14,7 +14,7 @@
 
 而所有的按钮均如下：
 
-![button](assets/tmibutton.png)
+![button](assets/git/tmibutton.png)
 
 通常来说，这个mod支持所有的基于json的mod和大部分没有过多自定义生产类型的第三方mod，如果第三方mod有非基于vanilla的加工或者制造流程，那么其可能需要作者做一些适配，请继续阅读。
 
@@ -40,7 +40,7 @@ TMI物品管理器为其他mod提供了完善的配方和解释API，您可以�
 
 由于Mindustry本身没有规范生产过程，在本mod内部将各种加工过程抽象为了一个个`Recipe`对象，这些对象会包含一个`RecipeType`，该类型会决定该配方在视图中的显示和渲染方式。而分析方块并获得配方对象的工作将由`RecipeParser`来完成，具体来说，这个过程内的绝大多数部分都是可自定义的，各结构之间的关系如下：
 
-![code structure](assets/code_structure.png)
+![code structure](assets/git/code_structure.png)
 
 而上述关系中所指示的类型即在您自定义实现时，首先需要关注的几个类。
 

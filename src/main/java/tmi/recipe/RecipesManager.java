@@ -93,7 +93,8 @@ public class RecipesManager{
 
         if (parser.isTarget(block)){
           for (int l = 0; l < parsers.size; l++) {
-            if (parsers.get(l) == parser || (parsers.get(l).isTarget(block) && parsers.contains(e -> e.exclude(parser)))) continue t;
+            if (parsers.get(l) == parser) continue;
+            if (parsers.get(l).isTarget(block) && parsers.contains(e -> e.exclude(parser))) continue t;
           }
 
           addRecipe(((RecipeParser<Block>)parser).parse(block));
