@@ -45,7 +45,7 @@ public class ModAPI {
   }
 
   private void loadModScriptEntries(Mods.LoadedMod mod){
-    Vars.mods.getScripts()
+    //TODO: JavaScript API
   }
 
   private void readJsonAPI(Mods.LoadedMod mod) {
