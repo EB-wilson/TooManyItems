@@ -19,12 +19,13 @@ import tmi.recipe.Recipe;
 public class Consts {
   private static final Seq<?> emp = new Seq<>();
 
-  public static Drawable grayUI, padGrayUI, a_z;
+  public static Drawable grayUI, padGrayUI, a_z, tmi;
 
   public static Tile markerTile;
 
   public static void load(){
     a_z = Core.atlas.getDrawable("tmi-a_z");
+    tmi = Core.atlas.getDrawable("tmi-tmi");
 
     grayUI = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f));
     padGrayUI = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f));

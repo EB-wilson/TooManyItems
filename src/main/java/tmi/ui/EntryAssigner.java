@@ -2,6 +2,7 @@ package tmi.ui;
 
 import arc.Core;
 import arc.Events;
+import arc.func.Cons;
 import arc.graphics.Color;
 import arc.input.KeyCode;
 import arc.scene.Element;
@@ -30,6 +31,7 @@ import mindustry.ui.fragments.HudFragment;
 import mindustry.ui.fragments.PlacementFragment;
 import tmi.TooManyItems;
 import tmi.recipe.types.RecipeItem;
+import tmi.util.Consts;
 
 import java.lang.reflect.Field;
 
@@ -64,7 +66,7 @@ public class EntryAssigner {
     }
 
     {//content information entry
-      Vars.ui.database.buttons.button(Core.bundle.get("recipes.open"), Icon.book, () -> {
+      Vars.ui.database.buttons.button(Core.bundle.get("recipes.open"), Consts.tmi, 38, () -> {
         recipesDialog.setCurrSelecting(null);
         recipesDialog.show();
       });
@@ -83,7 +85,7 @@ public class EntryAssigner {
             Table ta = (Table) p.getWidget();
             Table t = (Table) ta.getChildren().get(0);
 
-            t.button(Icon.book, Styles.clearNonei, () -> {
+            t.button(Consts.tmi, Styles.clearNonei, 38, () -> {
               recipesDialog.show(TooManyItems.itemsManager.getItem(content));
               hide();
             }).padLeft(12).margin(6);
@@ -93,7 +95,7 @@ public class EntryAssigner {
     }
 
     {//HUD entry
-      scene.root.addChild(new ImageButton(Icon.book, Styles.cleari){{
+      scene.root.addChild(new ImageButton(Consts.tmi, Styles.cleari){{
         tmiEntry = this;
         tmiEntry.setSize(Scl.scl(60));
 
