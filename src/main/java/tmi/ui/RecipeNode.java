@@ -1,6 +1,7 @@
 package tmi.ui;
 
 import arc.Core;
+import arc.func.Cons2;
 import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.Lines;
@@ -20,6 +21,7 @@ import mindustry.gen.Tex;
 import mindustry.ui.Styles;
 import tmi.TooManyItems;
 import tmi.recipe.RecipeItemStack;
+import tmi.recipe.types.RecipeItem;
 
 import static mindustry.Vars.mobile;
 import static tmi.TooManyItems.binds;
@@ -37,7 +39,7 @@ public class RecipeNode extends Button {
   float time;
   int clicked;
 
-  public RecipeNode(RecipeItemStack stack){
+  public RecipeNode(RecipeItemStack stack, Cons2<RecipeItem<?>, RecipesDialog.Mode> click){
     setBackground(Tex.button);
     this.stack = stack;
 
@@ -59,12 +61,12 @@ public class RecipeNode extends Button {
 
       if (Time.time - time < 12){
         if (!mobile || Core.settings.getBool("keyboard")) {
-          TooManyItems.recipesDialog.setCurrSelecting(stack.item(), Core.input.keyDown(binds.hotKey) ? isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
+          click.get(stack.item(), Core.input.keyDown(binds.hotKey) ? isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
         }
         else {
           clicked++;
           if (clicked >= 2){
-            TooManyItems.recipesDialog.setCurrSelecting(stack.item(), isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
+            click.get(stack.item(), isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
             clicked = 0;
           }
         }
@@ -80,7 +82,7 @@ public class RecipeNode extends Button {
       alpha = Mathf.lerpDelta(alpha, touched || activity ? 1 : 0, 0.08f);
       progress = Mathf.approachDelta(progress, stack.item.item instanceof UnlockableContent && touched? 1 : 0, 1/60f);
       if (Time.time - time > 12 && clicked == 1){
-        TooManyItems.recipesDialog.setCurrSelecting(stack.item(), RecipesDialog.Mode.recipe);
+        click.get(stack.item(), RecipesDialog.Mode.recipe);
         clicked = 0;
       }
     });

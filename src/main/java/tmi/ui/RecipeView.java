@@ -1,5 +1,6 @@
 package tmi.ui;
 
+import arc.func.Cons2;
 import arc.func.Prov;
 import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
@@ -10,9 +11,15 @@ import arc.scene.ui.layout.WidgetGroup;
 import arc.struct.FloatSeq;
 import arc.struct.Seq;
 import arc.util.Align;
+import mindustry.content.Blocks;
+import mindustry.content.Items;
+import mindustry.content.Liquids;
 import mindustry.ctype.UnlockableContent;
+import tmi.TooManyItems;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
+import tmi.recipe.RecipeType;
+import tmi.recipe.types.RecipeItem;
 
 /**配方表显示的布局元素，用于为添加的{@link RecipeNode}设置正确的位置并将他们显示到界面容器当中*/
 public class RecipeView extends Group {
@@ -24,24 +31,24 @@ public class RecipeView extends Group {
   final Group childGroup;
   public float heightDelta;
 
-  public RecipeView(Recipe recipe) {
+  public RecipeView(Recipe recipe, Cons2<RecipeItem<?>, RecipesDialog.Mode> nodeClicked) {
     this.recipe = recipe;
     childGroup = new Group() {};
 
     childGroup.setFillParent(true);
 
     for (RecipeItemStack content : recipe.materials.values()) {
-      nodes.add(new RecipeNode(content) {{
+      nodes.add(new RecipeNode(content, nodeClicked) {{
         isMaterial = true;
       }});
     }
     for (RecipeItemStack content : recipe.productions.values()) {
-      nodes.add(new RecipeNode(content) {{
+      nodes.add(new RecipeNode(content, nodeClicked) {{
         isProduction = true;
       }});
     }
 
-    if (recipe.block != null) nodes.add(new RecipeNode(new RecipeItemStack(recipe.block)) {{
+    if (recipe.block != null) nodes.add(new RecipeNode(new RecipeItemStack(recipe.block), nodeClicked) {{
       isBlock = true;
     }});
 

@@ -343,7 +343,7 @@ public class RecipesDialog extends BaseDialog {
 
         }
         else {
-          RecipeView view = new RecipeView(recipe);
+          RecipeView view = new RecipeView(recipe, this::setCurrSelecting);
           recipeViews.add(view);
         }
       }

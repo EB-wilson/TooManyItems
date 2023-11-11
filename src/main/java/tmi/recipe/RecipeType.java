@@ -21,7 +21,9 @@ public abstract class RecipeType {
   collecting,
   generator;
 
-  /**生成{@linkplain RecipeView 配方视图}前对上下文数据进行初始化*/
+  /**生成{@linkplain RecipeView 配方视图}前对上下文数据进行初始化，并计算布局尺寸
+   *
+   * @return 表示该布局的长宽尺寸的二元向量*/
   public abstract Vec2 initial(Recipe recipe);
   /**为参数传入的{@link RecipeNode}设置坐标以完成布局*/
   public abstract void layout(RecipeNode recipeNode);

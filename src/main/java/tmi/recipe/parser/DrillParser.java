@@ -70,7 +70,10 @@ public class DrillParser extends ConsumerParser<Drill>{
         return r;
       });
 
-      recipe.addMaterial(getWrap(drop), content.size*content.size).setAttribute();
+      float realDrillTime = content.getDrillTime(drop.itemDrop);
+      recipe.addMaterial(getWrap(drop), content.size*content.size)
+          .setEfficiency(content.drillTime / realDrillTime)
+          .setAttribute();
     }
 
     return res.values().toSeq();
