@@ -6,6 +6,7 @@ import mindustry.ctype.ContentType;
 import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Icon;
 import tmi.TooManyItems;
+import tmi.recipe.RecipeType;
 
 public class PowerMark extends RecipeItem<String> {
   public static PowerMark INSTANCE = TooManyItems.itemsManager.addItemWrap("power-mark", new PowerMark());

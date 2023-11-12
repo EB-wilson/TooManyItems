@@ -7,7 +7,7 @@ plugins {
 apply plugin: 'maven-publish'
 
 group 'com.github.EB-wilson'
-version '1.0'
+version '1.1'
 
 "java SyncBundles.java ${version}".execute().waitForProcessOutput(System.out, System.err)
 

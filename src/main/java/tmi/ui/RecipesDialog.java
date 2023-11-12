@@ -50,15 +50,7 @@ public class RecipesDialog extends BaseDialog {
   public Seq<Sorting> sortings = Seq.with(new Sorting(){{
     localized = Core.bundle.get("misc.defaultSort");
     icon = Icon.menu;
-    sort = (a, b) -> {
-      int n = Integer.compare(a.typeID(), b.typeID());
-
-      if (n == 0){
-        return a.ordinal() - b.ordinal();
-      }
-
-      return n;
-    };
+    sort = RecipeItem::compareTo;
   }}, new Sorting(){{
     localized = Core.bundle.get("misc.nameSort");
     icon = a_z;
@@ -68,7 +60,7 @@ public class RecipesDialog extends BaseDialog {
     icon = Icon.book;
     sort = (a, b) -> {
       if (a.item instanceof Content ca && b.item instanceof Content cb) {
-        return ca.minfo.mod == null ? cb.minfo.mod == null ? 0 : 1 : cb.minfo.mod != null ? compare.compare(ca.minfo.mod.name, cb.minfo.mod.name) : -1;
+        return ca.minfo.mod == null ? cb.minfo.mod == null ? 0 : -1 : cb.minfo.mod != null ? compare.compare(ca.minfo.mod.name, cb.minfo.mod.name) : 1;
       }
       else return 0;
     };

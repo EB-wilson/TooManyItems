@@ -4,6 +4,7 @@ import arc.Core;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
 import arc.scene.ui.Label;
+import arc.struct.ObjectSet;
 import arc.struct.Seq;
 import arc.util.Align;
 import mindustry.ui.Styles;
@@ -15,6 +16,15 @@ import tmi.ui.RecipeView;
 import static tmi.ui.RecipeNode.SIZE;
 
 public class GeneratorRecipe extends FactoryRecipe {
+  public final ObjectSet<RecipeItem<?>> powers = new ObjectSet<>();
+
+  {
+    powers.addAll(
+        PowerMark.INSTANCE,
+        HeatMark.INSTANCE
+    );
+  }
+
   @Override
   public void buildView(Group view) {
     Label label = new Label(Core.bundle.get("misc.generator"), Styles.outlineLabel);
@@ -39,8 +49,8 @@ public class GeneratorRecipe extends FactoryRecipe {
     Seq<RecipeItemStack> opts = recipe.materials.values().toSeq().select(e -> e.optionalCons);
     Seq<RecipeItemStack> prod = new Seq<>(), powers = new Seq<>();
     for (RecipeItemStack item : recipe.productions.values().toSeq()) {
-      if (item.item != PowerMark.INSTANCE && item.item != HeatMark.INSTANCE) prod.add(item);
-      else powers.add(item);
+      if (isPower(item.item)) powers.add(item);
+      else prod.add(item);
     }
 
     int materialNum = mats.size;
@@ -99,7 +109,11 @@ public class GeneratorRecipe extends FactoryRecipe {
 
   @Override
   public RecipeView.LineMeta line(RecipeNode from, RecipeNode to) {
-    if (from.stack.item == PowerMark.INSTANCE || from.stack.item == HeatMark.INSTANCE) return new RecipeView.LineMeta();
+    if ((isPower(from.stack.item) && from.isProduction) || (isPower(to.stack.item) && to.isProduction)) return new RecipeView.LineMeta();
     else return super.line(from, to);
+  }
+
+  protected boolean isPower(RecipeItem<?> item) {
+    return powers.contains(item);
   }
 }

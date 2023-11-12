@@ -59,7 +59,7 @@ public class RecipeItemManager {
   }
 
   public Seq<RecipeItem<?>> getList(){
-    return recipeItems.values().toSeq();
+    return recipeItems.values().toSeq().sort();
   }
 
   protected static class RecipeUnlockableContent extends RecipeItem<UnlockableContent>{
