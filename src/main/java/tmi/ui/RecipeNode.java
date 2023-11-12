@@ -88,15 +88,13 @@ public class RecipeNode extends Button {
     });
 
     stack(
-        new Table(t -> t.add(new Table(o -> {
-          o.add(new Image(stack.item.icon())).size(SIZE/2).scaling(Scaling.fit);
-        })).grow()),
+        new Table(t -> t.image(stack.item.icon()).size(SIZE/Scl.scl()*0.62f).scaling(Scaling.fit)),
 
-        new Table(t -> t.add(new Table(ta -> {
-          ta.left().bottom();
-          ta.add(stack.getAmount(), Styles.outlineLabel);
-          ta.pack();
-        })).grow()),
+        new Table(t -> {
+          t.left().bottom();
+          t.add(stack.getAmount(), Styles.outlineLabel);
+          t.pack();
+        }),
 
         new Table(t -> {
           if (!stack.item.locked()) return;

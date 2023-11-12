@@ -29,7 +29,6 @@ public class RecipeView extends Group {
   public final Recipe recipe;
 
   final Group childGroup;
-  public float heightDelta;
 
   public RecipeView(Recipe recipe, Cons2<RecipeItem<?>, RecipesDialog.Mode> nodeClicked) {
     this.recipe = recipe;
@@ -60,7 +59,6 @@ public class RecipeView extends Group {
   @Override
   public void layout() {
     super.layout();
-    heightDelta = 0;
     lines.clear();
     bound.set(recipe.recipeType.initial(recipe));
 
@@ -88,7 +86,7 @@ public class RecipeView extends Group {
 
   @Override
   public float getPrefHeight() {
-    return bound.y + heightDelta;
+    return bound.y;
   }
 
   public static class LineMeta{

@@ -3,8 +3,13 @@ package tmi.ui;
 import arc.Core;
 import arc.graphics.Color;
 import arc.graphics.g2d.*;
+import arc.input.KeyCode;
 import arc.math.Mathf;
 import arc.scene.Element;
+import arc.scene.Group;
+import arc.scene.event.ElementGestureListener;
+import arc.scene.event.InputEvent;
+import arc.scene.event.InputListener;
 import arc.scene.event.Touchable;
 import arc.scene.style.Drawable;
 import arc.scene.ui.Button;
@@ -65,7 +70,7 @@ public class RecipesDialog extends BaseDialog {
       if (a.item instanceof Content ca && b.item instanceof Content cb) {
         return ca.minfo.mod == null ? cb.minfo.mod == null ? 0 : 1 : cb.minfo.mod != null ? compare.compare(ca.minfo.mod.name, cb.minfo.mod.name) : -1;
       }
-      else return 1;
+      else return 0;
     };
   }}, new Sorting(){{
     localized = Core.bundle.get("misc.typeSort");
@@ -99,6 +104,12 @@ public class RecipesDialog extends BaseDialog {
   boolean reverse;
   int total, fold, recipeIndex, itemPages, pageItems, currPage;
 
+  Table currZoom;
+  RecipeView currView;
+
+  float lastZoom = -1;
+  float maxScl = 1;
+
   final Seq<RecipeItem<?>> ucSeq = new Seq<>();
 
   Runnable contentsRebuild, refreshSeq, rebuildRecipe;
@@ -115,19 +126,9 @@ public class RecipesDialog extends BaseDialog {
       currentSelect = null;
       recipeMode = null;
       currPage = 0;
+      lastZoom = -1;
       sorting = sortings.first();
       cont.clear();
-    });
-
-    scrolled(s -> {
-      if (s < 0 && currPage > 0){
-        currPage--;
-        contentsRebuild.run();
-      }
-      else if (s > 0 && currPage < itemPages - 1){
-        currPage++;
-        contentsRebuild.run();
-      }
     });
   }
 
@@ -171,6 +172,27 @@ public class RecipesDialog extends BaseDialog {
   }
 
   protected void buildContents() {
+    contentsTable.addListener(new InputListener(){
+      @Override
+      public boolean scrolled(InputEvent event, float x, float y, float amountX, float amountY){
+        if (amountY < 0 && currPage > 0){
+          currPage--;
+          contentsRebuild.run();
+        }
+        else if (amountY > 0 && currPage < itemPages - 1){
+          currPage++;
+          contentsRebuild.run();
+        }
+        return true;
+      }
+
+      @Override
+      public void enter(InputEvent event, float x, float y, int pointer, Element fromActor) {
+        contentsTable.requestScroll();
+        super.enter(event, x, y, pointer, fromActor);
+      }
+    });
+
     contentsTable.table(filter -> {
       filter.add(Core.bundle.get("misc.search"));
       filter.image(Icon.zoom).size(36).scaling(Scaling.fit);
@@ -351,7 +373,127 @@ public class RecipesDialog extends BaseDialog {
 
     if (recipes == null || recipeViews.isEmpty()) return false;
 
+    recipesTable.clearListeners();
+    recipesTable.addListener(new InputListener(){
+      @Override
+      public boolean scrolled(InputEvent event, float x, float y, float amountX, float amountY){
+        if (currZoom == null) return false;
+        currZoom.setScale(lastZoom = Mathf.clamp(currZoom.scaleX + amountY / 10f * currZoom.scaleX, 0.25f, maxScl));
+        currZoom.setOrigin(Align.center);
+        currZoom.setTransform(true);
+
+        clamp(currZoom);
+        return true;
+      }
+
+      @Override
+      public void enter(InputEvent event, float x, float y, int pointer, Element fromActor) {
+        recipesTable.requestScroll();
+        super.enter(event, x, y, pointer, fromActor);
+      }
+    });
+
+    recipesTable.addCaptureListener(new ElementGestureListener(){
+      @Override
+      public void zoom(InputEvent event, float initialDistance, float distance){
+        if(lastZoom < 0){
+          lastZoom = currZoom.scaleX;
+        }
+
+        currZoom.setScale(Mathf.clamp(distance / initialDistance * lastZoom, 0.25f, maxScl));
+        currZoom.setOrigin(Align.center);
+        currZoom.setTransform(true);
+
+        clamp(currZoom);
+      }
+
+      @Override
+      public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode button){
+        lastZoom = currZoom.scaleX;
+      }
+
+      @Override
+      public void pan(InputEvent event, float x, float y, float deltaX, float deltaY){
+        currZoom.moveBy(deltaX, deltaY);
+        clamp(currZoom);
+      }
+    });
+
+    recipesTable.touchable = Touchable.enabled;
+
+    currZoom = new Table(main -> {
+      recipeIndex = 0;
+      rebuildRecipe = () -> {
+        main.clearChildren();
+        currView = recipeViews.get(recipeIndex);
+        currView.validate();
+        main.table(modes -> {
+          modeTab = new Table(grayUI, ta -> {
+            for (Mode mode : Mode.values()) {
+              if (mode == Mode.factory && (!(currentSelect.item instanceof Block) || TooManyItems.recipesManager.getRecipesByFactory(currentSelect).isEmpty())) continue;
+              else if (mode == Mode.recipe && TooManyItems.recipesManager.getRecipesByProduction(currentSelect).isEmpty()) continue;
+              else if (mode == Mode.usage && TooManyItems.recipesManager.getRecipesByMaterial(currentSelect).isEmpty()) continue;
+
+              ta.button(t -> {
+                    t.defaults().left().pad(5);
+                    t.image(mode.icon()).size(24).scaling(Scaling.fit);
+                    t.add(mode.localized()).growX();
+                  }, Styles.clearNoneTogglei, () -> setRecipeMode(mode))
+                  .margin(6).growX().fillY().update(e -> e.setChecked(mode.equals(recipeMode)));
+              ta.row();
+            }
+          });
+          modeTab.visible = false;
+          modes.add(new Button(Styles.clearNonei) {{
+            touchable = modeTab.getChildren().size > 1 ? Touchable.enabled : Touchable.disabled;
+
+            image().scaling(Scaling.fit).size(32).update(i -> i.setDrawable(recipeMode.icon()));
+            add("").padLeft(4).update(l -> l.setText(recipeMode.localized()));
+
+            clicked(() -> modeTab.visible = !modeTab.visible);
+
+            update(() -> {
+              modeTab.setSize(modeTab.getPrefWidth(), modeTab.getPrefHeight());
+              modeTab.setPosition(modes.x + x + width / 2, modes.y, Align.top);
+            });
+          }}).margin(8).fill().get();
+
+        }).fill();
+        main.row();
+        main.add(currView).fill();
+        main.row();
+        main.table(t -> {
+          t.center().defaults().center();
+          if (currView.recipe.subInfoBuilder != null) {
+            currView.recipe.subInfoBuilder.get(t);
+          }
+        }).fill().padTop(8);
+
+        main.addChild(modeTab);
+
+        main.validate();
+
+        main.setSize(main.getPrefWidth(), main.getPrefHeight());
+
+        maxScl = Mathf.clamp((main.parent.getWidth()*0.8f) / main.getWidth(), 0.25f, 1);
+        maxScl = Math.min(maxScl, Mathf.clamp((main.parent.getHeight()*0.8f - Scl.scl(20)) / main.getHeight(), 0.25f, 1));
+        if (lastZoom <= 0) {
+          main.setScale(maxScl);
+        }
+        else main.setScale(Mathf.clamp(lastZoom, 0.25f, maxScl));
+        main.setOrigin(Align.center);
+        main.setTransform(true);
+
+        main.setPosition(main.parent.getWidth()/2, main.parent.getHeight()/2, Align.center);
+        clamp(main);
+      };
+    });
+
     recipesTable.clearChildren();
+    recipesTable.fill(t -> t.table(clip -> {
+      clip.cullable = true;
+      clip.addChild(currZoom);
+    }).grow().pad(8));
     recipesTable.table(top -> {
       top.table(t -> {
         t.table(Tex.buttonTrans).size(90).get().image(currentSelect.icon()).size(60).scaling(Scaling.fit);
@@ -371,58 +513,7 @@ public class RecipesDialog extends BaseDialog {
       }).grow().padLeft(12).padTop(8);
     }).left().growX().fillY().pad(8);
     recipesTable.row();
-
-    recipesTable.table(modes -> {
-      modeTab = new Table(grayUI, ta -> {
-        for (Mode mode : Mode.values()) {
-          if (mode == Mode.factory && (!(currentSelect.item instanceof Block) || TooManyItems.recipesManager.getRecipesByFactory(currentSelect).isEmpty())) continue;
-          else if (mode == Mode.recipe && TooManyItems.recipesManager.getRecipesByProduction(currentSelect).isEmpty()) continue;
-          else if (mode == Mode.usage && TooManyItems.recipesManager.getRecipesByMaterial(currentSelect).isEmpty()) continue;
-
-          ta.button(t -> {
-                t.defaults().left().pad(5);
-                t.image(mode.icon()).size(24).scaling(Scaling.fit);
-                t.add(mode.localized()).growX();
-              }, Styles.clearNoneTogglei, () -> setRecipeMode(mode))
-              .margin(6).growX().fillY().update(e -> e.setChecked(mode.equals(recipeMode)));
-          ta.row();
-        }
-      });
-      modeTab.visible = false;
-      modes.add(new Button(Styles.clearNonei){{
-        touchable = modeTab.getChildren().size > 1? Touchable.enabled: Touchable.disabled;
-
-        image().scaling(Scaling.fit).size(32).update(i -> i.setDrawable(recipeMode.icon()));
-        add("").padLeft(4).update(l -> l.setText(recipeMode.localized()));
-
-        clicked(() -> modeTab.visible = !modeTab.visible);
-
-        update(() -> {
-          modeTab.setSize(modeTab.getPrefWidth(), modeTab.getPrefHeight());
-          modeTab.setPosition(modes.x + x + width/2, modes.y, Align.top);
-        });
-      }}).margin(8).fill().get();
-
-    }).fill();
-    recipesTable.row();
-
-    recipesTable.pane(p -> p.table(main -> {
-      recipeIndex = 0;
-      rebuildRecipe = () -> {
-        main.clearChildren();
-        RecipeView view = recipeViews.get(recipeIndex);
-        view.validate();
-        main.add(view).fill();
-        main.row();
-        main.table(t -> {
-          t.center().defaults().center();
-          if (view.recipe.subInfoBuilder != null){
-            view.recipe.subInfoBuilder.get(t);
-          }
-        }).fill().padTop(8);
-      };
-      rebuildRecipe.run();
-    }).grow()).grow().pad(8).center();
+    recipesTable.add().grow();
     recipesTable.row();
     recipesTable.table(butt -> {
       butt.button(Icon.leftOpen, Styles.clearNonei, 32, () -> {
@@ -439,9 +530,24 @@ public class RecipesDialog extends BaseDialog {
       }).disabled(b -> recipeIndex >= recipeViews.size - 1).size(45);
     }).pad(8).growX().fillY();
 
-    recipesTable.addChild(modeTab);
+    Core.app.post(rebuildRecipe);
 
     return true;
+  }
+
+  private void clamp(Table currZoom) {
+    Group par = currZoom.parent;
+    if (par == null) return;
+
+    float minX = currZoom.getWidth()*currZoom.scaleX/2;
+    float minY = currZoom.getHeight()*currZoom.scaleY/2;
+    float maxX = par.getWidth() - minX;
+    float maxY = par.getHeight() - minY;
+
+    float cx = Mathf.clamp(currZoom.getX(Align.center), minX, maxX);
+    float cy = Mathf.clamp(currZoom.getY(Align.center), minY, maxY);
+
+    currZoom.setPosition(cx, cy, Align.center);
   }
 
   private void buildItem(Table t, RecipeItem<?> content) {

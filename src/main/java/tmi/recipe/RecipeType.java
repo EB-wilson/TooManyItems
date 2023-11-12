@@ -4,6 +4,7 @@ import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.Lines;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
+import arc.scene.ui.layout.Scl;
 import arc.struct.Seq;
 import tmi.recipe.types.BuildingRecipe;
 import tmi.recipe.types.CollectingRecipe;
@@ -44,29 +45,37 @@ public abstract class RecipeType {
   }
 
   public void drawLine(RecipeView recipeView) {
+    Draw.scl(recipeView.scaleX, recipeView.scaleY);
+
     for (RecipeView.LineMeta line : recipeView.lines) {
       if (line.vertices.size < 2) continue;
 
       float a = Draw.getColor().a;
-      Lines.stroke(5, line.color.get());
+      Lines.stroke(Scl.scl(5)*recipeView.scaleX, line.color.get());
       Draw.alpha(Draw.getColor().a*a);
 
       if (line.vertices.size <= 4){
+        float x1 = line.vertices.items[0] - recipeView.getWidth()/2;
+        float y1 = line.vertices.items[1] - recipeView.getHeight()/2;
+        float x2 = line.vertices.items[2] - recipeView.getWidth()/2;
+        float y2 = line.vertices.items[3] - recipeView.getHeight()/2;
         Lines.line(
-            recipeView.x + line.vertices.items[0], recipeView.y + line.vertices.items[1],
-            recipeView.x + line.vertices.items[2], recipeView.y + line.vertices.items[3]
+            recipeView.x + recipeView.getWidth()/2 + x1*recipeView.scaleX, recipeView.y + recipeView.getHeight()/2 + y1*recipeView.scaleY,
+            recipeView.x + recipeView.getWidth()/2 + x2*recipeView.scaleX, recipeView.y + recipeView.getHeight()/2 + y2*recipeView.scaleY
         );
         continue;
       }
 
       Lines.beginLine();
       for (int i = 0; i < line.vertices.size; i += 2) {
-        float x1 = line.vertices.items[i];
-        float y1 = line.vertices.items[i + 1];
+        float x1 = line.vertices.items[i] - recipeView.getWidth()/2;
+        float y1 = line.vertices.items[i + 1] - recipeView.getHeight()/2;
 
-        Lines.linePoint(recipeView.x + x1, recipeView.y + y1);
+        Lines.linePoint(recipeView.x + recipeView.getWidth()/2 + x1*recipeView.scaleX, recipeView.y + recipeView.getHeight()/2 + y1*recipeView.scaleY);
       }
       Lines.endLine();
     }
+
+    Draw.reset();
   }
 }
