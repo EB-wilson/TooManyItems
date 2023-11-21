@@ -34,6 +34,7 @@ public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
         handle.get(recipe.addMaterial(getWrap(item), 1)
             .setOptionalCons(consume.optional)
             .setAttribute(cf)
+            .setMaxAttr()
         );
       }
     });
@@ -53,6 +54,7 @@ public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
         handle.get(recipe.addMaterialPresec(getWrap(liquid), cf.amount)
             .setOptionalCons(consume.optional)
             .setAttribute(cf)
+            .setMaxAttr()
         );
       }
     });

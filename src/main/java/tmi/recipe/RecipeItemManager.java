@@ -7,6 +7,7 @@ import arc.graphics.g2d.TextureRegion;
 import arc.struct.ObjectMap;
 import arc.struct.OrderedMap;
 import arc.struct.Seq;
+import mindustry.Vars;
 import mindustry.ctype.UnlockableContent;
 import tmi.recipe.types.RecipeItem;
 
@@ -74,5 +75,7 @@ public class RecipeItemManager {
     @Override public TextureRegion icon() {return item.uiIcon;}
     @Override public boolean hidden() {return false;}
     @Override public boolean locked() {return !item.unlockedNow();}
+    @Override public boolean hasDetails() {return true;}
+    @Override public void displayDetails() {Vars.ui.content.show(item);}
   }
 }

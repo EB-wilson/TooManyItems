@@ -1,8 +1,13 @@
 package tmi.ui;
 
 import arc.Core;
+import arc.Graphics;
+import arc.func.Boolc;
 import arc.graphics.Color;
-import arc.graphics.g2d.*;
+import arc.graphics.g2d.Draw;
+import arc.graphics.g2d.Fill;
+import arc.graphics.g2d.GlyphLayout;
+import arc.graphics.g2d.Lines;
 import arc.input.KeyCode;
 import arc.math.Mathf;
 import arc.scene.Element;
@@ -15,6 +20,7 @@ import arc.scene.style.Drawable;
 import arc.scene.ui.Button;
 import arc.scene.ui.Image;
 import arc.scene.ui.ImageButton;
+import arc.scene.ui.TextField;
 import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
 import arc.struct.ObjectSet;
@@ -22,11 +28,10 @@ import arc.struct.Seq;
 import arc.util.*;
 import mindustry.Vars;
 import mindustry.ctype.Content;
-import mindustry.ctype.ContentType;
-import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Icon;
 import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
+import mindustry.input.Binding;
 import mindustry.ui.Fonts;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
@@ -100,7 +105,6 @@ public class RecipesDialog extends BaseDialog {
   RecipeView currView;
 
   float lastZoom = -1;
-  float maxScl = 1;
 
   final Seq<RecipeItem<?>> ucSeq = new Seq<>();
 
@@ -163,6 +167,7 @@ public class RecipesDialog extends BaseDialog {
     buildRecipes();
   }
 
+  @SuppressWarnings("StringRepeatCanBeUsed")
   protected void buildContents() {
     contentsTable.addListener(new InputListener(){
       @Override
@@ -293,10 +298,59 @@ public class RecipesDialog extends BaseDialog {
         currPage--;
         contentsRebuild.run();
       }).disabled(b -> currPage <= 0).size(45);
-      butt.add("").update(l -> {
-        l.setAlignment(Align.center);
-        l.setText(Core.bundle.format("dialog.recipes.pages", currPage + 1, itemPages));
+      butt.button("<<", Styles.cleart, () -> {
+        currPage = 0;
+        contentsRebuild.run();
+      }).disabled(b -> currPage <= 0).size(45).get().getStyle().disabled = Styles.none;
+      butt.table(t -> {
+        t.touchable = Touchable.enabled;
+        Boolc[] buildPage = new Boolc[1];
+        buildPage[0] = b -> {
+          t.clear();
+
+          t.hovered(() -> Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand));
+          t.exited(() -> Core.graphics.restoreCursor());
+
+          if (b){
+            GlyphLayout l = GlyphLayout.obtain();
+            int i = Mathf.ceil(Mathf.log(itemPages, 10));
+            StringBuilder s = new StringBuilder();
+            for (int n = 0; n < i; n++) {
+              s.append("0");
+            }
+            l.setText(Fonts.def,  s.toString());
+
+            t.add(Core.bundle.get("dialog.recipes.jump_a"));
+            t.field(
+                Integer.toString(currPage + 1),
+                (field, c) -> Character.isDigit(c) && Integer.parseInt(field.getText() + c) > 0 && Integer.parseInt(field.getText() + c) <= itemPages,
+                st -> {
+                  currPage = st.isEmpty()? 0: Integer.parseInt(st) - 1;
+                  contentsRebuild.run();
+                }
+            ).width(l.width + 45);
+            t.add(Core.bundle.format("dialog.recipes.jump_b", itemPages));
+            t.update(() -> {
+              if (Core.input.justTouched() && Core.scene.hit(Core.input.mouseX(), Core.input.mouseY(), true).parent != t) buildPage[0].get(false);
+            });
+
+            l.free();
+          }
+          else {
+            t.add("").update(l -> {
+              l.setAlignment(Align.center);
+              l.setText(Core.bundle.format("dialog.recipes.pages", currPage + 1, itemPages));
+            }).growX();
+            t.clicked(() -> buildPage[0].get(true));
+          }
+        };
+
+        buildPage[0].get(false);
       }).growX();
+      butt.button(">>", Styles.cleart, () -> {
+        currPage = itemPages - 1;
+        contentsRebuild.run();
+      }).disabled(b -> currPage >= itemPages - 1).size(45).get().getStyle().disabled = Styles.none;
       butt.button(Icon.rightOpen, Styles.clearNonei, 32, () -> {
         currPage++;
         contentsRebuild.run();
@@ -349,17 +403,9 @@ public class RecipesDialog extends BaseDialog {
 
     Seq<RecipeView> recipeViews = new Seq<>();
     if (recipes != null) {
-      ObjectSet<Seq<Recipe>> groups = new ObjectSet<>();
       for (Recipe recipe : recipes) {
-        Seq<Recipe> group = TooManyItems.recipesManager.getRecipeGroup(recipe);
-        if (group != null){
-          if (!groups.add(group)) continue;
-
-        }
-        else {
-          RecipeView view = new RecipeView(recipe, this::setCurrSelecting);
-          recipeViews.add(view);
-        }
+        RecipeView view = new RecipeView(recipe, this::setCurrSelecting);
+        recipeViews.add(view);
       }
     }
 
@@ -370,7 +416,7 @@ public class RecipesDialog extends BaseDialog {
       @Override
       public boolean scrolled(InputEvent event, float x, float y, float amountX, float amountY){
         if (currZoom == null) return false;
-        currZoom.setScale(lastZoom = Mathf.clamp(currZoom.scaleX + amountY / 10f * currZoom.scaleX, 0.25f, maxScl));
+        currZoom.setScale(lastZoom = Mathf.clamp(currZoom.scaleX - amountY / 10f * currZoom.scaleX, 0.25f, 1));
         currZoom.setOrigin(Align.center);
         currZoom.setTransform(true);
 
@@ -392,7 +438,7 @@ public class RecipesDialog extends BaseDialog {
           lastZoom = currZoom.scaleX;
         }
 
-        currZoom.setScale(Mathf.clamp(distance / initialDistance * lastZoom, 0.25f, maxScl));
+        currZoom.setScale(Mathf.clamp(distance / initialDistance * lastZoom, 0.25f, 1));
         currZoom.setOrigin(Align.center);
         currZoom.setTransform(true);
 
@@ -467,12 +513,12 @@ public class RecipesDialog extends BaseDialog {
 
         main.setSize(main.getPrefWidth(), main.getPrefHeight());
 
-        maxScl = Mathf.clamp((main.parent.getWidth()*0.8f) / main.getWidth(), 0.25f, 1);
-        maxScl = Math.min(maxScl, Mathf.clamp((main.parent.getHeight()*0.8f - Scl.scl(20)) / main.getHeight(), 0.25f, 1));
+        float scl = Mathf.clamp((main.parent.getWidth()*0.8f) / main.getWidth(), 0.25f, 1);
+        scl = Math.min(scl, Mathf.clamp((main.parent.getHeight()*0.8f - Scl.scl(20)) / main.getHeight(), 0.25f, 1));
         if (lastZoom <= 0) {
-          main.setScale(maxScl);
+          main.setScale(scl);
         }
-        else main.setScale(Mathf.clamp(lastZoom, 0.25f, maxScl));
+        else main.setScale(Mathf.clamp(lastZoom, 0.25f, scl));
         main.setOrigin(Align.center);
         main.setTransform(true);
 
@@ -483,14 +529,14 @@ public class RecipesDialog extends BaseDialog {
 
     recipesTable.clearChildren();
     recipesTable.fill(t -> t.table(clip -> {
-      clip.cullable = true;
+      clip.setClip(true);
       clip.addChild(currZoom);
     }).grow().pad(8));
     recipesTable.table(top -> {
       top.table(t -> {
         t.table(Tex.buttonTrans).size(90).get().image(currentSelect.icon()).size(60).scaling(Scaling.fit);
         t.row();
-        t.add(Core.bundle.get("dialog.recipes.currSelected")).growX().color(Color.lightGray).get().setAlignment(Align.center);
+        t.add(Core.bundle.get("dialog.recipes.currSelected")).growX().fillY().color(Color.lightGray).wrap().get().setAlignment(Align.center);
       });
       top.table(infos -> {
         infos.left().top().defaults().left();
@@ -512,10 +558,59 @@ public class RecipesDialog extends BaseDialog {
         recipeIndex--;
         rebuildRecipe.run();
       }).disabled(b -> recipeIndex <= 0).size(45);
-      butt.add("").update(l -> {
-        l.setAlignment(Align.center);
-        l.setText(Core.bundle.format("dialog.recipes.pages", recipeIndex + 1, recipeViews.size));
+      butt.button("<<", Styles.cleart, () -> {
+        recipeIndex = 0;
+        rebuildRecipe.run();
+      }).disabled(b -> recipeIndex <= 0).size(45).get().getStyle().disabled = Styles.none;
+      butt.table(t -> {
+        t.touchable = Touchable.enabled;
+        Boolc[] buildPage = new Boolc[1];
+        buildPage[0] = b -> {
+          t.clear();
+
+          t.hovered(() -> Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand));
+          t.exited(() -> Core.graphics.restoreCursor());
+
+          if (b){
+            GlyphLayout l = GlyphLayout.obtain();
+            int i = Mathf.ceil(Mathf.log(itemPages, 10));
+            StringBuilder s = new StringBuilder();
+            for (int n = 0; n < i; n++) {
+              s.append("0");
+            }
+            l.setText(Fonts.def,  s.toString());
+
+            t.add(Core.bundle.get("dialog.recipes.jump_a"));
+            t.field(
+                Integer.toString(recipeIndex + 1),
+                (field, c) -> Character.isDigit(c) && Integer.parseInt(field.getText() + c) > 0 && Integer.parseInt(field.getText() + c) <= recipeViews.size,
+                st -> {
+                  recipeIndex = st.isEmpty()? 0: Integer.parseInt(st) - 1;
+                  rebuildRecipe.run();
+                }
+            ).width(l.width + 45);
+            t.add(Core.bundle.format("dialog.recipes.jump_b", recipeViews.size));
+            t.update(() -> {
+              if (Core.input.justTouched() && Core.scene.hit(Core.input.mouseX(), Core.input.mouseY(), true).parent != t) buildPage[0].get(false);
+            });
+
+            l.free();
+          }
+          else {
+            t.add("").update(l -> {
+              l.setAlignment(Align.center);
+              l.setText(Core.bundle.format("dialog.recipes.pages", recipeIndex + 1, recipeViews.size));
+            }).growX();
+            t.clicked(() -> buildPage[0].get(true));
+          }
+        };
+
+        buildPage[0].get(false);
       }).growX();
+      butt.button(">>", Styles.cleart, () -> {
+        recipeIndex = recipeViews.size - 1;
+        rebuildRecipe.run();
+      }).disabled(b -> recipeIndex >= recipeViews.size - 1).size(45).get().getStyle().disabled = Styles.none;
       butt.button(Icon.rightOpen, Styles.clearNonei, 32, () -> {
         recipeIndex++;
         rebuildRecipe.run();
@@ -531,15 +626,28 @@ public class RecipesDialog extends BaseDialog {
     Group par = currZoom.parent;
     if (par == null) return;
 
-    float minX = currZoom.getWidth()*currZoom.scaleX/2;
-    float minY = currZoom.getHeight()*currZoom.scaleY/2;
-    float maxX = par.getWidth() - minX;
-    float maxY = par.getHeight() - minY;
+    float zoomW = currZoom.getWidth()*currZoom.scaleX;
+    float zoomH = currZoom.getHeight()*currZoom.scaleY;
+    float zoomX = currZoom.x + currZoom.getWidth()/2;
+    float zoomY = currZoom.y + currZoom.getHeight()/2;
 
-    float cx = Mathf.clamp(currZoom.getX(Align.center), minX, maxX);
-    float cy = Mathf.clamp(currZoom.getY(Align.center), minY, maxY);
+    float originX = par.getWidth()/2;
+    float originY = par.getHeight()/2;
 
-    currZoom.setPosition(cx, cy, Align.center);
+    float diffX = zoomX - originX;
+    float diffY = zoomY - originY;
+
+    float maxX, maxY;
+    if (par.getWidth() > zoomW) maxX = (par.getWidth() - zoomW) / 2.1f;
+    else maxX = (zoomW - par.getWidth())/2f;
+
+    if (par.getHeight() > zoomH) maxY = (par.getHeight() - zoomH)/2.1f;
+    else maxY = (zoomH - par.getHeight())/2f;
+
+    float cx = Mathf.clamp(diffX, -maxX, maxX);
+    float cy = Mathf.clamp(diffY, -maxY, maxY);
+
+    currZoom.setPosition(originX + cx, originY + cy, Align.center);
   }
 
   private void buildItem(Table t, RecipeItem<?> content) {
@@ -563,23 +671,23 @@ public class RecipesDialog extends BaseDialog {
 
           if (Time.time - time < 12){
             if (!mobile || Core.settings.getBool("keyboard")) {
-              TooManyItems.recipesDialog.setCurrSelecting(content, Core.input.keyDown(binds.hotKey)? content.item instanceof Block b && TooManyItems.recipesManager.getRecipesByFactory(content).any()? Mode.factory: Mode.usage: Mode.recipe);
+              TooManyItems.recipesDialog.setCurrSelecting(content, Core.input.keyDown(binds.hotKey)? content.item instanceof Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()? Mode.factory: Mode.usage: Mode.recipe);
             }
             else {
               clicked++;
-              TooManyItems.recipesDialog.setCurrSelecting(content, clicked%2 == 0? content.item instanceof Block b && TooManyItems.recipesManager.getRecipesByFactory(content).any()? Mode.factory: Mode.usage: Mode.recipe);
+              TooManyItems.recipesDialog.setCurrSelecting(content, clicked%2 == 0? content.item instanceof Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()? Mode.factory: Mode.usage: Mode.recipe);
             }
           }
           else {
-            if (content.item instanceof UnlockableContent c && progress >= 0.95f){
-              Vars.ui.content.show(c);
+            if (content.hasDetails() && progress >= 0.95f){
+              content.displayDetails();
             }
           }
         });
 
         update(() -> {
           alpha = Mathf.lerpDelta(alpha, currentSelect == content || touched || activity ? 1 : 0, 0.08f);
-          progress = Mathf.approachDelta(progress, content.item instanceof UnlockableContent && touched? 1 : 0, 1/60f);
+          progress = Mathf.approachDelta(progress, content.hasDetails() && touched? 1 : 0, 1/60f);
           if (clicked > 0 && Time.time - time > 12) clicked = 0;
         });
         add(new Element(){
@@ -650,6 +758,8 @@ public class RecipesDialog extends BaseDialog {
     if (!buildRecipes()){
       currentSelect = old;
       recipeMode = oldMode;
+
+      Vars.ui.showInfoFade(Core.bundle.get("dialog.recipes.no_" + (mode == Mode.recipe? "recipe": "usage")));
     }
   }
 

@@ -15,6 +15,7 @@ import tmi.recipe.RecipesManager;
 import tmi.recipe.parser.*;
 import tmi.recipe.types.HeatMark;
 import tmi.recipe.types.PowerMark;
+import tmi.ui.Cursor;
 import tmi.ui.EntryAssigner;
 import tmi.ui.RecipesDialog;
 import tmi.util.Consts;
@@ -70,6 +71,7 @@ public class TooManyItems extends Mod {
   @Override
   public void init() {
     Consts.load();
+    Cursor.init();
     RecipeType.init();
 
     binds = new KeyBinds();

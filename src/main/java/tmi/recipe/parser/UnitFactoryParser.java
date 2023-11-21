@@ -30,10 +30,12 @@ public class UnitFactoryParser extends ConsumerParser<UnitFactory>{
       recipe.addProduction(getWrap(plan.unit));
 
       for (ItemStack stack : plan.requirements) {
-        recipe.addProduction(getWrap(stack.item), stack.amount);
+        recipe.addMaterial(getWrap(stack.item), stack.amount);
       }
 
       registerCons(recipe, factory.consumers);
+
+      res.add(recipe);
     }
 
     return res;

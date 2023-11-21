@@ -140,12 +140,17 @@ public class Recipe {
 
       for (RecipeItemStack stack : recipe.materials.values()) {
         if (stack.isAttribute){
-          attr = Math.max(attr, stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount));
+          float a = stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount);
+          if (stack.maxAttr) attr = Math.max(attr, a);
+          else attr += a;
         }
         else {
           if (stack.attributeGroup != null){
-            float e = attrGroups.get(stack.attributeGroup, 1)*Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount), stack.optionalCons? 1: 0);
-            attrGroups.put(stack.attributeGroup, e);
+            float e = attrGroups.get(stack.attributeGroup, 1)*stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount);
+            if (stack.maxAttr) {
+              attrGroups.put(stack.attributeGroup, Math.max(attrGroups.get(stack.attributeGroup, 0), e));
+            }
+            else attrGroups.increment(stack.attributeGroup, 0, e);
           }
           else eff *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount), stack.optionalCons? 1: 0);
         }

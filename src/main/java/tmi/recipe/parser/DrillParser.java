@@ -1,7 +1,5 @@
 package tmi.recipe.parser;
 
-import arc.func.Boolf;
-import arc.func.Cons2;
 import arc.math.Mathf;
 import arc.struct.ObjectMap;
 import arc.struct.ObjectSet;
@@ -10,7 +8,6 @@ import arc.util.Strings;
 import mindustry.Vars;
 import mindustry.core.UI;
 import mindustry.type.Item;
-import mindustry.type.Liquid;
 import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.environment.OreBlock;
@@ -19,7 +16,6 @@ import mindustry.world.consumers.Consume;
 import mindustry.world.consumers.ConsumeLiquidBase;
 import mindustry.world.meta.StatUnit;
 import tmi.recipe.Recipe;
-import tmi.recipe.RecipeItemStack;
 import tmi.recipe.RecipeType;
 
 import static tmi.util.Consts.markerTile;
@@ -73,7 +69,8 @@ public class DrillParser extends ConsumerParser<Drill>{
       float realDrillTime = content.getDrillTime(drop.itemDrop);
       recipe.addMaterial(getWrap(drop), content.size*content.size)
           .setEfficiency(content.drillTime / realDrillTime)
-          .setAttribute();
+          .setAttribute()
+          .setEmptyFormat();
     }
 
     return res.values().toSeq();

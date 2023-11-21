@@ -104,13 +104,11 @@ public class EntryAssigner {
         setPosition(0, 0, Align.bottomLeft);
 
         addListener(new InputListener(){
-          boolean click;
+          float click;
 
           @Override
           public void touchDragged(InputEvent event, float mx, float my, int pointer){
-            if(Core.app.isMobile() && pointer != 0) return;
-
-            click = false;
+            if(Time.time - click < 10 || Core.app.isMobile() && pointer != 0) return;
 
             setPosition(x + mx, y + my, Align.center);
           }
@@ -118,14 +116,14 @@ public class EntryAssigner {
           @Override
           public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button){
             if(Core.app.isMobile() && pointer != 0) return false;
-            click = true;
+            click = Time.time;
             return true;
           }
 
           @Override
           public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode button) {
             super.touchUp(event, x, y, pointer, button);
-            if (click) recipesDialog.show();
+            if (Time.time - click < 10) recipesDialog.show();
           }
         });
 

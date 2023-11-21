@@ -69,7 +69,8 @@ public class BeamDrillParser extends ConsumerParser<BeamDrill>{
       float realDrillTime = content.getDrillTime(drop.itemDrop);
       recipe.addMaterial(getWrap(drop), content.size)
           .setEfficiency(content.drillTime / realDrillTime)
-          .setAttribute();
+          .setAttribute()
+          .setEmptyFormat();
     }
 
     return res.values().toSeq();

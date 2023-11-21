@@ -16,6 +16,9 @@ public abstract class RecipeItem<T> implements Comparable<RecipeItem<?>>{
   public abstract TextureRegion icon();
   public abstract boolean hidden();
 
+  public boolean hasDetails(){ return false; }
+  public void displayDetails(){}
+
   public boolean locked() {
     return false;
   }

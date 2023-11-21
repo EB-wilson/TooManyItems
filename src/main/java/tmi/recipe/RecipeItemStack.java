@@ -28,6 +28,8 @@ public class RecipeItemStack {
    * 属性组的划分按照提供的对象确定，任意时候当两个条目的属性组对象{@link Object#equals(Object)}为真时就会被视为从属于同一属性组。
    * 该字段默认空，为空时表示该条目不从属于任何属性组*/
   @Nullable public Object attributeGroup = null;
+  /**若为真，此消耗项的属性效率计算会按属性组的最大效率计算，否则会对属性效率求和*/
+  public boolean maxAttr = false;
 
   public RecipeItemStack(RecipeItem<?> item, float amount) {
     this.item = item;
@@ -72,6 +74,11 @@ public class RecipeItemStack {
     return this;
   }
 
+  public RecipeItemStack setMaxAttr(){
+    this.maxAttr = true;
+    return this;
+  }
+
   public RecipeItemStack setAttribute(Object group){
     this.attributeGroup = group;
     return this;
@@ -79,6 +86,11 @@ public class RecipeItemStack {
 
   public RecipeItemStack setFormat(AmountFormatter format){
     this.amountFormat = format;
+    return this;
+  }
+
+  public RecipeItemStack setEmptyFormat(){
+    this.amountFormat = f -> "";
     return this;
   }
 

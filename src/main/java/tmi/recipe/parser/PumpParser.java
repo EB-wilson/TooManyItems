@@ -1,12 +1,9 @@
 package tmi.recipe.parser;
 
-import arc.Core;
-import arc.Events;
 import arc.struct.ObjectMap;
 import arc.struct.ObjectSet;
 import arc.struct.Seq;
 import mindustry.Vars;
-import mindustry.game.EventType;
 import mindustry.type.Liquid;
 import mindustry.world.Block;
 import mindustry.world.Tile;
@@ -68,7 +65,7 @@ public class PumpParser extends ConsumerParser<Pump>{
 
       recipe.addMaterial(getWrap(drop), content.size*content.size)
           .setAttribute()
-          .setFormat(s -> "");
+          .setEmptyFormat();
     }
     return res.values().toSeq();
   }
