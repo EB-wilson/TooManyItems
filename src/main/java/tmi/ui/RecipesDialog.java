@@ -712,7 +712,7 @@ public class RecipesDialog extends BaseDialog {
             Draw.color(Color.lightGray, 0.25f*alpha);
             Fill.rect(x + width/2, y + height/2, backWidth*progress, backHeight);
 
-            Fonts.outline.draw(content.localizedName(), x + width/2, y + backHeight/2 + elemHeight/2, Tmp.c1.set(Color.white).a(alpha), Scl.scl(), false, Align.center);
+            Fonts.outline.draw(content.localizedName(), x + width/2, y + backHeight/2 + elemHeight/2, Tmp.c1.set(Color.white).a(alpha), 1, false, Align.center);
           }
         }).height(35);
         row();
