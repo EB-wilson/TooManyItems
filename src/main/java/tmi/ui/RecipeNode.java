@@ -51,12 +51,12 @@ public class RecipeNode extends Button {
     exited(() -> activity = false);
     tapped(() -> {
       touched = true;
-      time = Time.time;
+      time = Time.globalTime;
     });
     released(() -> {
       touched = false;
 
-      if (Time.time - time < 12){
+      if (Time.globalTime - time < 12){
         if (!mobile || Core.settings.getBool("keyboard")) {
           click.get(stack.item(), Core.input.keyDown(binds.hotKey) ? isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
         }
@@ -78,7 +78,7 @@ public class RecipeNode extends Button {
     update(() -> {
       alpha = Mathf.lerpDelta(alpha, touched || activity ? 1 : 0, 0.08f);
       progress = Mathf.approachDelta(progress, stack.item.hasDetails() && touched? 1.01f : 0, 1/60f);
-      if (Time.time - time > 12 && clicked == 1){
+      if (Time.globalTime - time > 12 && clicked == 1){
         click.get(stack.item(), RecipesDialog.Mode.recipe);
         clicked = 0;
       }

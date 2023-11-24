@@ -664,12 +664,12 @@ public class RecipesDialog extends BaseDialog {
         exited(() -> activity = false);
         tapped(() -> {
           touched = true;
-          time = Time.time;
+          time = Time.globalTime;
         });
         released(() -> {
           touched = false;
 
-          if (Time.time - time < 12){
+          if (Time.globalTime - time < 12){
             if (!mobile || Core.settings.getBool("keyboard")) {
               TooManyItems.recipesDialog.setCurrSelecting(content, Core.input.keyDown(binds.hotKey)? content.item instanceof Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()? Mode.factory: Mode.usage: Mode.recipe);
             }
@@ -688,7 +688,7 @@ public class RecipesDialog extends BaseDialog {
         update(() -> {
           alpha = Mathf.lerpDelta(alpha, currentSelect == content || touched || activity ? 1 : 0, 0.08f);
           progress = Mathf.approachDelta(progress, content.hasDetails() && touched? 1 : 0, 1/60f);
-          if (clicked > 0 && Time.time - time > 12) clicked = 0;
+          if (clicked > 0 && Time.globalTime - time > 12) clicked = 0;
         });
         add(new Element(){
           final float elemWidth;
