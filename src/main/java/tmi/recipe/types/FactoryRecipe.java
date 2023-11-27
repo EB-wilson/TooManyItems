@@ -22,6 +22,7 @@ import mindustry.world.meta.StatUnit;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
 import tmi.recipe.RecipeType;
+import tmi.ui.NodeType;
 import tmi.ui.RecipeNode;
 import tmi.ui.RecipeView;
 
@@ -174,15 +175,15 @@ public class FactoryRecipe extends RecipeType {
 
   @Override
   public void layout(RecipeNode recipeNode) {
-    if (recipeNode.isMaterial){
+    if (recipeNode.type == NodeType.material){
       Vec2 pos = consPos.get(recipeNode.stack.item());
       recipeNode.setPosition(pos.x, pos.y, Align.center);
     }
-    else if (recipeNode.isProduction){
+    else if (recipeNode.type == NodeType.production){
       Vec2 pos = prodPos.get(recipeNode.stack.item());
       recipeNode.setPosition(pos.x, pos.y, Align.center);
     }
-    else if (recipeNode.isBlock){
+    else if (recipeNode.type == NodeType.block){
       recipeNode.setPosition(blockPos.x, blockPos.y, Align.center);
     }
   }
@@ -193,7 +194,7 @@ public class FactoryRecipe extends RecipeType {
 
     if (from.stack.optionalCons) return res;
 
-    res.color = from.isMaterial? () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.time/8 + Mathf.pi, 1, 1), 3)):
+    res.color = from.type == NodeType.material? () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.time/8 + Mathf.pi, 1, 1), 3)):
         () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.time/8, 1, 1), 3));
 
     float offX = from.getWidth()/2;

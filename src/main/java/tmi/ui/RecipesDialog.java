@@ -462,6 +462,7 @@ public class RecipesDialog extends BaseDialog {
     currZoom = new Table(main -> {
       recipeIndex = 0;
       rebuildRecipe = () -> {
+        main.center();
         main.clearChildren();
         currView = recipeViews.get(recipeIndex);
         currView.validate();
@@ -498,7 +499,7 @@ public class RecipesDialog extends BaseDialog {
 
         }).fill();
         main.row();
-        main.add(currView).fill();
+        main.table().center().fill().get().add(currView).center().fill();
         main.row();
         main.table(t -> {
           t.center().defaults().center();

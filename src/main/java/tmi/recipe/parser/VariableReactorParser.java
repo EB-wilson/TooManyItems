@@ -29,7 +29,7 @@ public class VariableReactorParser extends ConsumerParser<VariableReactor>{
     res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction);
 
     if (content.maxHeat > 0){
-      res.addProduction(HeatMark.INSTANCE, content.maxHeat);
+      res.addProductionRaw(HeatMark.INSTANCE, content.maxHeat).setFloatFormat();
     }
 
     return Seq.with(res);

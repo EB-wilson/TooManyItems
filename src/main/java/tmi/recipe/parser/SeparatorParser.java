@@ -26,8 +26,9 @@ public class SeparatorParser extends ConsumerParser<Separator>{
     for (ItemStack stack : content.results) {
       n += stack.amount;
     }
+    float fn = n;
     for (ItemStack item : content.results) {
-      res.addProduction(getWrap(item.item), Mathf.round(item.amount/n*100) + "%");
+      res.addProduction(getWrap(item.item), item.amount/n).setFormat(f -> Mathf.round(item.amount/fn*100) + "%");
     }
 
     return Seq.with(res);

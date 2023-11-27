@@ -4,6 +4,7 @@ import arc.Core;
 import arc.graphics.Color;
 import arc.math.Angles;
 import arc.math.Mathf;
+import arc.math.Rand;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
 import arc.scene.ui.ImageButton;
@@ -25,6 +26,7 @@ import mindustry.world.meta.StatUnit;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
 import tmi.recipe.RecipeType;
+import tmi.ui.NodeType;
 import tmi.ui.RecipeNode;
 import tmi.ui.RecipeView;
 import tmi.util.Consts;
@@ -96,12 +98,13 @@ public class BuildingRecipe extends RecipeType {
     bound.set(radius + SIZE, radius + SIZE).scl(2);
     blockPos.set(bound).scl(0.5f);
 
-    float off = Mathf.random(0, 360f);
+    Rand r = new Rand(build.id);
+    float off = r.random(0, 360f);
     for (int i = 0; i < seq.size; i++) {
       float angle = radians*i*Mathf.radDeg + off;
-      float r = Mathf.random(0, RAND) + radius;
+      float rot = r.random(0, RAND) + radius;
 
-      materialPos.put(seq.get(i).item(), new Vec2(blockPos.x + Angles.trnsx(angle, r), blockPos.y + Angles.trnsy(angle, r)));
+      materialPos.put(seq.get(i).item(), new Vec2(blockPos.x + Angles.trnsx(angle, rot), blockPos.y + Angles.trnsy(angle, rot)));
     }
 
     return bound;
@@ -109,11 +112,11 @@ public class BuildingRecipe extends RecipeType {
 
   @Override
   public void layout(RecipeNode recipeNode) {
-    if (recipeNode.isMaterial){
+    if (recipeNode.type == NodeType.material){
       Vec2 pos = materialPos.get(recipeNode.stack.item());
       recipeNode.setPosition(pos.x, pos.y, Align.center);
     }
-    else if (recipeNode.isBlock){
+    else if (recipeNode.type == NodeType.block){
       recipeNode.setPosition(blockPos.x, blockPos.y, Align.center);
     }
     else Log.warn("unexpected production in building recipe");

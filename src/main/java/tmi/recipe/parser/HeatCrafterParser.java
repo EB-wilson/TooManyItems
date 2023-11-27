@@ -24,7 +24,7 @@ public class HeatCrafterParser extends ConsumerParser<HeatCrafter>{
     res.setBlock(getWrap(crafter));
     res.setTime(crafter.craftTime);
 
-    res.addMaterial(HeatMark.INSTANCE, crafter.heatRequirement);
+    res.addMaterialRaw(HeatMark.INSTANCE, crafter.heatRequirement).setFloatFormat();
 
     registerCons(res, crafter.consumers);
 

@@ -10,6 +10,7 @@ import arc.util.Align;
 import mindustry.ui.Styles;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
+import tmi.ui.NodeType;
 import tmi.ui.RecipeNode;
 import tmi.ui.RecipeView;
 
@@ -61,7 +62,7 @@ public class GeneratorRecipe extends FactoryRecipe {
 
     bound.setZero();
 
-    float wOpt = 0, wMat = 0, wProd = 0;
+    float wOpt = 0, wMat = 0, wProd = 0, wPow = 0;
 
     if (hasOptionals){
       wOpt = handleBound(opts.size, false);
@@ -76,8 +77,12 @@ public class GeneratorRecipe extends FactoryRecipe {
       bound.y += ROW_PAD;
       wProd = handleBound(productionNum, doubleOutput);
     }
+    if (powers.any()){
+      bound.y += ROW_PAD;
+      wPow = handleBound(powers.size, false);
+    }
 
-    float offOptX = (bound.x - wOpt)/2, offMatX = (bound.x - wMat)/2, offProdX = (bound.x - wProd)/2;
+    float offOptX = (bound.x - wOpt)/2, offMatX = (bound.x - wMat)/2, offProdX = (bound.x - wProd)/2, offPowX = (bound.x - wPow)/2;
 
     float centX = bound.x / 2f;
     float offY = SIZE/2;
@@ -95,13 +100,12 @@ public class GeneratorRecipe extends FactoryRecipe {
     offY += SIZE;
     if (productionNum > 0){
       offY += ROW_PAD;
-      handleNode(prod, prodPos, offProdX, offY, doubleOutput, true);
+      offY = handleNode(prod, prodPos, offProdX, offY, doubleOutput, true);
     }
 
     if (powers.any()) {
-      bound.y += SIZE;
-      float offX = (bound.x - handleBound(powers.size, false))/2;
-      handleNode(powers, prodPos, offX, bound.y - SIZE/2, false, false);
+      offY += ROW_PAD;
+      handleNode(powers, prodPos, offPowX, offY, false, true);
     }
 
     return bound;
@@ -109,7 +113,7 @@ public class GeneratorRecipe extends FactoryRecipe {
 
   @Override
   public RecipeView.LineMeta line(RecipeNode from, RecipeNode to) {
-    if ((isPower(from.stack.item) && from.isProduction) || (isPower(to.stack.item) && to.isProduction)) return new RecipeView.LineMeta();
+    if ((isPower(from.stack.item) && from.type == NodeType.production) || (isPower(to.stack.item) && to.type == NodeType.production)) return new RecipeView.LineMeta();
     else return super.line(from, to);
   }
 

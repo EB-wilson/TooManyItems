@@ -45,20 +45,20 @@ public class Recipe {
 
   //utils
 
-  public RecipeItemStack addMaterial(RecipeItem<?> item) {
-    RecipeItemStack res = new RecipeItemStack(item);
-    materials.put(item, res);
-    return res;
-  }
-
   public RecipeItemStack addMaterial(RecipeItem<?> item, int amount){
-    RecipeItemStack res = new RecipeItemStack(item, amount).setIntegerFormat();
+    RecipeItemStack res = time > 0?
+        new RecipeItemStack(item, amount*60/time).setIntegerFormat(amount):
+        new RecipeItemStack(item, amount).setIntegerFormat();
+
     materials.put(item, res);
     return res;
   }
 
   public RecipeItemStack addMaterial(RecipeItem<?> item, float amount){
-    RecipeItemStack res = new RecipeItemStack(item, amount).setFloatFormat();
+    RecipeItemStack res = time > 0?
+        new RecipeItemStack(item, amount*60/time).setFloatFormat(amount):
+        new RecipeItemStack(item, amount).setFloatFormat();
+
     materials.put(item, res);
     return res;
   }
@@ -69,26 +69,26 @@ public class Recipe {
     return res;
   }
 
-  public RecipeItemStack addMaterial(RecipeItem<?> item, String amount) {
-    RecipeItemStack res = new RecipeItemStack(item, 0).setFormat(f -> amount);
+  public RecipeItemStack addMaterialRaw(RecipeItem<?> item, float amount){
+    RecipeItemStack res = new RecipeItemStack(item, amount);
     materials.put(item, res);
     return res;
   }
 
-  public RecipeItemStack addProduction(RecipeItem<?> item) {
-    RecipeItemStack res = new RecipeItemStack(item);
-    productions.put(item, res);
-    return res;
-  }
-
   public RecipeItemStack addProduction(RecipeItem<?> item, int amount){
-    RecipeItemStack res = new RecipeItemStack(item, amount).setIntegerFormat();
+    RecipeItemStack res = time > 0?
+        new RecipeItemStack(item, amount*60/time).setIntegerFormat(amount):
+        new RecipeItemStack(item, amount).setIntegerFormat();
+
     productions.put(item, res);
     return res;
   }
 
   public RecipeItemStack addProduction(RecipeItem<?> item, float amount){
-    RecipeItemStack res = new RecipeItemStack(item, amount).setFloatFormat();
+    RecipeItemStack res = time > 0?
+        new RecipeItemStack(item, amount*60/time).setFloatFormat(amount):
+        new RecipeItemStack(item, amount).setFloatFormat();
+
     productions.put(item, res);
     return res;
   }
@@ -99,8 +99,8 @@ public class Recipe {
     return res;
   }
 
-  public RecipeItemStack addProduction(RecipeItem<?> item, String amount) {
-    RecipeItemStack res = new RecipeItemStack(item, 0).setFormat(f -> amount);
+  public RecipeItemStack addProductionRaw(RecipeItem<?> item, float amount){
+    RecipeItemStack res = new RecipeItemStack(item, amount);
     productions.put(item, res);
     return res;
   }

@@ -57,6 +57,7 @@ public class PumpParser extends ConsumerParser<Pump>{
       Recipe recipe = res.get(drop.liquidDrop, () -> {
         Recipe r = new Recipe(RecipeType.collecting);
         r.setBlock(getWrap(content));
+        r.setTime(content.consumeTime);
         r.addProductionPresec(getWrap(drop.liquidDrop), content.pumpAmount);
         registerCons(r, content.consumers);
 

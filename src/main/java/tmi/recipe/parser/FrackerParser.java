@@ -25,7 +25,7 @@ public class FrackerParser extends ConsumerParser<Fracker>{
     Recipe res = new Recipe(RecipeType.collecting);
     res.setBlock(getWrap(fracker));
     res.setTime(fracker.consumeTime);
-    res.addProduction(getWrap(fracker.result));
+    res.addProductionPresec(getWrap(fracker.result), fracker.pumpAmount);
 
     registerCons(res, fracker.consumers);
 

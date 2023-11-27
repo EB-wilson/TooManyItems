@@ -34,7 +34,7 @@ public class HeatGeneratorParser extends ConsumerParser<HeaterGenerator>{
     res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction);
 
     if (content.heatOutput > 0){
-      res.addProduction(HeatMark.INSTANCE, content.heatOutput);
+      res.addProductionRaw(HeatMark.INSTANCE, content.heatOutput).setFloatFormat();
     }
 
     if (content.outputLiquid != null){

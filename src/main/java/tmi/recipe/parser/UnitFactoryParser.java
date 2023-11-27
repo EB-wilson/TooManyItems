@@ -27,7 +27,7 @@ public class UnitFactoryParser extends ConsumerParser<UnitFactory>{
       recipe.setBlock(getWrap(factory));
       recipe.setTime(plan.time);
 
-      recipe.addProduction(getWrap(plan.unit));
+      recipe.addProduction(getWrap(plan.unit), 1);
 
       for (ItemStack stack : plan.requirements) {
         recipe.addMaterial(getWrap(stack.item), stack.amount);

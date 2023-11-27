@@ -27,7 +27,7 @@ public class HeatProducerParser extends ConsumerParser<HeatProducer>{
 
     registerCons(res, crafter.consumers);
 
-    res.addProduction(HeatMark.INSTANCE, crafter.heatOutput);
+    res.addProductionRaw(HeatMark.INSTANCE, crafter.heatOutput).setFloatFormat();
 
     if (crafter.outputItems == null) {
       if (crafter.outputItem != null) res.addProduction(getWrap(crafter.outputItem.item), crafter.outputItem.amount);

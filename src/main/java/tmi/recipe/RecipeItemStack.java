@@ -94,6 +94,16 @@ public class RecipeItemStack {
     return this;
   }
 
+  public RecipeItemStack setFloatFormat(float f) {
+    setFormat(_f -> f > 1000? UI.formatAmount((long) f): Strings.autoFixed(f, 1));
+    return this;
+  }
+
+  public RecipeItemStack setIntegerFormat(int i) {
+    setFormat(_f -> i > 1000? UI.formatAmount(i): Integer.toString(i));
+    return this;
+  }
+
   public RecipeItemStack setFloatFormat() {
     setFormat(f -> f > 1000? UI.formatAmount((long) f): Strings.autoFixed(f, 1));
     return this;

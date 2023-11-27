@@ -6,6 +6,7 @@ import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
 import arc.math.geom.Vec2;
 import arc.scene.Group;
+import arc.scene.event.Touchable;
 import arc.scene.ui.layout.Table;
 import arc.scene.ui.layout.WidgetGroup;
 import arc.struct.FloatSeq;
@@ -15,6 +16,7 @@ import mindustry.content.Blocks;
 import mindustry.content.Items;
 import mindustry.content.Liquids;
 import mindustry.ctype.UnlockableContent;
+import mindustry.gen.Tex;
 import tmi.TooManyItems;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeItemStack;
@@ -34,22 +36,14 @@ public class RecipeView extends Group {
     this.recipe = recipe;
     childGroup = new Group() {};
 
-    childGroup.setFillParent(true);
-
     for (RecipeItemStack content : recipe.materials.values()) {
-      nodes.add(new RecipeNode(content, nodeClicked) {{
-        isMaterial = true;
-      }});
+      nodes.add(new RecipeNode(NodeType.material, content, nodeClicked));
     }
     for (RecipeItemStack content : recipe.productions.values()) {
-      nodes.add(new RecipeNode(content, nodeClicked) {{
-        isProduction = true;
-      }});
+      nodes.add(new RecipeNode(NodeType.production, content, nodeClicked));
     }
 
-    if (recipe.block != null) nodes.add(new RecipeNode(new RecipeItemStack(recipe.block), nodeClicked) {{
-      isBlock = true;
-    }});
+    if (recipe.block != null) nodes.add(new RecipeNode(NodeType.block, new RecipeItemStack(recipe.block), nodeClicked));
 
     nodes.each(this::addChild);
 
@@ -59,10 +53,13 @@ public class RecipeView extends Group {
   @Override
   public void layout() {
     super.layout();
+    childGroup.clear();
+    childGroup.invalidate();
+
     lines.clear();
     bound.set(recipe.recipeType.initial(recipe));
 
-    RecipeNode center = nodes.find(e -> e.isBlock);
+    RecipeNode center = nodes.find(e -> e.type == NodeType.block);
     for (RecipeNode node : nodes) {
       recipe.recipeType.layout(node);
       LineMeta line = recipe.recipeType.line(node, center);
@@ -74,6 +71,8 @@ public class RecipeView extends Group {
 
   @Override
   public void draw() {
+    validate();
+
     Draw.alpha(parentAlpha);
     recipe.recipeType.drawLine(this);
     super.draw();

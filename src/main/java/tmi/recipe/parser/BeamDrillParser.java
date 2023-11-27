@@ -49,7 +49,7 @@ public class BeamDrillParser extends ConsumerParser<BeamDrill>{
         Recipe r = new Recipe(RecipeType.collecting);
         r.setBlock(getWrap(content));
         r.setTime(content.getDrillTime(drop.itemDrop));
-        r.addProduction(getWrap(drop.itemDrop));
+        r.addProduction(getWrap(drop.itemDrop), 1);
 
         if(content.optionalBoostIntensity != 1){
           registerCons(r, Seq.with(content.consumers).select(e -> !(e.optional && e instanceof ConsumeLiquidBase && e.booster)).toArray(Consume.class));
@@ -67,7 +67,7 @@ public class BeamDrillParser extends ConsumerParser<BeamDrill>{
       });
 
       float realDrillTime = content.getDrillTime(drop.itemDrop);
-      recipe.addMaterial(getWrap(drop), content.size)
+      recipe.addMaterialRaw(getWrap(drop), content.size)
           .setEfficiency(content.drillTime / realDrillTime)
           .setAttribute()
           .setEmptyFormat();

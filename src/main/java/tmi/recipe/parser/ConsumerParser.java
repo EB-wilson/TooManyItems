@@ -63,7 +63,7 @@ public abstract class ConsumerParser<T extends Block> extends RecipeParser<T> {
     registerVanillaConsParser(c -> c instanceof ConsumePayloads, (recipe, consume, handle) -> {
       for (PayloadStack stack : ((ConsumePayloads) consume).payloads) {
         if (stack.amount > 1) handle.get(recipe.addMaterial(getWrap(stack.item), stack.amount));
-        else handle.get(recipe.addMaterial(getWrap(stack.item)).setOptionalCons(consume.optional));
+        else handle.get(recipe.addMaterial(getWrap(stack.item), 1).setOptionalCons(consume.optional));
       }
     });
 

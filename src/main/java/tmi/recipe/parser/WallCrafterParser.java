@@ -20,7 +20,7 @@ public class WallCrafterParser extends ConsumerParser<WallCrafter>{
     Recipe res = new Recipe(RecipeType.collecting);
     res.setBlock(getWrap(content));
     res.setTime(content.drillTime);
-    res.addProduction(getWrap(content.output));
+    res.addProduction(getWrap(content.output), 1);
 
     registerCons(res, content.consumers);
 
@@ -28,7 +28,7 @@ public class WallCrafterParser extends ConsumerParser<WallCrafter>{
       if (block.attributes.get(content.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = block.attributes.get(content.attribute);
-      res.addMaterial(getWrap(block), block.size)
+      res.addMaterialRaw(getWrap(block), block.size)
           .setEfficiency(eff)
           .setAttribute()
           .setFormat(f -> "[#98ffa9]" + Mathf.round(eff*100) + "%");

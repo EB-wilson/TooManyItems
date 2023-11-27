@@ -25,8 +25,8 @@ public class ReconstructorParser extends ConsumerParser<Reconstructor>{
       Recipe recipe = new Recipe(RecipeType.factory);
       recipe.setBlock(getWrap(reconstructor));
       recipe.setTime(reconstructor.constructTime);
-      recipe.addMaterial(getWrap(upgrade[0]));
-      recipe.addProduction(getWrap(upgrade[1]));
+      recipe.addMaterial(getWrap(upgrade[0]), 1);
+      recipe.addProduction(getWrap(upgrade[1]), 1);
 
       registerCons(recipe, reconstructor.consumers);
 

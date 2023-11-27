@@ -6,6 +6,7 @@ import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.Lines;
 import arc.math.Mathf;
+import arc.scene.Element;
 import arc.scene.event.Touchable;
 import arc.scene.ui.Button;
 import arc.scene.ui.Tooltip;
@@ -28,14 +29,19 @@ public class RecipeNode extends Button {
 
   public final RecipeItemStack stack;
 
-  public boolean isMaterial, isProduction, isBlock;
+  public final NodeType type;
 
   float progress, alpha;
   boolean activity, touched;
   float time;
   int clicked;
 
-  public RecipeNode(RecipeItemStack stack, Cons2<RecipeItem<?>, RecipesDialog.Mode> click){
+  Cons2<RecipeItem<?>, RecipesDialog.Mode> click;
+
+  public RecipeNode(NodeType type, RecipeItemStack stack, Cons2<RecipeItem<?>, RecipesDialog.Mode> click){
+    this.type = type;
+    this.click = click;
+
     setBackground(Tex.button);
     this.stack = stack;
 
@@ -58,12 +64,12 @@ public class RecipeNode extends Button {
 
       if (Time.globalTime - time < 12){
         if (!mobile || Core.settings.getBool("keyboard")) {
-          click.get(stack.item(), Core.input.keyDown(binds.hotKey) ? isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
+          click.get(stack.item(), Core.input.keyDown(binds.hotKey) ? type == NodeType.block ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
         }
         else {
           clicked++;
           if (clicked >= 2){
-            click.get(stack.item(), isBlock ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
+            click.get(stack.item(), type == NodeType.block ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
             clicked = 0;
           }
         }
@@ -72,15 +78,6 @@ public class RecipeNode extends Button {
         if (stack.item.hasDetails() && progress >= 0.95f){
           stack.item.displayDetails();
         }
-      }
-    });
-
-    update(() -> {
-      alpha = Mathf.lerpDelta(alpha, touched || activity ? 1 : 0, 0.08f);
-      progress = Mathf.approachDelta(progress, stack.item.hasDetails() && touched? 1.01f : 0, 1/60f);
-      if (Time.globalTime - time > 12 && clicked == 1){
-        click.get(stack.item(), RecipesDialog.Mode.recipe);
-        clicked = 0;
       }
     });
 
@@ -99,6 +96,18 @@ public class RecipeNode extends Button {
           t.image(Icon.lock).scaling(Scaling.fit).size(10).color(Color.lightGray);
         })
     ).grow().pad(5);
+  }
+
+  @Override
+  public void act(float delta) {
+    super.act(delta);
+
+    alpha = Mathf.lerpDelta(alpha, touched || activity ? 1 : 0, 0.08f);
+    progress = Mathf.approachDelta(progress, stack.item.hasDetails() && touched? 1.01f : 0, 1/60f);
+    if (Time.globalTime - time > 12 && clicked == 1){
+      click.get(stack.item(), RecipesDialog.Mode.recipe);
+      clicked = 0;
+    }
   }
 
   @Override

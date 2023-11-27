@@ -27,7 +27,7 @@ public class UnitAssemblerParser extends ConsumerParser<UnitAssembler>{
       Recipe recipe = new Recipe(RecipeType.factory);
       recipe.setBlock(getWrap(assem));
       recipe.setTime(plan.time);
-      recipe.addProduction(getWrap(plan.unit));
+      recipe.addProduction(getWrap(plan.unit), 1);
 
       for (PayloadStack stack : plan.requirements) {
         recipe.addMaterial(getWrap(stack.item), stack.amount);

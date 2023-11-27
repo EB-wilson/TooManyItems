@@ -34,7 +34,7 @@ public class ThermalGeneratorParser extends ConsumerParser<ThermalGenerator>{
 
       float eff = content.displayEfficiencyScale*content.size*content.size*block.attributes.get(content.attribute);
       if (eff <= content.minEfficiency) continue;
-      res.addMaterial(getWrap(block), content.size*content.size)
+      res.addMaterialRaw(getWrap(block), content.size*content.size)
           .setEfficiency(eff)
           .setAttribute()
           .setFormat(f -> "[#98ffa9]" + Mathf.round(eff*100) + "%");
