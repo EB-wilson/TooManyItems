@@ -5,6 +5,7 @@ import arc.Events;
 import arc.input.KeyCode;
 import arc.util.Time;
 import mindustry.Vars;
+import mindustry.content.Items;
 import mindustry.game.EventType;
 import mindustry.gen.Icon;
 import mindustry.input.Binding;
@@ -18,6 +19,7 @@ import tmi.recipe.types.PowerMark;
 import tmi.ui.Cursor;
 import tmi.ui.EntryAssigner;
 import tmi.ui.RecipesDialog;
+import tmi.ui.SchematicCalculatorDialog;
 import tmi.util.Consts;
 import tmi.util.KeyBinds;
 
@@ -27,6 +29,7 @@ public class TooManyItems extends Mod {
   public static ModAPI api;
 
   public static RecipesDialog recipesDialog;
+  public static SchematicCalculatorDialog calculatorDialog;
   public static KeyBinds binds;
 
   public TooManyItems() {
@@ -43,6 +46,12 @@ public class TooManyItems extends Mod {
 
       api.afterInit();
       recipesManager.mergeGroup();
+
+      calculatorDialog.show();
+      calculatorDialog.draw();
+      calculatorDialog.act(1);
+      calculatorDialog.addRecipe(TooManyItems.recipesManager.getRecipesByProduction(TooManyItems.itemsManager.getItem(Items.surgeAlloy)).first());
+      calculatorDialog.addRecipe(TooManyItems.recipesManager.getRecipesByProduction(TooManyItems.itemsManager.getItem(Items.silicon)).first());
     }));
   }
 
@@ -76,6 +85,7 @@ public class TooManyItems extends Mod {
 
     binds = new KeyBinds();
     recipesDialog = new RecipesDialog();
+    calculatorDialog = new SchematicCalculatorDialog();
 
     binds.load();
     api.init();

@@ -17,7 +17,6 @@ import arc.util.Log;
 import arc.util.Strings;
 import mindustry.Vars;
 import mindustry.core.UI;
-import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Icon;
 import mindustry.ui.Styles;
 import mindustry.world.Block;
@@ -49,7 +48,7 @@ public class BuildingRecipe extends RecipeType {
   @Override
   public void buildView(Group view) {
     Label label = new Label(Core.bundle.get("misc.building"), Styles.outlineLabel);
-    label.getStyle().background = Consts.grayUI;
+    label.getStyle().background = Consts.grayUIAlpha;
     label.validate();
 
     label.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + label.getPrefWidth()/2, blockPos.y, Align.center);
@@ -57,7 +56,7 @@ public class BuildingRecipe extends RecipeType {
 
     if (time > 0){
       Label time = new Label(Stat.buildTime.localized() + ": " + (this.time > 3600? UI.formatTime(this.time): Strings.autoFixed(this.time/60, 2) + StatUnit.seconds.localized()), Styles.outlineLabel);
-      time.getStyle().background = Consts.grayUI;
+      time.getStyle().background = Consts.grayUIAlpha;
       time.validate();
 
       time.setPosition(blockPos.x + SIZE/2 + ITEM_PAD + time.getPrefWidth()/2, blockPos.y - label.getHeight() - 4, Align.center);

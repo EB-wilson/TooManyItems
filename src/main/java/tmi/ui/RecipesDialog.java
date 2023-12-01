@@ -20,10 +20,8 @@ import arc.scene.style.Drawable;
 import arc.scene.ui.Button;
 import arc.scene.ui.Image;
 import arc.scene.ui.ImageButton;
-import arc.scene.ui.TextField;
 import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
-import arc.struct.ObjectSet;
 import arc.struct.Seq;
 import arc.util.*;
 import mindustry.Vars;
@@ -31,14 +29,15 @@ import mindustry.ctype.Content;
 import mindustry.gen.Icon;
 import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
-import mindustry.input.Binding;
 import mindustry.ui.Fonts;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
 import mindustry.world.Block;
-import rhino.Sorting;
 import tmi.TooManyItems;
 import tmi.recipe.Recipe;
+import tmi.recipe.RecipeType;
+import tmi.recipe.types.FactoryRecipe;
+import tmi.recipe.types.GeneratorRecipe;
 import tmi.recipe.types.RecipeItem;
 import tmi.util.Consts;
 
@@ -132,10 +131,10 @@ public class RecipesDialog extends BaseDialog {
     cont.clearChildren();
 
     if (Core.graphics.isPortrait()){
-      recipesTable = cont.table(padGrayUI).grow().pad(5).get();
+      recipesTable = cont.table(padGrayUIAlpha).grow().pad(5).get();
       cont.row();
 
-      Table tab = new Table(Consts.grayUI, t -> contentsTable = t.table(padGrayUI).growX().height(Core.graphics.getHeight()/2f/Scl.scl()).get()){
+      Table tab = new Table(Consts.grayUIAlpha, t -> contentsTable = t.table(padGrayUIAlpha).growX().height(Core.graphics.getHeight()/2f/Scl.scl()).get()){
         @Override
         public void validate() {
           parent.invalidateHierarchy();
@@ -158,9 +157,9 @@ public class RecipesDialog extends BaseDialog {
       });
     }
     else {
-      recipesTable = cont.table(padGrayUI).grow().pad(5).get();
+      recipesTable = cont.table(padGrayUIAlpha).grow().pad(5).get();
       cont.image().color(Pal.accent).growY().pad(0).width(4);
-      contentsTable = cont.table(padGrayUI).growY().width(Core.graphics.getWidth()/2.5f/Scl.scl()).pad(5).get();
+      contentsTable = cont.table(padGrayUIAlpha).growY().width(Core.graphics.getWidth()/2.5f/Scl.scl()).pad(5).get();
     }
 
     buildContents();
@@ -198,7 +197,7 @@ public class RecipesDialog extends BaseDialog {
         refreshSeq.run();
       }).growX();
 
-      sortingTab = new Table(grayUI, ta -> {
+      sortingTab = new Table(grayUIAlpha, ta -> {
         for (Sorting sort : sortings) {
           ta.button(t -> {
             t.defaults().left().pad(5);
@@ -467,7 +466,7 @@ public class RecipesDialog extends BaseDialog {
         currView = recipeViews.get(recipeIndex);
         currView.validate();
         main.table(modes -> {
-          modeTab = new Table(grayUI, ta -> {
+          modeTab = new Table(grayUIAlpha, ta -> {
             for (Mode mode : Mode.values()) {
               if (mode == Mode.factory && (!(currentSelect.item instanceof Block) || TooManyItems.recipesManager.getRecipesByFactory(currentSelect).isEmpty())) continue;
               else if (mode == Mode.recipe && TooManyItems.recipesManager.getRecipesByProduction(currentSelect).isEmpty()) continue;
@@ -553,6 +552,22 @@ public class RecipesDialog extends BaseDialog {
     }).left().growX().fillY().pad(8);
     recipesTable.row();
     recipesTable.add().grow();
+    recipesTable.row();
+    recipesTable.table(bu -> {
+      bu.button(Icon.add, Styles.clearNonei, 36, () -> {
+        TooManyItems.calculatorDialog.addRecipe(recipes.get(recipeIndex));
+        if (!TooManyItems.recipesDialog.isShown()) TooManyItems.calculatorDialog.show();
+        hide();
+      }).margin(5).disabled(b -> {
+        Recipe r = recipes.get(recipeIndex);
+        if (r.recipeType == RecipeType.building) return true;
+        boolean ba = false;
+        for (RecipeItem<?> key : r.productions.keys()) {
+          if (!((GeneratorRecipe) RecipeType.generator).isPower(key)) ba = true;
+        }
+        return !ba;
+      });
+    });
     recipesTable.row();
     recipesTable.table(butt -> {
       butt.button(Icon.leftOpen, Styles.clearNonei, 32, () -> {

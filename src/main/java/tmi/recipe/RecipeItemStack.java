@@ -23,6 +23,8 @@ public class RecipeItemStack {
   public boolean optionalCons = false;
   /**该条目是否为属性项目，通常用于计算覆盖/关联的方块提供的属性增益*/
   public boolean isAttribute = false;
+  /**该条目是否是增幅项目，若为增幅项目则被单独计算boost倍率，该倍率将影响输入物数量计算并直接乘在最终效率上*/
+  public boolean isBooster = false;
   /**条目从属的属性组，一个属性组内的项目在工作效率计算时，会以最高的那一个作为计算结果。
    * <br>
    * 属性组的划分按照提供的对象确定，任意时候当两个条目的属性组对象{@link Object#equals(Object)}为真时就会被视为从属于同一属性组。
@@ -71,6 +73,16 @@ public class RecipeItemStack {
 
   public RecipeItemStack setAttribute(){
     this.isAttribute = true;
+    return this;
+  }
+
+  public RecipeItemStack setBooster() {
+    isBooster = true;
+    return this;
+  }
+
+  public RecipeItemStack setBooster(boolean boost) {
+    isBooster = boost;
     return this;
   }
 

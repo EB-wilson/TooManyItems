@@ -77,7 +77,7 @@ public class Recipe {
 
   public RecipeItemStack addProduction(RecipeItem<?> item, int amount){
     RecipeItemStack res = time > 0?
-        new RecipeItemStack(item, amount*60/time).setIntegerFormat(amount):
+        new RecipeItemStack(item, amount/time).setIntegerFormat(amount):
         new RecipeItemStack(item, amount).setIntegerFormat();
 
     productions.put(item, res);
@@ -86,7 +86,7 @@ public class Recipe {
 
   public RecipeItemStack addProduction(RecipeItem<?> item, float amount){
     RecipeItemStack res = time > 0?
-        new RecipeItemStack(item, amount*60/time).setFloatFormat(amount):
+        new RecipeItemStack(item, amount/time).setFloatFormat(amount):
         new RecipeItemStack(item, amount).setFloatFormat();
 
     productions.put(item, res);
@@ -137,8 +137,11 @@ public class Recipe {
 
       float attr = 0;
       float eff = 1;
+      float boost = 1;
 
       for (RecipeItemStack stack : recipe.materials.values()) {
+        if (!stack.isBooster && !stack.isAttribute) continue;
+
         if (stack.isAttribute){
           float a = stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount);
           if (stack.maxAttr) attr = Math.max(attr, a);
@@ -152,16 +155,36 @@ public class Recipe {
             }
             else attrGroups.increment(stack.attributeGroup, 0, e);
           }
-          else eff *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount), stack.optionalCons? 1: 0);
+          else boost *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount), stack.optionalCons? 1: 0);
         }
       }
 
       ObjectFloatMap.Values v = attrGroups.values();
       while (v.hasNext()) {
+        boost *= v.next();
+      }
+      boost *= baseEff + attr;
+      attrGroups.clear();
+
+      for (RecipeItemStack stack : recipe.materials.values()) {
+        if (stack.isBooster || stack.isAttribute) continue;
+
+        if (stack.attributeGroup != null){
+          float e = attrGroups.get(stack.attributeGroup, 1)*stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/ (stack.amount*boost));
+          if (stack.maxAttr) {
+            attrGroups.put(stack.attributeGroup, Math.max(attrGroups.get(stack.attributeGroup, 0), e));
+          }
+          else attrGroups.increment(stack.attributeGroup, 0, e);
+        }
+        else eff *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/(stack.amount*boost)), stack.optionalCons? 1: 0);
+      }
+
+      v = attrGroups.values();
+      while (v.hasNext()) {
         eff *= v.next();
       }
 
-      return (baseEff + attr)*eff;
+      return eff*boost;
     };
   }
 

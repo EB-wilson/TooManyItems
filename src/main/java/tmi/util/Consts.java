@@ -14,12 +14,11 @@ import mindustry.graphics.Pal;
 import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.environment.Floor;
-import tmi.recipe.Recipe;
 
 public class Consts {
   private static final Seq<?> emp = new Seq<>();
 
-  public static Drawable grayUI, padGrayUI, a_z, tmi;
+  public static Drawable grayUI, darkGrayUI, grayUIAlpha, darkGrayUIAlpha, padGrayUIAlpha, a_z, tmi;
 
   public static Tile markerTile;
 
@@ -27,12 +26,15 @@ public class Consts {
     a_z = Core.atlas.getDrawable("tmi-a_z");
     tmi = Core.atlas.getDrawable("tmi-tmi");
 
-    grayUI = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f));
-    padGrayUI = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f));
-    padGrayUI.setLeftWidth(8);
-    padGrayUI.setRightWidth(8);
-    padGrayUI.setTopHeight(8);
-    padGrayUI.setBottomHeight(8);
+    grayUI = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkerGray));
+    darkGrayUI = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkestGray));
+    grayUIAlpha = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f));
+    darkGrayUIAlpha = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkestGray).a(0.7f));
+    padGrayUIAlpha = ((TextureRegionDrawable) Tex.whiteui).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f));
+    padGrayUIAlpha.setLeftWidth(8);
+    padGrayUIAlpha.setRightWidth(8);
+    padGrayUIAlpha.setTopHeight(8);
+    padGrayUIAlpha.setBottomHeight(8);
 
     markerTile = new Tile(0, 0){
       @Override

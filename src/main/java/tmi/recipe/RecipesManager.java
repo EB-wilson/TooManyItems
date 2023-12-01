@@ -15,9 +15,6 @@ import static tmi.TooManyItems.itemsManager;
 public class RecipesManager{
   /**所有{@linkplain RecipeParser 配方分析工具}的存储容器，已注册的分析工具将被存储在这里待加载配方时分析方块使用*/
   protected Seq<RecipeParser<?>> parsers = new Seq<>(RecipeParser.class);
-  /**配方的分组容器，该容器映射每一个可被折叠分组的配方到它的分组列表
-   * @see RecipesManager#mergeGroup() */
-  protected ObjectMap<Recipe, Seq<Recipe>> sameGroups = new ObjectMap<>();
 
   /**当前存放所有配方的容器，所有已添加的配方都被存储在这里*/
   protected final Seq<Recipe> recipes = new Seq<>();
@@ -68,11 +65,6 @@ public class RecipesManager{
   /**以配方的建筑方块筛选配方，若配方的{@link Recipe#block}与给定的参数相同则添加到返回列表*/
   public Seq<Recipe> getRecipesByFactory(RecipeItem<?> block){
     return recipes.select(e -> e.recipeType != RecipeType.building && e.block == block);
-  }
-
-  /**获取参数给定配方所映射到的配方分组列表*/
-  public Seq<Recipe> getRecipeGroup(Recipe recipe){
-    return sameGroups.get(recipe);
   }
 
   public void init() {

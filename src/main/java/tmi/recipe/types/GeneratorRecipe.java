@@ -117,7 +117,7 @@ public class GeneratorRecipe extends FactoryRecipe {
     else return super.line(from, to);
   }
 
-  protected boolean isPower(RecipeItem<?> item) {
+  public boolean isPower(RecipeItem<?> item) {
     return powers.contains(item);
   }
 }

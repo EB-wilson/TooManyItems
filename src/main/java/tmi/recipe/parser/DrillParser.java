@@ -53,8 +53,9 @@ public class DrillParser extends ConsumerParser<Drill>{
 
         if(content.liquidBoostIntensity != 1){
           registerCons(r, Seq.with(content.consumers).select(e -> !(e.optional && e instanceof ConsumeLiquidBase && e.booster)).toArray(Consume.class));
-          if(content.findConsumer(f -> f instanceof ConsumeLiquidBase) instanceof ConsumeLiquidBase consBase) {
+          if(content.findConsumer(f -> f instanceof ConsumeLiquidBase && f.optional && f.booster) instanceof ConsumeLiquidBase consBase) {
             registerCons(r, s -> s.setEfficiency(content.liquidBoostIntensity)
+                .setBooster()
                 .setOptionalCons()
                 .setFormat(f -> (f*60 > 1000? UI.formatAmount((long) (f*60)): Strings.autoFixed(f*60, 2)) + "/" + StatUnit.seconds.localized() + "\n[#98ffa9]+" + Mathf.round(content.liquidBoostIntensity*100) + "%"), consBase);
           }
