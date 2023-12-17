@@ -7,12 +7,14 @@ import mindustry.ctype.UnlockableContent;
 import mindustry.world.meta.StatUnit;
 import tmi.recipe.types.RecipeItem;
 
+import java.util.Objects;
+
 /**保存一个材料项目数据的结构类型，在{@link Recipe}中作数据记录对象使用*/
 public class RecipeItemStack {
   /**该条目表示的{@link UnlockableContent}*/
   public final RecipeItem<?> item;
   /**条目附加的数量信息，这将被用作生产计算和显示数据的文本格式化*/
-  public final float amount;
+  public float amount;
 
   /**条目数据显示的文本格式化函数，这里返回的文本将显示在条目上以表示数量信息*/
   public AmountFormatter amountFormat = f -> "";
@@ -129,6 +131,14 @@ public class RecipeItemStack {
   public RecipeItemStack setPresecFormat() {
     setFormat(f -> (f*60 > 1000? UI.formatAmount((long) (f*60)): Strings.autoFixed(f*60, 2)) + "/" + StatUnit.seconds.localized());
     return this;
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (this == object) return true;
+    if (object == null || getClass() != object.getClass()) return false;
+    RecipeItemStack stack = (RecipeItemStack) object;
+    return Float.compare(amount, stack.amount) == 0 && isAttribute == stack.isAttribute && isBooster == stack.isBooster && maxAttr == stack.maxAttr && Objects.equals(item, stack.item) && Objects.equals(attributeGroup, stack.attributeGroup);
   }
 
   public interface AmountFormatter {

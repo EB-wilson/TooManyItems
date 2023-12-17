@@ -89,6 +89,11 @@ public class CollectingRecipe extends FactoryRecipe {
     return bound;
   }
 
+  @Override
+  public int id() {
+    return 2;
+  }
+
   protected float handleNode(Seq<RecipeItemStack> seq, ObjectMap<RecipeItem<?>, Vec2> pos, float offX, float offY) {
     float dx = SIZE / 2;
     for (int i = 0; i < seq.size; i++) {

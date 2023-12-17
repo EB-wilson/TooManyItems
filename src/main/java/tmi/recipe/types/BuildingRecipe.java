@@ -136,4 +136,9 @@ public class BuildingRecipe extends RecipeType {
 
     return res;
   }
+
+  @Override
+  public int id() {
+    return 0;
+  }
 }

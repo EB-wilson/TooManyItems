@@ -30,6 +30,7 @@ public abstract class RecipeType {
   public abstract void layout(RecipeNode recipeNode);
   /**生成从给定起始节点到目标节点的{@linkplain tmi.ui.RecipeView.LineMeta 线条信息}*/
   public abstract RecipeView.LineMeta line(RecipeNode from, RecipeNode to);
+  public abstract int id();
   /**向配方显示器内添加显示部件的入口*/
   public void buildView(Group view){}
 
@@ -77,5 +78,10 @@ public abstract class RecipeType {
     }
 
     Draw.reset();
+  }
+
+  @Override
+  public int hashCode() {
+    return id();
   }
 }

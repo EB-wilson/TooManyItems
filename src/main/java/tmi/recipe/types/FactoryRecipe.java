@@ -194,8 +194,8 @@ public class FactoryRecipe extends RecipeType {
 
     if (from.stack.optionalCons) return res;
 
-    res.color = from.type == NodeType.material? () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.time/8 + Mathf.pi, 1, 1), 3)):
-        () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.time/8, 1, 1), 3));
+    res.color = from.type == NodeType.material? () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.globalTime/8 + Mathf.pi, 1, 1), 3)):
+        () -> Tmp.c1.set(Color.gray).lerp(Pal.accent, Mathf.pow(Mathf.absin(Time.globalTime/8, 1, 1), 3));
 
     float offX = from.getWidth()/2;
     float offY = from.getHeight()/2;
@@ -215,5 +215,10 @@ public class FactoryRecipe extends RecipeType {
     }
 
     return res;
+  }
+
+  @Override
+  public int id() {
+    return 1;
   }
 }

@@ -8,9 +8,12 @@ import arc.struct.OrderedMap;
 import arc.util.Nullable;
 import tmi.recipe.types.RecipeItem;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**配方信息的存储类，该类的每一个实例都表示为一个单独的配方，用于显示配方或者计算生产数据*/
 public class Recipe {
-  private static final EffFunc ZERO_BASE = getDefaultEff(0);
+  private static final EffFunc ONE_BASE = getDefaultEff(1);
 
   /**该配方的类型，请参阅{@link RecipeType}*/
   public final RecipeType recipeType;
@@ -39,15 +42,23 @@ public class Recipe {
   }
 
   /**用配方当前使用的效率计算器计算该配方在给定的环境参数下的运行效率*/
-  public float calculateEfficiency(EnvParameter parameter) {
-    return efficiency.get(this, parameter);
+  public float calculateEfficiency(EnvParameter parameter, int multiplier) {
+    return efficiency.calculateEff(this, parameter, calculateBoost(parameter, multiplier), multiplier);
+  }
+
+  public float calculateEfficiency(EnvParameter parameter, int multiplier, float boost) {
+    return efficiency.calculateEff(this, parameter, boost, multiplier);
+  }
+
+  public float calculateBoost(EnvParameter parameter, int multiplier) {
+    return efficiency.calculateBoost(this, parameter, multiplier);
   }
 
   //utils
 
   public RecipeItemStack addMaterial(RecipeItem<?> item, int amount){
     RecipeItemStack res = time > 0?
-        new RecipeItemStack(item, amount*60/time).setIntegerFormat(amount):
+        new RecipeItemStack(item, amount/time).setIntegerFormat(amount):
         new RecipeItemStack(item, amount).setIntegerFormat();
 
     materials.put(item, res);
@@ -56,7 +67,7 @@ public class Recipe {
 
   public RecipeItemStack addMaterial(RecipeItem<?> item, float amount){
     RecipeItemStack res = time > 0?
-        new RecipeItemStack(item, amount*60/time).setFloatFormat(amount):
+        new RecipeItemStack(item, amount/time).setFloatFormat(amount):
         new RecipeItemStack(item, amount).setFloatFormat();
 
     materials.put(item, res);
@@ -125,71 +136,95 @@ public class Recipe {
 
   /**@see Recipe#getDefaultEff(float) */
   public static EffFunc getDefaultEff(){
-    return ZERO_BASE;
+    return ONE_BASE;
   }
 
   /**生成一个适用于vanilla绝大多数工厂与设备的效率计算器，若{@linkplain RecipeParser 配方解析器}正确的解释了方块，这个函数应当能够正确计算方块的实际工作效率*/
   public static EffFunc getDefaultEff(float baseEff){
     ObjectFloatMap<Object> attrGroups = new ObjectFloatMap<>();
 
-    return (recipe, env) -> {
-      attrGroups.clear();
+    return new EffFunc() {
+      @Override
+      public float calculateEff(Recipe recipe, EnvParameter env, float boost, int mul) {
+        float eff = 1;
 
-      float attr = 0;
-      float eff = 1;
-      float boost = 1;
+        attrGroups.clear();
 
-      for (RecipeItemStack stack : recipe.materials.values()) {
-        if (!stack.isBooster && !stack.isAttribute) continue;
+        for (RecipeItemStack stack : recipe.materials.values()) {
+          if (stack.isBooster || stack.isAttribute) continue;
 
-        if (stack.isAttribute){
-          float a = stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount);
-          if (stack.maxAttr) attr = Math.max(attr, a);
-          else attr += a;
-        }
-        else {
           if (stack.attributeGroup != null){
-            float e = attrGroups.get(stack.attributeGroup, 1)*stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount);
+            float e = attrGroups.get(stack.attributeGroup, 1)*stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/ (stack.amount*boost*mul));
             if (stack.maxAttr) {
               attrGroups.put(stack.attributeGroup, Math.max(attrGroups.get(stack.attributeGroup, 0), e));
             }
             else attrGroups.increment(stack.attributeGroup, 0, e);
           }
-          else boost *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/stack.amount), stack.optionalCons? 1: 0);
+          else eff *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/(stack.amount*boost*mul)), stack.optionalCons? 1: 0);
         }
+
+        ObjectFloatMap.Values v = attrGroups.values();
+        while (v.hasNext()) {
+          eff *= v.next();
+        }
+
+        return eff*boost;
       }
 
-      ObjectFloatMap.Values v = attrGroups.values();
-      while (v.hasNext()) {
-        boost *= v.next();
-      }
-      boost *= baseEff + attr;
-      attrGroups.clear();
+      @Override
+      public float calculateBoost(Recipe recipe, EnvParameter env, int mul) {
+        attrGroups.clear();
 
-      for (RecipeItemStack stack : recipe.materials.values()) {
-        if (stack.isBooster || stack.isAttribute) continue;
+        float attr = 0;
+        float boost = 1;
 
-        if (stack.attributeGroup != null){
-          float e = attrGroups.get(stack.attributeGroup, 1)*stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/ (stack.amount*boost));
-          if (stack.maxAttr) {
-            attrGroups.put(stack.attributeGroup, Math.max(attrGroups.get(stack.attributeGroup, 0), e));
+        for (RecipeItemStack stack : recipe.materials.values()) {
+          if (!stack.isBooster && !stack.isAttribute) continue;
+
+          if (stack.isAttribute){
+            float a = stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/(stack.amount*mul));
+            if (stack.maxAttr) attr = Math.max(attr, a);
+            else attr += a;
           }
-          else attrGroups.increment(stack.attributeGroup, 0, e);
+          else {
+            if (stack.attributeGroup != null){
+              float e = attrGroups.get(stack.attributeGroup, 1)*stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/(stack.amount*mul));
+              if (stack.maxAttr) {
+                attrGroups.put(stack.attributeGroup, Math.max(attrGroups.get(stack.attributeGroup, 0), e));
+              }
+              else attrGroups.increment(stack.attributeGroup, 0, e);
+            }
+            else boost *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/(stack.amount*mul)), stack.optionalCons? 1: 0);
+          }
         }
-        else eff *= Math.max(stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/(stack.amount*boost)), stack.optionalCons? 1: 0);
-      }
 
-      v = attrGroups.values();
-      while (v.hasNext()) {
-        eff *= v.next();
+        ObjectFloatMap.Values v = attrGroups.values();
+        while (v.hasNext()) {
+          boost *= v.next();
+        }
+        return boost*(baseEff + attr);
       }
-
-      return eff*boost;
     };
   }
 
-  @FunctionalInterface
+  @Override
+  public boolean equals(Object object) {
+    if (this == object) return true;
+    if (!(object instanceof Recipe r)) return false;
+    if (r.recipeType != recipeType || r.block != block) return false;
+
+    if (r.materials.size != materials.size || r.productions.size != productions.size) return false;
+
+    return r.materials.equals(materials) && r.productions.equals(productions);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(recipeType, productions.orderedKeys(), materials.orderedKeys(), block);
+  }
+
   public interface EffFunc{
-    float get(Recipe recipe, EnvParameter env);
+    float calculateEff(Recipe recipe, EnvParameter env, float boost, int multiplier);
+    float calculateBoost(Recipe recipe, EnvParameter env, int multiplier);
   }
 }

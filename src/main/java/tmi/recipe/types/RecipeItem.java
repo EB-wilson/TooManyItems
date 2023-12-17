@@ -2,6 +2,8 @@ package tmi.recipe.types;
 
 import arc.graphics.g2d.TextureRegion;
 
+import java.util.Objects;
+
 public abstract class RecipeItem<T> implements Comparable<RecipeItem<?>>{
   public final T item;
 
@@ -32,5 +34,18 @@ public abstract class RecipeItem<T> implements Comparable<RecipeItem<?>>{
     }
 
     return n;
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (this == object) return true;
+    if (object == null || getClass() != object.getClass()) return false;
+    RecipeItem<?> that = (RecipeItem<?>) object;
+    return Objects.equals(item, that.item);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(name());
   }
 }

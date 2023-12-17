@@ -1,25 +1,19 @@
 package tmi;
 
-import arc.Core;
 import arc.Events;
-import arc.input.KeyCode;
 import arc.util.Time;
 import mindustry.Vars;
 import mindustry.content.Items;
 import mindustry.game.EventType;
-import mindustry.gen.Icon;
-import mindustry.input.Binding;
 import mindustry.mod.Mod;
 import tmi.recipe.RecipeItemManager;
 import tmi.recipe.RecipeType;
 import tmi.recipe.RecipesManager;
 import tmi.recipe.parser.*;
-import tmi.recipe.types.HeatMark;
-import tmi.recipe.types.PowerMark;
 import tmi.ui.Cursor;
 import tmi.ui.EntryAssigner;
 import tmi.ui.RecipesDialog;
-import tmi.ui.SchematicCalculatorDialog;
+import tmi.ui.SchematicDrsignerDialog;
 import tmi.util.Consts;
 import tmi.util.KeyBinds;
 
@@ -29,7 +23,7 @@ public class TooManyItems extends Mod {
   public static ModAPI api;
 
   public static RecipesDialog recipesDialog;
-  public static SchematicCalculatorDialog calculatorDialog;
+  public static SchematicDrsignerDialog schematicDesigner;
   public static KeyBinds binds;
 
   public TooManyItems() {
@@ -47,11 +41,13 @@ public class TooManyItems extends Mod {
       api.afterInit();
       recipesManager.mergeGroup();
 
-      calculatorDialog.show();
-      calculatorDialog.draw();
-      calculatorDialog.act(1);
-      calculatorDialog.addRecipe(TooManyItems.recipesManager.getRecipesByProduction(TooManyItems.itemsManager.getItem(Items.surgeAlloy)).first());
-      calculatorDialog.addRecipe(TooManyItems.recipesManager.getRecipesByProduction(TooManyItems.itemsManager.getItem(Items.silicon)).first());
+      schematicDesigner.show();
+      schematicDesigner.draw();
+      schematicDesigner.act(1);
+      schematicDesigner.addRecipe(TooManyItems.recipesManager.getRecipesByProduction(TooManyItems.itemsManager.getItem(Items.silicon)).first());
+
+      schematicDesigner.addIO(TooManyItems.itemsManager.getItem(Items.coal), true);
+      schematicDesigner.addIO(TooManyItems.itemsManager.getItem(Items.sand), true);
     }));
   }
 
@@ -85,7 +81,7 @@ public class TooManyItems extends Mod {
 
     binds = new KeyBinds();
     recipesDialog = new RecipesDialog();
-    calculatorDialog = new SchematicCalculatorDialog();
+    schematicDesigner = new SchematicDrsignerDialog();
 
     binds.load();
     api.init();

@@ -3,6 +3,7 @@ package tmi.ui;
 import arc.Core;
 import arc.Graphics;
 import arc.func.Boolc;
+import arc.func.Cons;
 import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.Fill;
@@ -12,6 +13,7 @@ import arc.input.KeyCode;
 import arc.math.Mathf;
 import arc.scene.Element;
 import arc.scene.Group;
+import arc.scene.actions.Actions;
 import arc.scene.event.ElementGestureListener;
 import arc.scene.event.InputEvent;
 import arc.scene.event.InputListener;
@@ -36,7 +38,6 @@ import mindustry.world.Block;
 import tmi.TooManyItems;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeType;
-import tmi.recipe.types.FactoryRecipe;
 import tmi.recipe.types.GeneratorRecipe;
 import tmi.recipe.types.RecipeItem;
 import tmi.util.Consts;
@@ -109,11 +110,18 @@ public class RecipesDialog extends BaseDialog {
 
   Runnable contentsRebuild, refreshSeq, rebuildRecipe;
 
+  public Cons<Recipe> toggle;
+
   public RecipesDialog() {
     super(Core.bundle.get("dialog.recipes.title"));
 
     addCloseButton();
+    buttons.button(Core.bundle.get("dialog.recipes.designer"), Icon.book, () -> {
+      TooManyItems.schematicDesigner.show();
+      hide();
+    });
 
+    hidden(() -> toggle = null);
     shown(this::buildBase);
     resized(this::buildBase);
 
@@ -555,9 +563,7 @@ public class RecipesDialog extends BaseDialog {
     recipesTable.row();
     recipesTable.table(bu -> {
       bu.button(Icon.add, Styles.clearNonei, 36, () -> {
-        TooManyItems.calculatorDialog.addRecipe(recipes.get(recipeIndex));
-        if (!TooManyItems.recipesDialog.isShown()) TooManyItems.calculatorDialog.show();
-        hide();
+        toggle.get(recipes.get(recipeIndex));
       }).margin(5).disabled(b -> {
         Recipe r = recipes.get(recipeIndex);
         if (r.recipeType == RecipeType.building) return true;
@@ -567,7 +573,7 @@ public class RecipesDialog extends BaseDialog {
         }
         return !ba;
       });
-    });
+    }).visible(() -> toggle != null);
     recipesTable.row();
     recipesTable.table(butt -> {
       butt.button(Icon.leftOpen, Styles.clearNonei, 32, () -> {

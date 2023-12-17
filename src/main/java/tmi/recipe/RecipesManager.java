@@ -1,5 +1,6 @@
 package tmi.recipe;
 
+import arc.struct.IntMap;
 import arc.struct.ObjectMap;
 import arc.struct.ObjectSet;
 import arc.struct.Seq;
@@ -20,6 +21,7 @@ public class RecipesManager{
   protected final Seq<Recipe> recipes = new Seq<>();
 
   private final ObjectSet<RecipeItem<?>> materials = new ObjectSet<>(), productions = new ObjectSet<>(), blocks = new ObjectSet<>();
+  private final IntMap<Recipe> idMap = new IntMap<>();
 
   /**向管理器注册一个{@linkplain RecipeParser}用于分析方块可用的配方*/
   public void registerParser(RecipeParser<?> parser){
@@ -42,6 +44,8 @@ public class RecipesManager{
 
   /**添加单个配方*/
   public void addRecipe(Recipe recipe) {
+    idMap.put(recipe.hashCode(), recipe);
+
     recipes.add(recipe);
     for (RecipeItemStack stack : recipe.materials.values()) {
       materials.add(stack.item);
@@ -65,6 +69,10 @@ public class RecipesManager{
   /**以配方的建筑方块筛选配方，若配方的{@link Recipe#block}与给定的参数相同则添加到返回列表*/
   public Seq<Recipe> getRecipesByFactory(RecipeItem<?> block){
     return recipes.select(e -> e.recipeType != RecipeType.building && e.block == block);
+  }
+
+  public Recipe getByID(int id){
+    return idMap.get(id);
   }
 
   public void init() {
