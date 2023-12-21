@@ -101,29 +101,31 @@ public class EntryAssigner {
 
         visibility = () -> settings.getBool("tmi_button", true);
 
-        setPosition(0, 0, Align.bottomLeft);
+        setPosition(settings.getFloat("tmi_button_x", 0), settings.getFloat("tmi_button_y", 0), Align.bottomLeft);
 
-        addListener(new InputListener(){
-          float click;
+        addCaptureListener(new DragListener(){
+          {setButton(KeyCode.mouseLeft.ordinal());}
 
           @Override
-          public void touchDragged(InputEvent event, float mx, float my, int pointer){
-            if(Time.time - click < 10 || Core.app.isMobile() && pointer != 0) return;
+          public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button) {
+            return touchDown(event, x, y, pointer, button.ordinal());
+          }
+
+          @Override
+          public void drag(InputEvent event, float mx, float my, int pointer) {
+            if(Core.app.isMobile() && pointer != 0) return;
 
             setPosition(x + mx, y + my, Align.center);
           }
 
           @Override
-          public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button){
-            if(Core.app.isMobile() && pointer != 0) return false;
-            click = Time.time;
-            return true;
-          }
-
-          @Override
           public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode button) {
-            super.touchUp(event, x, y, pointer, button);
-            if (Time.time - click < 10) recipesDialog.show();
+            if (!isDragging()) recipesDialog.show();
+            else {
+              settings.put("tmi_button_x", tmiEntry.x);
+              settings.put("tmi_button_y", tmiEntry.y);
+            }
+            super.touchUp(event, x, y, pointer, button.ordinal());
           }
         });
 

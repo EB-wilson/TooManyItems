@@ -13,7 +13,7 @@ import tmi.recipe.parser.*;
 import tmi.ui.Cursor;
 import tmi.ui.EntryAssigner;
 import tmi.ui.RecipesDialog;
-import tmi.ui.SchematicDrsignerDialog;
+import tmi.ui.SchematicDesignerDialog;
 import tmi.util.Consts;
 import tmi.util.KeyBinds;
 
@@ -23,7 +23,7 @@ public class TooManyItems extends Mod {
   public static ModAPI api;
 
   public static RecipesDialog recipesDialog;
-  public static SchematicDrsignerDialog schematicDesigner;
+  public static SchematicDesignerDialog schematicDesigner;
   public static KeyBinds binds;
 
   public TooManyItems() {
@@ -81,7 +81,7 @@ public class TooManyItems extends Mod {
 
     binds = new KeyBinds();
     recipesDialog = new RecipesDialog();
-    schematicDesigner = new SchematicDrsignerDialog();
+    schematicDesigner = new SchematicDesignerDialog();
 
     binds.load();
     api.init();

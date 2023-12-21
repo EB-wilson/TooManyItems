@@ -2,6 +2,7 @@ package tmi.ui;
 
 import arc.Core;
 import arc.Graphics;
+import arc.files.Fi;
 import arc.func.Cons;
 import arc.func.Func;
 import arc.graphics.*;
@@ -9,6 +10,7 @@ import arc.graphics.g2d.*;
 import arc.graphics.gl.FrameBuffer;
 import arc.input.KeyCode;
 import arc.math.Angles;
+import arc.math.Interp;
 import arc.math.Mathf;
 import arc.math.Rand;
 import arc.math.geom.Geometry;
@@ -19,6 +21,10 @@ import arc.scene.Element;
 import arc.scene.Group;
 import arc.scene.actions.Actions;
 import arc.scene.event.*;
+import arc.scene.style.TextureRegionDrawable;
+import arc.scene.ui.Dialog;
+import arc.scene.ui.Image;
+import arc.scene.ui.ImageButton;
 import arc.scene.ui.TextField;
 import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
@@ -29,10 +35,18 @@ import arc.util.io.Writes;
 import mindustry.Vars;
 import mindustry.content.Items;
 import mindustry.core.UI;
+import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Icon;
+import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
+import mindustry.type.Item;
+import mindustry.ui.ItemDisplay;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
+import mindustry.ui.dialogs.SettingsMenuDialog;
+import mindustry.world.Block;
+import mindustry.world.blocks.ItemSelection;
+import mindustry.world.blocks.payloads.PayloadSource;
 import mindustry.world.meta.StatUnit;
 import tmi.TooManyItems;
 import tmi.recipe.EnvParameter;
@@ -45,26 +59,77 @@ import tmi.util.Consts;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static arc.util.Align.*;
-import static mindustry.Vars.mobile;
+import static mindustry.Vars.*;
+import static mindustry.Vars.ui;
 
-public class SchematicDrsignerDialog extends BaseDialog {
+public class SchematicDesignerDialog extends BaseDialog {
+  public static final int FI_HEAD = 0xceadbf01;
+
   private static final Seq<ItemLinker> seq = new Seq<>();
   private static final Vec2 tmp = new Vec2();
   private static final Rect rect = new Rect();
   protected final View view;
-
   protected final Table menuTable = new Table(){{
     visible = false;
   }};
+  protected final Dialog export = new Dialog("", Consts.transparentBack){{
+    titleTable.clear();
+
+    cont.table(Consts.darkGrayUIAlpha, t -> {
+      t.table(Consts.darkGrayUI, top -> {
+        top.left().add(Core.bundle.get("dialog.calculator.export")).pad(8);
+      }).grow().padBottom(12);
+      t.row();
+      t.table(Consts.darkGrayUI, inner -> {
+
+      }).size(640, 720);
+      t.row();
+      t.table(buttons -> {
+        buttons.right().defaults().size(92, 36).pad(6);
+        buttons.button(Core.bundle.get("misc.cancel"), Styles.cleart, this::hide);
+        buttons.button(Core.bundle.get("misc.export"), Styles.cleart, () -> {});
+      }).growX();
+    }).fill().margin(8);
+  }};
+  protected final Dialog balance = new Dialog("", Consts.transparentBack){{
+    titleTable.clear();
+
+    cont.table(Consts.darkGrayUIAlpha, t -> {
+      t.table(Consts.darkGrayUI, top -> {
+        top.left().add(Core.bundle.get("dialog.calculator.balance")).pad(8);
+      }).grow().padBottom(12);
+      t.row();
+      t.table(Consts.darkGrayUI, inner -> {
+        shown(() -> {
+          inner.clearChildren();
+          RecipeCard card = selects.size == 1 && selects.first() instanceof RecipeCard c? c: null;
+
+
+        });
+      });
+      t.row();
+      t.table(buttons -> {
+        buttons.right().defaults().size(92, 36).pad(6);
+        buttons.button(Core.bundle.get("misc.cancel"), Styles.cleart, this::hide);
+        buttons.button(Core.bundle.get("misc.ensure"), Styles.cleart, () -> {
+
+        });
+      }).growX();
+    }).fill().margin(8);
+  }};
+
   protected OrderedSet<Card> selects = new OrderedSet<>();
 
   protected Table removeArea, sideTools;
   protected boolean editLock, removeMode, selectMode;
 
-  public SchematicDrsignerDialog() {
+  public SchematicDesignerDialog() {
     super("");
 
     titleTable.clear();
@@ -78,8 +143,20 @@ public class SchematicDrsignerDialog extends BaseDialog {
       removeArea.setHeight(0);
       removeArea.color.a = 0;
       selectMode = false;
+      selects.clear();
       editLock = false;
       hideMenu();
+    });
+    fill(t -> {
+      t.table(c -> {
+        Runnable re = () -> {
+          c.clear();
+          if (Core.graphics.isPortrait()) c.center().bottom().button("@back", Icon.left, SchematicDesignerDialog.this::hide).size(210, 64f);
+          else c.top().right().button(Icon.cancel, Styles.flati, 32, this::hide).margin(5);
+        };
+        resized(re);
+        re.run();
+      }).grow();
     });
     fill(t -> {
       t.bottom().table(Consts.darkGrayUI, area -> {
@@ -88,7 +165,6 @@ public class SchematicDrsignerDialog extends BaseDialog {
         area.add(Core.bundle.get("dialog.calculator.removeArea"));
       }).bottom().growX().height(0);
     });
-
     fill(t -> {
       t.top().table(zoom -> {
         zoom.add("25%").color(Color.gray);
@@ -98,71 +174,117 @@ public class SchematicDrsignerDialog extends BaseDialog {
           view.zoom.setTransform(true);
         }).update(s -> s.setValue(view.zoom.scaleX)).width(400);
         zoom.add("100%").color(Color.gray);
-      }).top();
+      }).growX().top();
+      t.row();
+      t.add(Core.bundle.get("dialog.calculator.editLock"), Styles.outlineLabel).padTop(60).visible(() -> editLock);
+    });
+    fill(t -> {
+      AtomicBoolean fold = new AtomicBoolean(false);
+      t.right().stack(new Table(){
+        Table main;
+        {
+          table(Tex.buttonSideLeft, but -> {
+            but.touchable = Touchable.enabled;
+            Image img = but.image(Icon.rightOpen).size(36).get();
+            but.clicked(() -> {
+              if (fold.get()) {
+                clearActions();
+                actions(Actions.moveTo(0, 0, 0.3f, Interp.pow2Out), Actions.run(() -> fold.set(false)));
+                img.setOrigin(center);
+                img.actions(Actions.rotateBy(180, 0.3f), Actions.rotateTo(0));
+              }
+              else {
+                clearActions();
+                actions(Actions.moveTo(main.getWidth(), 0, 0.3f, Interp.pow2Out), Actions.run(() -> fold.set(true)));
+                img.setOrigin(center);
+                img.actions(Actions.rotateBy(180, 0.3f), Actions.rotateTo(180));
+              }
+            });
+          }).size(36, 122).padRight(-5);
+          table(Tex.buttonSideLeft, main -> {
+            this.main = main;
+          }).growY().width(320);
+        }
+      }).fillX().growY().padTop(60).padBottom(60);
     });
 
     fill(t -> {
       t.left().table(Consts.darkGrayUI, sideBar -> {
-        sideTools = sideBar;
-        sideBar.top().defaults().size(40).padBottom(8);
+        sideBar.top().pane(Styles.noBarPane, list -> {
+          sideTools = list;
+          list.top().defaults().size(40).padBottom(8);
 
-        sideBar.button(Icon.add, Styles.clearNonei, 32, () -> {
-          TooManyItems.recipesDialog.toggle = r -> {
-            TooManyItems.recipesDialog.hide();
-            addRecipe(r);
-          };
-          TooManyItems.recipesDialog.show();
-        });
-        sideBar.row();
+          list.button(Icon.add, Styles.clearNonei, 32, () -> {
+            TooManyItems.recipesDialog.toggle = r -> {
+              TooManyItems.recipesDialog.hide();
+              addRecipe(r);
+            };
+            TooManyItems.recipesDialog.show();
+          });
+          list.row();
 
-        sideBar.button(Icon.refresh, Styles.clearNonei, 32, view::standardization);
-        sideBar.row();
+          list.button(Icon.refresh, Styles.clearNonei, 32, view::standardization);
+          list.row();
 
-        sideBar.button(Icon.resize, Styles.clearNoneTogglei, 32, () -> selectMode = !selectMode)
-            .update(b -> b.setChecked(selectMode));
-        sideBar.row();
+          list.button(Icon.resize, Styles.clearNoneTogglei, 32, () -> {
+            selectMode = !selectMode;
+            if (!selectMode) selects.clear();
+          }).update(b -> b.setChecked(selectMode));
+          list.row();
 
-        sideBar.button(Icon.download, Styles.clearNonei, 32, () -> {
-          view.read(new Reads(new DataInputStream(Vars.modDirectory.child("test.b").read())));
-        });
-        sideBar.row();
+          list.button(Icon.download, Styles.clearNonei, 32, () -> {
+            platform.showFileChooser(true, "shd", file -> {
+              try{
+                view.read(file.reads());
+              }catch(Exception e){
+                ui.showException(e);
+                Log.err(e);
+              }
+            });
+          });
+          list.row();
 
-        sideBar.button(Icon.save, Styles.clearNonei, 32, () -> {
-          view.write(new Writes(new DataOutputStream(Vars.modDirectory.child("test.b").write())));
-        });
-        sideBar.row();
+          list.button(Icon.save, Styles.clearNonei, 32, () -> {
+            platform.showFileChooser(false, "shd", file -> {
+              try{
+                view.write(file.writes());
+              }catch(Exception e){
+                ui.showException(e);
+                Log.err(e);
+              }
+            });
+          });
+          list.row();
 
-        sideBar.button(Icon.export, Styles.clearNonei, 32, () -> {
+          list.button(Icon.export, Styles.clearNonei, 32, export::show);
+          list.row();
 
-        });
-        sideBar.row();
+          list.button(Icon.trash, Styles.clearNoneTogglei, 32, () -> {
+            removeMode = !removeMode;
 
-        sideBar.button(Icon.trash, Styles.clearNoneTogglei, 32, () -> {
-          removeMode = !removeMode;
+            removeArea.clearActions();
+            if (removeMode) {
+              removeArea.actions(Actions.parallel(Actions.sizeTo(removeArea.getWidth(), Core.scene.getHeight()*0.15f, 0.12f), Actions.alpha(0.6f, 0.12f)));
+            }
+            else removeArea.actions(Actions.parallel(Actions.sizeTo(removeArea.getWidth(), 0, 0.12f), Actions.alpha(0, 0.12f)));
+          }).update(b -> b.setChecked(removeMode));
+          list.row();
 
-          removeArea.clearActions();
-          if (removeMode) {
-            removeArea.actions(Actions.parallel(Actions.sizeTo(removeArea.getWidth(), Core.scene.getHeight()*0.15f, 0.12f), Actions.alpha(0.6f, 0.12f)));
-          }
-          else removeArea.actions(Actions.parallel(Actions.sizeTo(removeArea.getWidth(), 0, 0.12f), Actions.alpha(0, 0.12f)));
-        }).update(b -> b.setChecked(removeMode));
-        sideBar.row();
-
-        sideBar.button(Icon.lock, Styles.clearNoneTogglei, 32, () -> {
-          editLock = !editLock;
-        }).update(b -> {
-          b.setChecked(editLock);
-          b.getStyle().imageUp = editLock? Icon.lock: Icon.lockOpen;
-        });
-        sideBar.row();
+          list.button(Icon.lock, Styles.clearNoneTogglei, 32, () -> {
+            editLock = !editLock;
+          }).update(b -> {
+            b.setChecked(editLock);
+            b.getStyle().imageUp = editLock? Icon.lock: Icon.lockOpen;
+          });
+          list.row();
+        }).fill().padTop(8);
 
         sideBar.add().growY();
 
         sideBar.row();
         sideBar.button(Icon.infoCircle, Styles.clearNonei, 32, () -> {
 
-        }).padBottom(0);
-        sideBar.row();
+        }).padBottom(0).size(40).padBottom(8);
       }).left().growY().fillX().padTop(100).padBottom(100);
     });
   }
@@ -177,9 +299,6 @@ public class SchematicDrsignerDialog extends BaseDialog {
 
   public void moveLock(boolean lock){
     view.lock = lock;
-  }
-  public void selectLock(boolean lock){
-    view.selectLoc = lock;
   }
 
   public void showMenu(Cons<Table> tabBuilder, Element showOn, int alignment, int tableAlign, boolean pack){
@@ -223,9 +342,11 @@ public class SchematicDrsignerDialog extends BaseDialog {
     final Vec2 selectBegin = new Vec2(), selectEnd = new Vec2();
     boolean isSelecting;
 
+    boolean enabled, shown;
+    float timer;
+
     Card newSet;
     boolean lock;
-    boolean selectLoc;
 
     float lastZoom = -1;
     float panX, panY;
@@ -277,15 +398,6 @@ public class SchematicDrsignerDialog extends BaseDialog {
       };
       zoom.addChild(container);
       fill(t -> t.add(zoom).grow());
-      fill(buttons -> {
-        buttons.bottom().button("@back", Icon.left, SchematicDrsignerDialog.this::hide).size(210, 64f);
-        buttons.bottom().button("shoot", Icon.play, () -> {
-          TextureRegion region = toImage(20, 20, 1);
-          PixmapIO.writePng(Vars.modDirectory.child("target.png"), region.texture.getTextureData().getPixmap());
-        }).size(210, 64f);
-
-        addCloseListener();
-      });
 
       addListener(new InputListener(){
         @Override
@@ -306,9 +418,6 @@ public class SchematicDrsignerDialog extends BaseDialog {
       });
 
       addCaptureListener(new InputListener(){
-        boolean enabled, shown;
-        float timer;
-
         @Override
         public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button) {
           if (shown){
@@ -327,69 +436,9 @@ public class SchematicDrsignerDialog extends BaseDialog {
             Card selecting = hitCard(x, y, true);
             if (selecting != null){
               selects.add(selecting);
-              selectLock(true);
             }
 
-            shown = true;
-            showMenu(tab -> {
-              tab.table(Consts.darkGrayUIAlpha, menu -> {
-                menu.defaults().growX().fillY().minWidth(300);
-
-                if (selecting != null){
-                  menu.button(Core.bundle.get("misc.remove"), Icon.trash, Styles.cleart, 22, () -> {
-                    hideMenu();
-                    selects.each(View.this::removeCard);
-                  }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
-                  menu.row();
-
-                  menu.button(Core.bundle.get("misc.copy"), Icon.copy, Styles.cleart, 22, () -> {
-                    hideMenu();
-                    for (Card card : selects) {
-                      Card clone = card.copy();
-                      tmp.set(clone.x + clone.getWidth()/2 + 40, clone.y + clone.getHeight()/2 - 40);
-                      container.localToStageCoordinates(tmp);
-                      addCard(clone, tmp.x, tmp.y, true);
-                    }
-                  }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
-                  menu.row();
-
-                  menu.image().height(4).pad(4).padLeft(0).padRight(0).growX().color(Color.lightGray);
-                  menu.row();
-                }
-
-                menu.button(Core.bundle.get("dialog.calculator.addRecipe"), Icon.book, Styles.cleart, 22, () -> {
-                  TooManyItems.recipesDialog.toggle = r -> {
-                    TooManyItems.recipesDialog.hide();
-                    addRecipe(r);
-
-                    tmp.set(x, y);
-                    container.stageToLocalCoordinates(tmp);
-                    newSet.setPosition(tmp.x, tmp.y, center);
-                  };
-                  TooManyItems.recipesDialog.show();
-                  hideMenu();
-                }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
-                menu.row();
-                menu.button(Core.bundle.get("dialog.calculator.addInput"), Icon.download, Styles.cleart, 22, () -> {
-                  addCard(new IOCard(TooManyItems.itemsManager.getItem(Items.surgeAlloy), true), x, y, true);
-                }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
-                menu.row();
-                menu.button(Core.bundle.get("dialog.calculator.addOutput"), Icon.upload, Styles.cleart, 22, () -> {
-                  addCard(new IOCard(TooManyItems.itemsManager.getItem(Items.surgeAlloy), false), x, y, true);
-                }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
-              }).update(t -> {
-                int align = 0;
-
-                if (x + t.getWidth() > tab.getWidth()) align |= right;
-                else align |= left;
-                if (y - t.getHeight() < 0) align |= bottom;
-                else align |= top;
-
-                t.setPosition(x, y, align);
-              });
-
-              tab.setSize(view.width, view.height);
-            }, view, bottomLeft, bottomLeft, false);
+            buildMenu(x, y);
           }
 
           enabled = false;
@@ -437,7 +486,6 @@ public class SchematicDrsignerDialog extends BaseDialog {
 
           panX += deltaX/zoom.scaleX;
           panY += deltaY/zoom.scaleY;
-          selectLock(true);
           clamp();
         }
       });
@@ -452,6 +500,7 @@ public class SchematicDrsignerDialog extends BaseDialog {
         public void touchDown(InputEvent event, float x, float y, int pointer, KeyCode button) {
           enable = selectMode || button == KeyCode.mouseRight;
           if (enable){
+            if (!selectMode && !Core.input.keyDown(TooManyItems.binds.hotKey)) selects.clear();
             moveLock(true);
 
             beginX = x;
@@ -464,13 +513,13 @@ public class SchematicDrsignerDialog extends BaseDialog {
 
         @Override
         public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode button) {
-          if (!panned && !selectLoc) selects.clear();
-          selectLoc = false;
           if (selectMode || button == KeyCode.mouseRight) {
             moveLock(false);
             enable = false;
             isSelecting = false;
             panned = false;
+
+            buildMenu(x, y);
           }
         }
 
@@ -503,6 +552,129 @@ public class SchematicDrsignerDialog extends BaseDialog {
           }
         }
       });
+    }
+
+    private void buildMenu(float x, float y) {
+      shown = true;
+      Card selecting = hitCard(x, y, true);
+      showMenu(tab -> {
+        tab.table(Consts.darkGrayUIAlpha, menu -> {
+          menu.defaults().growX().fillY().minWidth(300);
+
+          if (!selects.isEmpty()){
+            menu.button(Core.bundle.get("misc.remove"), Icon.trash, Styles.cleart, 22, () -> {
+              hideMenu();
+              selects.each(View.this::removeCard);
+            }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+            menu.row();
+
+            menu.button(Core.bundle.get("misc.copy"), Icon.copy, Styles.cleart, 22, () -> {
+              hideMenu();
+              for (Card card : selects) {
+                Card clone = card.copy();
+                tmp.set(clone.x + clone.getWidth()/2 + 40, clone.y + clone.getHeight()/2 - 40);
+                container.localToStageCoordinates(tmp);
+                addCard(clone, tmp.x, tmp.y, true);
+              }
+            }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+            menu.row();
+
+            if (selects.size == 1) {
+              menu.button(Core.bundle.get("misc.balance"), Icon.effect, Styles.cleart, 22, () -> {
+                balance.show();
+                hideMenu();
+              }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+              menu.row();
+            }
+
+            menu.image().height(4).pad(4).padLeft(0).padRight(0).growX().color(Color.lightGray);
+            menu.row();
+          }
+          if (selecting == null){
+            AtomicBoolean hit = new AtomicBoolean(false);
+            eachCard(x, y, c -> {
+              if (hit.get()) return;
+
+              Tmp.v1.set(x, y);
+              c.stageToLocalCoordinates(Tmp.v1);
+              ItemLinker linker = c.hitLinker(Tmp.v1.x, Tmp.v1.y);
+              if (linker == null) return;
+
+              if (linker.isInput) {
+                menu.button(Core.bundle.get("dialog.calculator.removeLinker"), Icon.trash, Styles.cleart, 22, () -> {
+                  for (ItemLinker link : linker.links.orderedKeys()) {
+                    link.deLink(linker);
+                  }
+                  linker.remove();
+                  hideMenu();
+                }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+                menu.row();
+                menu.button(Core.bundle.get("dialog.calculator.addInputAs"), Icon.download, Styles.cleart, 22, () -> {
+                  addCard(new IOCard(linker.item, true), x, y, true);
+                  hideMenu();
+                }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+                menu.row();
+              }
+              else{
+                menu.button(Core.bundle.get("dialog.calculator.addOutputAs"), Icon.upload, Styles.cleart, 22, () -> {
+                  addCard(new IOCard(linker.item, false), x, y, true);
+                  hideMenu();
+                }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+                menu.row();
+              }
+
+              menu.image().height(4).pad(4).padLeft(0).padRight(0).growX().color(Color.lightGray);
+              menu.row();
+            }, false);
+          }
+
+          menu.button(Core.bundle.get("dialog.calculator.addRecipe"), Icon.book, Styles.cleart, 22, () -> {
+            TooManyItems.recipesDialog.toggle = r -> {
+              TooManyItems.recipesDialog.hide();
+              addRecipe(r);
+
+              tmp.set(x, y);
+              container.stageToLocalCoordinates(tmp);
+              newSet.setPosition(tmp.x, tmp.y, center);
+            };
+            TooManyItems.recipesDialog.show();
+            hideMenu();
+          }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+          menu.row();
+
+          menu.button(Core.bundle.get("dialog.calculator.addInput"), Icon.download, Styles.cleart, 22, () -> {
+            //addCard(new IOCard(linker.item, true), x, y, true);
+            showMenu(list -> {
+              list.table(Consts.darkGrayUIAlpha, items -> {
+                buildItems(items, x, y, true);
+              }).update(t -> align(x, y, list, t)).margin(8);
+            }, view, bottomLeft, bottomLeft, false);
+          }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+          menu.row();
+          menu.button(Core.bundle.get("dialog.calculator.addOutput"), Icon.upload, Styles.cleart, 22, () -> {
+            //addCard(new IOCard(linker.item, false), x, y, true);
+            showMenu(list -> {
+              list.table(Consts.darkGrayUIAlpha, items -> {
+                buildItems(items, x, y, false);
+              }).update(t -> align(x, y, list, t)).margin(8);
+            }, view, bottomLeft, bottomLeft, false);
+          }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+          menu.row();
+        }).update(t -> align(x, y, tab, t));
+
+        tab.setSize(view.width, view.height);
+      }, view, bottomLeft, bottomLeft, false);
+    }
+
+    private static void align(float x, float y, Table tab, Table t) {
+      int align = 0;
+
+      if (x + t.getWidth() > tab.getWidth()) align |= right;
+      else align |= left;
+      if (y - t.getHeight() < 0) align |= bottom;
+      else align |= top;
+
+      t.setPosition(x, y, align);
     }
 
     @Override
@@ -576,6 +748,11 @@ public class SchematicDrsignerDialog extends BaseDialog {
       }
     }
 
+    void eachCard(float stageX, float stageY, Cons<Card> cons, boolean inner){
+      Tmp.r1.set(stageX, stageY, 0, 0);
+      eachCard(Tmp.r1, cons, inner);
+    }
+
     Card hitCard(float stageX, float stageY, boolean inner){
       for (int s = cards.size - 1; s >= 0; s--) {
         Card card = cards.get(s);
@@ -626,6 +803,15 @@ public class SchematicDrsignerDialog extends BaseDialog {
     }
 
     public TextureRegion toImage(float boundX, float boundY, float scl){
+      FrameBuffer buffer = toBuffer(new FrameBuffer(), boundX, boundY, scl);
+      byte[] lines = ScreenUtils.getFrameBufferPixels(0, 0, buffer.getWidth(), buffer.getHeight(), true);
+      Pixmap fullPixmap = new Pixmap(buffer.getWidth(), buffer.getHeight());
+      Buffers.copy(lines, 0, fullPixmap.pixels, lines.length);
+
+      return new TextureRegion(new Texture(fullPixmap));
+    }
+
+    public FrameBuffer toBuffer(FrameBuffer buff, float boundX, float boundY, float scl){
       Vec2 v1 = new Vec2(Float.MAX_VALUE, Float.MAX_VALUE);
       Vec2 v2 = v1.cpy().scl(-1);
       for (Card card : cards) {
@@ -671,7 +857,6 @@ public class SchematicDrsignerDialog extends BaseDialog {
 
       container.draw();
 
-      FrameBuffer buff = new FrameBuffer();
       int imageWidth = (int) (width*scl);
       int imageHeight = (int) (height*scl);
 
@@ -680,9 +865,6 @@ public class SchematicDrsignerDialog extends BaseDialog {
       Draw.proj(camera);
       container.draw();
       Draw.flush();
-      byte[] lines = ScreenUtils.getFrameBufferPixels(0, 0, imageWidth, imageHeight, true);
-      Pixmap fullPixmap = new Pixmap(imageWidth, imageHeight);
-      Buffers.copy(lines, 0, fullPixmap.pixels, lines.length);
       buff.end();
 
       container.parent = par;
@@ -697,10 +879,10 @@ public class SchematicDrsignerDialog extends BaseDialog {
 
       container.draw();
 
-      return new TextureRegion(new Texture(fullPixmap));
+      return buff;
     }
 
-    public void read(Reads read){
+    public void read(Reads read) throws IOException {
       cards.each(container::removeChild);
       cards.clear();
       panX = 0;
@@ -721,6 +903,10 @@ public class SchematicDrsignerDialog extends BaseDialog {
       }
 
       ObjectMap<ItemLinker, Seq<Pair>> links = new ObjectMap<>();
+
+      int head = read.i();
+      if (head != FI_HEAD)
+        throw new IOException("file format error, unknown file head: " + Integer.toHexString(head));
 
       int cardsLen = read.i();
       for (int i = 0; i < cardsLen; i++) {
@@ -775,6 +961,8 @@ public class SchematicDrsignerDialog extends BaseDialog {
     }
 
     public void write(Writes write){
+      write.i(FI_HEAD);
+
       write.i(cards.size);
       for (Card card : cards) {
         card.write(write);
@@ -817,6 +1005,75 @@ public class SchematicDrsignerDialog extends BaseDialog {
       write.f(linker.getWidth());
       write.f(linker.getHeight());
     }
+  }
+
+  private void buildItems(Table items, float x, float y, boolean input) {
+    int[] i = {0};
+    boolean[] reverse = {false};
+    String[] search = new String[]{""};
+    Runnable[] rebuild = new Runnable[1];
+    items.table(top -> {
+      top.image(Icon.zoom).size(32);
+
+      top.field("", str -> {
+        search[0] = str;
+        rebuild[0].run();
+      }).growX();
+
+      top.button(Icon.none, Styles.clearNonei, 36, () -> {
+        i[0] = (i[0] + 1)%TooManyItems.recipesDialog.sortings.size;
+        rebuild[0].run();
+      }).margin(2).update(b -> b.getStyle().imageUp = TooManyItems.recipesDialog.sortings.get(i[0]).icon);
+
+      top.button(Icon.none, Styles.clearNonei, 36, () -> {
+        reverse[0] = !reverse[0];
+        rebuild[0].run();
+      }).margin(2).update(b -> b.getStyle().imageUp = reverse[0]? Icon.up: Icon.down);
+    }).growX();
+    items.row();
+    items.pane(Styles.smallPane, cont -> {
+      rebuild[0] = () -> {
+        cont.clearChildren();
+        int ind = 0;
+
+        Comparator<RecipeItem<?>> sorting = TooManyItems.recipesDialog.sortings.get(i[0]).sort;
+        Seq<RecipeItem<?>> list = TooManyItems.itemsManager.getList()
+            .removeAll(e -> !e.name().contains(search[0]) && !e.localizedName().contains(search[0])
+                || !((input && TooManyItems.recipesManager.anyMaterial(e)) || (!input && TooManyItems.recipesManager.anyProduction(e)))
+                || e.item instanceof Block)
+            .sort(reverse[0]? (a, b) -> sorting.compare(b, a): sorting);
+
+        for (RecipeItem<?> item : list) {
+          if (item.locked() || (item.item instanceof Item checkVisible && state.rules.hiddenBuildItems.contains(checkVisible)) || item.hidden())
+            continue;
+
+          cont.button(new TextureRegionDrawable(item.icon()), Styles.clearNonei, 32, () -> {
+            view.addCard(new IOCard(item, input), x, y, true);
+            hideMenu();
+          }).margin(4).tooltip(item.localizedName()).get();
+
+          if (ind++%8 == 7) {
+            cont.row();
+          }
+        }
+      };
+      rebuild[0].run();
+    }).padTop(6).padBottom(4).height(400).fillX();
+  }
+
+  private void setMoveLocker(Element inner) {
+    inner.addCaptureListener(new InputListener(){
+      @Override
+      public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button) {
+        moveLock(true);
+        return true;
+      }
+
+      @Override
+      public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode button) {
+        moveLock(false);
+      }
+    });
   }
 
   private static boolean useKeyboard() {
@@ -955,8 +1212,6 @@ public class SchematicDrsignerDialog extends BaseDialog {
           }
           else moveBy(deltaX, deltaY);
 
-          selectLock(true);
-
           tmp.set(element.x, element.y);
           element.parent.localToStageCoordinates(tmp);
 
@@ -1000,6 +1255,25 @@ public class SchematicDrsignerDialog extends BaseDialog {
     }
 
     @Override
+    public void act(float delta) {
+      super.act(delta);
+
+      for (ItemLinker linker : in) {
+        RecipeItemStack stack = recipe.materials.get(linker.item);
+        if (stack == null) continue;
+
+        linker.expectAmount = stack.amount*mul;
+      }
+
+      for (ItemLinker linker : out) {
+        RecipeItemStack stack = recipe.productions.get(linker.item);
+        if (stack == null) continue;
+
+        linker.expectAmount = stack.amount*mul;
+      }
+    }
+
+    @Override
     public void build() {
       this.child.table(Consts.grayUI, t -> {
         t.center();
@@ -1015,6 +1289,8 @@ public class SchematicDrsignerDialog extends BaseDialog {
         }).fillY().growX().get();
         t.row();
         t.table(inner -> {
+          setMoveLocker(inner);
+
           Table[] tab = new Table[1];
           inner.table(inf -> {
             inf.left().add("").growX().update(l -> l.setText(Core.bundle.format("dialog.calculator.recipeMulti", mul))).left().pad(6).padLeft(12).align(Align.left);
@@ -1134,6 +1410,18 @@ public class SchematicDrsignerDialog extends BaseDialog {
     }
 
     @Override
+    public void act(float delta) {
+      super.act(delta);
+
+      if (isInput && !out.isEmpty()) out.first().expectAmount = stack.amount;
+      else {
+        for (ItemLinker linker : in) {
+          linker.expectAmount = stack.amount;
+        }
+      }
+    }
+
+    @Override
     public void build() {
       this.child.table(Consts.grayUI, t -> {
         t.center();
@@ -1161,6 +1449,8 @@ public class SchematicDrsignerDialog extends BaseDialog {
           inner.table(ta -> {
             Runnable[] edit = new Runnable[1];
             Runnable[] build = new Runnable[1];
+
+            setMoveLocker(ta);
 
             build[0] = () -> {
               ta.clearChildren();
@@ -1233,6 +1523,7 @@ public class SchematicDrsignerDialog extends BaseDialog {
   protected class ItemLinker extends Table {
     final long id;
     public final RecipeItem<?> item;
+
     public float amount = 0;
     public float expectAmount = 0;
 
@@ -1265,13 +1556,9 @@ public class SchematicDrsignerDialog extends BaseDialog {
             t.image(item.icon()).center().scaling(Scaling.fit).size(48);
           }),
           new Table(inc -> {
-            inc.bottom();
-            inc.add("", Styles.outlineLabel).update(l -> {
-              float correction = isInput? expectAmount - amount: amount;
-              l.setText(expectAmount <= 0? "": ((expectAmount*60 > 1000? UI.formatAmount((long) (expectAmount*60)): Strings.autoFixed(expectAmount*60, 1)) + "/s\n"
-              + (correction < 0? "-": "+") + (correction*60 > 1000? UI.formatAmount((long) (correction*60)): Strings.autoFixed(correction*60, 1)) + "/s"));
-            }).center().growX().get().setAlignment(Align.center);
-            inc.row();
+            inc.add("", Styles.outlineLabel).padTop(20).update(l -> l.setText(expectAmount <= 0? "--/s":
+                (expectAmount*60 > 1000? UI.formatAmount((long) (expectAmount*60)): Strings.autoFixed(expectAmount*60, 1)) + "/s\n"
+            )).get().setAlignment(center);
           })
       ).size(60);
 

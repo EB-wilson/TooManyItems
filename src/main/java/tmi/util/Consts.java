@@ -2,8 +2,10 @@ package tmi.util;
 
 import arc.Core;
 import arc.func.Prov;
+import arc.graphics.Color;
 import arc.scene.style.Drawable;
 import arc.scene.style.TextureRegionDrawable;
+import arc.scene.ui.Dialog;
 import arc.struct.Seq;
 import arc.util.Tmp;
 import mindustry.content.Blocks;
@@ -11,6 +13,7 @@ import mindustry.game.Team;
 import mindustry.gen.Building;
 import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
+import mindustry.ui.Fonts;
 import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.environment.Floor;
@@ -18,7 +21,9 @@ import mindustry.world.blocks.environment.Floor;
 public class Consts {
   private static final Seq<?> emp = new Seq<>();
 
-  public static Drawable grayUI, darkGrayUI, grayUIAlpha, darkGrayUIAlpha, padGrayUIAlpha, a_z, tmi;
+  public static Drawable grayUI, darkGrayUI, grayUIAlpha, darkGrayUIAlpha, padGrayUIAlpha, a_z, tmi, transparent;
+
+  public static Dialog.DialogStyle transparentBack;
 
   public static Tile markerTile;
 
@@ -35,6 +40,14 @@ public class Consts {
     padGrayUIAlpha.setRightWidth(8);
     padGrayUIAlpha.setTopHeight(8);
     padGrayUIAlpha.setBottomHeight(8);
+    transparent = ((TextureRegionDrawable) Tex.whiteui).tint(Color.clear);
+
+    transparentBack = new Dialog.DialogStyle(){{
+      stageBackground = transparent;
+      titleFont = Fonts.outline;
+      background = transparent;
+      titleFontColor = Pal.accent;
+    }};
 
     markerTile = new Tile(0, 0){
       @Override
