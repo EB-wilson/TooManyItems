@@ -19,9 +19,11 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
 
   @Override
   public Seq<Recipe> parse(SolidPump pump) {
-    Recipe res = new Recipe(RecipeType.collecting);
-    res.setBlock(getWrap(pump));
-    res.setTime(pump.consumeTime);
+    Recipe res = new Recipe(RecipeType.collecting)
+        .setEfficiency(Recipe.getDefaultEff(pump.baseEfficiency))
+        .setBlock(getWrap(pump))
+        .setTime(pump.consumeTime);
+
     res.addProduction(getWrap(pump.result), pump.pumpAmount);
 
     registerCons(res, pump.consumers);
@@ -32,12 +34,10 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
       float eff = block.attributes.get(pump.attribute);
       res.addMaterialRaw(getWrap(block), pump.size*pump.size)
           .setOptionalCons(pump.baseEfficiency > 0.001f)
-          .setEfficiency(pump.baseEfficiency + eff)
+          .setEfficiency(eff)
           .setAttribute()
           .setFormat(f -> "[#98ffa9]" + (pump.baseEfficiency > 0.001f? "+": "") + Mathf.round(eff*100) + "%");
     }
-
-    res.efficiency = Recipe.getDefaultEff(pump.baseEfficiency);
 
     return Seq.with(res);
   }

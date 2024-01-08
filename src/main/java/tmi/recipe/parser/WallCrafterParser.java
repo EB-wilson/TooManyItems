@@ -17,9 +17,10 @@ public class WallCrafterParser extends ConsumerParser<WallCrafter>{
 
   @Override
   public Seq<Recipe> parse(WallCrafter content) {
-    Recipe res = new Recipe(RecipeType.collecting);
-    res.setBlock(getWrap(content));
-    res.setTime(content.drillTime);
+    Recipe res = new Recipe(RecipeType.collecting)
+        .setBlock(getWrap(content))
+        .setTime(content.drillTime);
+
     res.addProduction(getWrap(content.output), 1);
 
     registerCons(res, content.consumers);

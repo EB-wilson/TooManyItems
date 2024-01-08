@@ -46,9 +46,11 @@ public class DrillParser extends ConsumerParser<Drill>{
       if (!content.canMine(markerTile)) continue;
 
       Recipe recipe = res.get(drop.itemDrop, () -> {
-        Recipe r = new Recipe(RecipeType.collecting);
-        r.setBlock(getWrap(content));
-        r.setTime(content.getDrillTime(drop.itemDrop));
+        Recipe r = new Recipe(RecipeType.collecting)
+            .setEfficiency(Recipe.getZeroEff())
+            .setBlock(getWrap(content))
+            .setTime(content.getDrillTime(drop.itemDrop)/content.size/content.size);
+
         r.addProduction(getWrap(drop.itemDrop), 1);
 
         if(content.liquidBoostIntensity != 1){
@@ -68,7 +70,7 @@ public class DrillParser extends ConsumerParser<Drill>{
       });
 
       float realDrillTime = content.getDrillTime(drop.itemDrop);
-      recipe.addMaterial(getWrap(drop), content.size*content.size)
+      recipe.addMaterialRaw(getWrap(drop), content.size*content.size)
           .setEfficiency(content.drillTime / realDrillTime)
           .setAttribute()
           .setEmptyFormat();

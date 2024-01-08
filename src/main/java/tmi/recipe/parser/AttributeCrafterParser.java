@@ -21,9 +21,10 @@ public class AttributeCrafterParser extends ConsumerParser<AttributeCrafter>{
 
   @Override
   public Seq<Recipe> parse(AttributeCrafter crafter) {
-    Recipe res = new Recipe(RecipeType.factory);
-    res.setBlock(getWrap(crafter));
-    res.setTime(crafter.craftTime);
+    Recipe res = new Recipe(RecipeType.factory)
+        .setEfficiency(Recipe.getDefaultEff(crafter.baseEfficiency))
+        .setBlock(getWrap(crafter))
+        .setTime(crafter.craftTime);
 
     registerCons(res, crafter.consumers);
 
@@ -31,14 +32,12 @@ public class AttributeCrafterParser extends ConsumerParser<AttributeCrafter>{
       if (block.attributes.get(crafter.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = Math.min(crafter.boostScale*crafter.size*crafter.size*block.attributes.get(crafter.attribute), crafter.maxBoost);
-      res.addMaterial(getWrap(block), crafter.size*crafter.size)
+      res.addMaterialRaw(getWrap(block), crafter.size*crafter.size)
           .setAttribute()
           .setOptionalCons(crafter.baseEfficiency > 0.001f)
           .setEfficiency(eff)
           .setFormat(f -> "[#98ffa9]" + (crafter.baseEfficiency > 0.001f? "+": "") + Mathf.round(eff*100) + "%");
     }
-
-    res.efficiency = Recipe.getDefaultEff(crafter.baseEfficiency);
 
     if (crafter.outputItems == null) {
       if (crafter.outputItem != null) res.addProduction(getWrap(crafter.outputItem.item), crafter.outputItem.amount);

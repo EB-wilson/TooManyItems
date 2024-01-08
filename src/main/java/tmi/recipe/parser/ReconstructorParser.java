@@ -22,9 +22,10 @@ public class ReconstructorParser extends ConsumerParser<Reconstructor>{
   public Seq<Recipe> parse(Reconstructor reconstructor) {
     Seq<Recipe> res = new Seq<>();
     for (UnitType[] upgrade : reconstructor.upgrades) {
-      Recipe recipe = new Recipe(RecipeType.factory);
-      recipe.setBlock(getWrap(reconstructor));
-      recipe.setTime(reconstructor.constructTime);
+      Recipe recipe = new Recipe(RecipeType.factory)
+          .setBlock(getWrap(reconstructor))
+          .setTime(reconstructor.constructTime);
+
       recipe.addMaterial(getWrap(upgrade[0]), 1);
       recipe.addProduction(getWrap(upgrade[1]), 1);
 

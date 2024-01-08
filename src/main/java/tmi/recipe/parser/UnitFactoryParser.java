@@ -23,9 +23,9 @@ public class UnitFactoryParser extends ConsumerParser<UnitFactory>{
     Seq<Recipe> res = new Seq<>();
 
     for (UnitFactory.UnitPlan plan : factory.plans) {
-      Recipe recipe = new Recipe(RecipeType.factory);
-      recipe.setBlock(getWrap(factory));
-      recipe.setTime(plan.time);
+      Recipe recipe = new Recipe(RecipeType.factory)
+          .setBlock(getWrap(factory))
+          .setTime(plan.time);
 
       recipe.addProduction(getWrap(plan.unit), 1);
 

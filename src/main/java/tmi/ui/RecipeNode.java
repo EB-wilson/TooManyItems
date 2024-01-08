@@ -12,6 +12,7 @@ import arc.scene.ui.Button;
 import arc.scene.ui.Tooltip;
 import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
+import arc.util.Nullable;
 import arc.util.Scaling;
 import arc.util.Time;
 import mindustry.gen.Icon;
@@ -36,7 +37,7 @@ public class RecipeNode extends Button {
   float time;
   int clicked;
 
-  Cons2<RecipeItem<?>, RecipesDialog.Mode> click;
+  @Nullable Cons2<RecipeItem<?>, RecipesDialog.Mode> click;
 
   public RecipeNode(NodeType type, RecipeItemStack stack, Cons2<RecipeItem<?>, RecipesDialog.Mode> click){
     this.type = type;
@@ -62,7 +63,7 @@ public class RecipeNode extends Button {
     released(() -> {
       touched = false;
 
-      if (Time.globalTime - time < 12){
+      if (click != null && Time.globalTime - time < 12){
         if (!mobile || Core.settings.getBool("keyboard")) {
           click.get(stack.item(), Core.input.keyDown(binds.hotKey) ? type == NodeType.block ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
         }
@@ -75,7 +76,7 @@ public class RecipeNode extends Button {
         }
       }
       else {
-        if (stack.item.hasDetails() && progress >= 0.95f){
+        if (stack.item.hasDetails() && (progress >= 0.95f || click == null)){
           stack.item.displayDetails();
         }
       }
@@ -103,8 +104,8 @@ public class RecipeNode extends Button {
     super.act(delta);
 
     alpha = Mathf.lerpDelta(alpha, touched || activity ? 1 : 0, 0.08f);
-    progress = Mathf.approachDelta(progress, stack.item.hasDetails() && touched? 1.01f : 0, 1/60f);
-    if (Time.globalTime - time > 12 && clicked == 1){
+    progress = Mathf.approachDelta(progress, stack.item.hasDetails() && click != null && touched? 1.01f : 0, 1/60f);
+    if (click != null && Time.globalTime - time > 12 && clicked == 1){
       click.get(stack.item(), RecipesDialog.Mode.recipe);
       clicked = 0;
     }

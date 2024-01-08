@@ -18,9 +18,9 @@ public class ConsGeneratorParser extends ConsumerParser<ConsumeGenerator>{
 
   @Override
   public Seq<Recipe> parse(ConsumeGenerator content) {
-    Recipe res = new Recipe(RecipeType.generator);
-    res.setBlock(getWrap(content));
-    res.setTime(content.itemDuration);
+    Recipe res = new Recipe(RecipeType.generator)
+        .setBlock(getWrap(content))
+        .setTime(content.itemDuration);
 
     registerCons(res, content.consumers);
 

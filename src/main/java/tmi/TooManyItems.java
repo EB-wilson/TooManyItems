@@ -37,6 +37,7 @@ public class TooManyItems extends Mod {
     Events.on(EventType.ClientLoadEvent.class, e -> Time.runTask(0, () -> {
       EntryAssigner.assign();
       Vars.ui.settings.game.checkPref("tmi_button", true);
+      Vars.ui.settings.graphics.sliderPref("tmi_gridSize", 150, 50, 300, 10, Integer::toString);
 
       api.afterInit();
       recipesManager.mergeGroup();

@@ -21,8 +21,8 @@ public class VariableReactorParser extends ConsumerParser<VariableReactor>{
 
   @Override
   public Seq<Recipe> parse(VariableReactor content) {
-    Recipe res = new Recipe(RecipeType.generator);
-    res.setBlock(getWrap(content));
+    Recipe res = new Recipe(RecipeType.generator)
+        .setBlock(getWrap(content));
 
     registerCons(res, content.consumers);
 

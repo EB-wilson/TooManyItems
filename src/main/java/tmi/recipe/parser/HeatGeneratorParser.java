@@ -25,9 +25,9 @@ public class HeatGeneratorParser extends ConsumerParser<HeaterGenerator>{
 
   @Override
   public Seq<Recipe> parse(HeaterGenerator content) {
-    Recipe res = new Recipe(RecipeType.generator);
-    res.setBlock(getWrap(content));
-    res.setTime(content.itemDuration);
+    Recipe res = new Recipe(RecipeType.generator)
+        .setBlock(getWrap(content))
+        .setTime(content.itemDuration);
 
     registerCons(res, content.consumers);
 

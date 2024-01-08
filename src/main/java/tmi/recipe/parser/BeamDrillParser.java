@@ -46,9 +46,11 @@ public class BeamDrillParser extends ConsumerParser<BeamDrill>{
       if (drop.itemDrop.hardness > content.tier) continue;
 
       Recipe recipe = res.get(drop.itemDrop, () -> {
-        Recipe r = new Recipe(RecipeType.collecting);
-        r.setBlock(getWrap(content));
-        r.setTime(content.getDrillTime(drop.itemDrop));
+        Recipe r = new Recipe(RecipeType.collecting)
+            .setEfficiency(Recipe.getZeroEff())
+            .setBlock(getWrap(content))
+            .setTime(content.getDrillTime(drop.itemDrop)/content.size);
+
         r.addProduction(getWrap(drop.itemDrop), 1);
 
         if(content.optionalBoostIntensity != 1){

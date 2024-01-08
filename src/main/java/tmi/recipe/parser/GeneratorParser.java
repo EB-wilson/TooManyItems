@@ -15,8 +15,8 @@ public class GeneratorParser extends ConsumerParser<PowerGenerator>{
 
   @Override
   public Seq<Recipe> parse(PowerGenerator content) {
-    Recipe res = new Recipe(RecipeType.generator);
-    res.setBlock(getWrap(content));
+    Recipe res = new Recipe(RecipeType.generator)
+        .setBlock(getWrap(content));
 
     registerCons(res, content.consumers);
 

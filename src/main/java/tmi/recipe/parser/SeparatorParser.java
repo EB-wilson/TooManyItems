@@ -16,9 +16,9 @@ public class SeparatorParser extends ConsumerParser<Separator>{
 
   @Override
   public Seq<Recipe> parse(Separator content) {
-    Recipe res = new Recipe(RecipeType.factory);
-    res.setBlock(getWrap(content));
-    res.setTime(content.craftTime);
+    Recipe res = new Recipe(RecipeType.factory)
+        .setBlock(getWrap(content))
+        .setTime(content.craftTime);
 
     registerCons(res, content.consumers);
 

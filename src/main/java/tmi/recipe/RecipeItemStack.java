@@ -1,5 +1,6 @@
 package tmi.recipe;
 
+import arc.math.Mathf;
 import arc.util.Nullable;
 import arc.util.Strings;
 import mindustry.core.UI;
@@ -108,13 +109,13 @@ public class RecipeItemStack {
     return this;
   }
 
-  public RecipeItemStack setFloatFormat(float f) {
-    setFormat(_f -> f > 1000? UI.formatAmount((long) f): Strings.autoFixed(f, 1));
+  public RecipeItemStack setFloatFormat(float mul) {
+    setFormat(f -> f*mul > 1000? UI.formatAmount(Mathf.round(f*mul)): Strings.autoFixed(f*mul, 1));
     return this;
   }
 
-  public RecipeItemStack setIntegerFormat(int i) {
-    setFormat(_f -> i > 1000? UI.formatAmount(i): Integer.toString(i));
+  public RecipeItemStack setIntegerFormat(float mul) {
+    setFormat(f -> f*mul > 1000? UI.formatAmount(Mathf.round(f*mul)): Integer.toString(Mathf.round(f*mul)));
     return this;
   }
 

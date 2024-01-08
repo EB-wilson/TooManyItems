@@ -22,8 +22,9 @@ public class ThermalGeneratorParser extends ConsumerParser<ThermalGenerator>{
 
   @Override
   public Seq<Recipe> parse(ThermalGenerator content) {
-    Recipe res = new Recipe(RecipeType.generator);
-    res.setBlock(getWrap(content));
+    Recipe res = new Recipe(RecipeType.generator)
+        .setEfficiency(Recipe.getZeroEff())
+        .setBlock(getWrap(content));
 
     registerCons(res, content.consumers);
 

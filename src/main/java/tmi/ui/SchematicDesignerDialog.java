@@ -2,7 +2,7 @@ package tmi.ui;
 
 import arc.Core;
 import arc.Graphics;
-import arc.files.Fi;
+import arc.func.Boolc;
 import arc.func.Cons;
 import arc.func.Func;
 import arc.graphics.*;
@@ -22,31 +22,26 @@ import arc.scene.Group;
 import arc.scene.actions.Actions;
 import arc.scene.event.*;
 import arc.scene.style.TextureRegionDrawable;
+import arc.scene.ui.CheckBox;
 import arc.scene.ui.Dialog;
 import arc.scene.ui.Image;
-import arc.scene.ui.ImageButton;
 import arc.scene.ui.TextField;
+import arc.scene.ui.layout.Cell;
 import arc.scene.ui.layout.Scl;
 import arc.scene.ui.layout.Table;
+import arc.scene.utils.Elem;
 import arc.struct.*;
 import arc.util.*;
 import arc.util.io.Reads;
 import arc.util.io.Writes;
-import mindustry.Vars;
-import mindustry.content.Items;
 import mindustry.core.UI;
-import mindustry.ctype.UnlockableContent;
 import mindustry.gen.Icon;
 import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
 import mindustry.type.Item;
-import mindustry.ui.ItemDisplay;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
-import mindustry.ui.dialogs.SettingsMenuDialog;
 import mindustry.world.Block;
-import mindustry.world.blocks.ItemSelection;
-import mindustry.world.blocks.payloads.PayloadSource;
 import mindustry.world.meta.StatUnit;
 import tmi.TooManyItems;
 import tmi.recipe.EnvParameter;
@@ -57,8 +52,6 @@ import tmi.recipe.types.GeneratorRecipe;
 import tmi.recipe.types.RecipeItem;
 import tmi.util.Consts;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -97,32 +90,295 @@ public class SchematicDesignerDialog extends BaseDialog {
       }).growX();
     }).fill().margin(8);
   }};
-  protected final Dialog balance = new Dialog("", Consts.transparentBack){{
-    titleTable.clear();
+  protected final Dialog balance = new Dialog("", Consts.transparentBack){
+    RecipeCard currCard;
 
-    cont.table(Consts.darkGrayUIAlpha, t -> {
-      t.table(Consts.darkGrayUI, top -> {
-        top.left().add(Core.bundle.get("dialog.calculator.balance")).pad(8);
-      }).grow().padBottom(12);
-      t.row();
-      t.table(Consts.darkGrayUI, inner -> {
-        shown(() -> {
-          inner.clearChildren();
-          RecipeCard card = selects.size == 1 && selects.first() instanceof RecipeCard c? c: null;
+    int balanceAmount;
+    boolean balanceValid;
 
+    Runnable rebuild;
 
-        });
+    {
+      titleTable.clear();
+
+      Cell<Table> cell = cont.table(Consts.darkGrayUIAlpha, t -> {
+        t.table(Consts.darkGrayUI, top -> {
+          top.left().add(Core.bundle.get("dialog.calculator.balance")).pad(8);
+        }).grow().padBottom(12);
+        t.row();
+        t.table(Consts.darkGrayUI).grow().margin(12).get().top().pane(Styles.smallPane, inner -> {
+          shown(rebuild = () -> {
+            inner.clearChildren();
+            inner.defaults().left().growX().fillY().pad(5);
+            currCard = selects.size == 1 && selects.first() instanceof RecipeCard c? c: null;
+
+            inner.add(Core.bundle.get("dialog.calculator.targetRec")).color(Pal.accent);
+            if (currCard != null){
+              currCard.calculateEfficiency();
+
+              inner.row();
+              inner.table(Tex.pane, ls -> {
+                ls.pane(Styles.noBarPane, p -> {
+                  p.top().left().defaults().growX().height(45).minWidth(160).left().padLeft(4).padRight(4);
+
+                  p.add(Core.bundle.get("dialog.calculator.materials")).labelAlign(center).color(Color.lightGray);
+                  p.table(Consts.grayUIAlpha).margin(6).get().add(Core.bundle.get("dialog.calculator.expectAmount")).labelAlign(center).color(Color.lightGray);
+                  p.add(Core.bundle.get("dialog.calculator.configured")).labelAlign(center).color(Color.lightGray);
+                  p.row();
+
+                  for (RecipeItemStack stack : currCard.recipe.materials.values()) {
+                    if (((GeneratorRecipe) RecipeType.generator).isPower(stack.item)) continue;
+
+                    p.table(left -> {
+                      left.left();
+                      left.image(stack.item.icon()).size(36).scaling(Scaling.fit);
+                      left.table(num -> {
+                        num.left().defaults().fill().left();
+                        num.add(stack.item.localizedName());
+                        num.row();
+                        num.table(amo -> {
+                          amo.left().defaults().left();
+                          String amount = stack.isAttribute?
+                              stack.amount > 1000? UI.formatAmount((long) stack.amount): Integer.toString(Mathf.round(stack.amount)):
+                              (stack.amount*60 > 1000? UI.formatAmount((long) (stack.amount*60)): Strings.autoFixed(stack.amount*60, 1)) + "/s";
+                          amo.add(amount).color(Color.gray);
+                          if (currCard.multiplier != 1 && !stack.isAttribute && !stack.isBooster) amo.add(Mathf.round(currCard.multiplier*100) + "%").padLeft(5).color(currCard.multiplier > 1? Pal.heal: Color.red);
+                          amo.add("x" + currCard.mul).color(Pal.gray);
+                        });
+                      }).padLeft(5);
+                    });
+
+                    float amount = stack.isAttribute? stack.amount*currCard.mul: stack.isBooster? stack.amount*currCard.mul*currCard.scale*60: stack.amount*currCard.mul*currCard.multiplier*60;
+                    p.table(Consts.grayUIAlpha).get().left().marginLeft(6).marginRight(6).add((amount > 1000? UI.formatAmount((long) amount): Strings.autoFixed(amount, 1)) + (stack.isAttribute? "": "/s"));
+
+                    p.table(stat -> {
+                      stat.left().defaults().left();
+                      ItemLinker input = currCard.in.find(e -> e.item == stack.item);
+
+                      if (!stack.isAttribute && input == null){
+                        stat.add(Core.bundle.get("misc.noInput"));
+                      }
+                      else {
+                        if (stack.isAttribute){
+                          if (currCard.environments.getAttribute(stack.item) <= 0) stat.add(Core.bundle.get("misc.unset"));
+                          else stat.add(currCard.environments.getAttribute(stack.item) + "");
+                        }
+                        else if (stack.optionalCons){
+                          stat.table(assign -> {
+                            assign.left().defaults().left();
+                            if (input.isNormalized()){
+                              float a = input.links.size == 1? input.links.orderedKeys().first().expectAmount: -1;
+
+                              assign.add(Core.bundle.get("misc.provided") + (a <= 0? "": " [lightgray]" + (a*60 > 1000? UI.formatAmount((long) (a*60)): Strings.autoFixed(a*60, 1)) + "/s")).growX();
+
+                              assign.check("", currCard.optionalSelected.contains(stack.item), b -> {
+                                if (b) currCard.optionalSelected.add(stack.item);
+                                else currCard.optionalSelected.remove(stack.item);
+
+                                currCard.rebuildConfig.run();
+                                rebuild.run();
+                              }).margin(4).fill();
+                            }
+                            else {
+                              assign.add(Core.bundle.get("misc.assignInvalid")).growX();
+                            }
+                          }).growX();
+                        }
+                        else {
+                          if (input.isNormalized()){
+                            float a = input.links.size == 1? input.links.orderedKeys().first().expectAmount: -1;
+
+                            stat.add(Core.bundle.get("misc.provided") + (a <= 0? "": " [lightgray]" + (a*60 > 1000? UI.formatAmount((long) (a*60)): Strings.autoFixed(a*60, 1)) + "/s"));
+                          }
+                          else {
+                            stat.add(Core.bundle.get("misc.assignInvalid"));
+                          }
+                        }
+                      }
+                    });
+
+                    p.row();
+                  }
+                }).maxHeight(240).scrollX(false).growX().fillY();
+              });
+              inner.row();
+              inner.image(Icon.down).scaling(Scaling.fit).pad(12);
+              inner.row();
+              inner.table(Tex.pane, ls -> {
+                ls.pane(Styles.noBarPane, p -> {
+                  p.top().left().defaults().growX().height(45).minWidth(160).left().padLeft(4).padRight(4);
+
+                  p.add(Core.bundle.get("dialog.calculator.productions")).labelAlign(center).color(Color.lightGray);
+                  p.table(Consts.grayUIAlpha).margin(6).get().add(Core.bundle.get("dialog.calculator.actualAmount")).labelAlign(center).color(Color.lightGray);
+                  p.add(Core.bundle.get("dialog.calculator.expectAmount")).labelAlign(center).color(Color.lightGray);
+                  p.row();
+
+                  balanceValid = false;
+                  balanceAmount = 0;
+                  for (RecipeItemStack stack : currCard.recipe.productions.values()) {
+                    if (((GeneratorRecipe) RecipeType.generator).isPower(stack.item)) continue;
+
+                    p.table(left -> {
+                      left.left();
+                      left.image(stack.item.icon()).size(36).scaling(Scaling.fit);
+                      left.table(num -> {
+                        num.left().defaults().fill().left();
+                        num.add(stack.item.localizedName());
+                        num.row();
+                        num.table(amo -> {
+                          amo.left().defaults().left();
+                          amo.add((stack.amount*60 > 1000? UI.formatAmount((long) (stack.amount*60)): Strings.autoFixed(stack.amount*60, 1)) + "/s").color(Color.gray);
+                          if (currCard.efficiency != 1) amo.add(Mathf.round(currCard.efficiency*100) + "%").padLeft(5).color(currCard.efficiency > 1? Pal.heal: Color.red);
+                          amo.add("x" + currCard.mul).color(Pal.gray);
+                        });
+                      }).padLeft(5);
+                    });
+
+                    float[] expected = new float[1];
+                    float amount = stack.amount*currCard.mul*currCard.efficiency;
+                    p.table(Consts.grayUIAlpha, actual -> {
+                      actual.defaults().growX().left();
+                      actual.add((amount*60 > 1000? UI.formatAmount((long) (amount*60)): Strings.autoFixed(amount*60, 1)) + "/s");
+
+                      actual.add("").update(l -> {
+                        float diff = amount - expected[0];
+
+                        if (balanceValid){
+                          if (Mathf.zero(diff)){
+                            l.setText(Core.bundle.get("misc.balanced"));
+                            l.setColor(Color.lightGray);
+                          }
+                          else {
+                            l.setText((diff > 0? "+": "") + (diff*60 > 1000? UI.formatAmount((long) (diff*60)): Strings.autoFixed(diff*60, 1)) + "/s");
+                            l.setColor(diff > 0? Pal.accent: Color.red);
+                          }
+                        }
+                        else {
+                          l.setText("");
+                        }
+                      });
+                    }).left().marginLeft(6).marginRight(6);
+
+                    ItemLinker linker = currCard.out.find(e -> e.item == stack.item);
+                    if (linker != null) {
+                      p.table(tab -> {
+                        tab.defaults().growX().fillY();
+                        if (linker.links.size == 1){
+                          ItemLinker other = linker.links.orderedKeys().first();
+                          tab.add(Core.bundle.format("dialog.calculator.assigned", (other.expectAmount*60 > 1000? UI.formatAmount((long) (other.expectAmount*60)): Strings.autoFixed(other.expectAmount*60, 1)) + "/s"));
+
+                          expected[0] = other.expectAmount;
+
+                          balanceValid = true;
+                          balanceAmount = Mathf.ceil(Math.max(other.expectAmount/(stack.amount*currCard.efficiency), balanceAmount));
+                        }
+                        else if (linker.links.isEmpty()){
+                          tab.add(Core.bundle.get("misc.unset"));
+                        }
+                        else {
+                          boolean anyUnset = false;
+
+                          float amo = 0;
+                          for (ItemLinker other : linker.links.keys()) {
+                            float rate = other.links.get(linker)[0];
+
+                            if (!other.isNormalized()){
+                              anyUnset = true;
+                              break;
+                            }
+                            else if (rate < 0) rate = 1;
+
+                            amo += rate*other.expectAmount;
+                          }
+
+                          expected[0] = amo;
+
+                          if (!anyUnset) {
+                            tab.add(Core.bundle.format("dialog.calculator.assigned", (amo*60 > 1000? UI.formatAmount((long) (amo*60)): Strings.autoFixed(amo*60, 1)) + "/s"));
+                            balanceValid = true;
+                            balanceAmount = Mathf.ceil(Math.max(amo/(stack.amount*currCard.efficiency), balanceAmount));
+                          }
+                          else tab.add(Core.bundle.get("misc.assignInvalid")).color(Color.red);
+                        }
+                      });
+                    }
+                    else p.add("<error>");
+
+                    p.row();
+                  }
+                }).maxHeight(240).scrollX(false).growX().fillY();
+              }).grow();
+
+              inner.row();
+              inner.table(scl -> {
+                scl.left();
+                AtomicBoolean fold = new AtomicBoolean(false);
+                float[] scale = new float[]{currCard.scale};
+                Table tab = scl.table().growX().get();
+                tab.left().defaults().left().padRight(8);
+                Runnable doFold = () -> {
+                  tab.clearChildren();
+
+                  if (fold.get()) {
+                    tab.add(Core.bundle.get("dialog.calculator.effScale"));
+                    tab.field(Strings.autoFixed(scale[0]*100, 1), TextField.TextFieldFilter.digitsOnly, i -> {
+                      try {
+                        scale[0] = i.isEmpty()? 0: Float.parseFloat(i)/100;
+                      } catch (Throwable ignored){}
+                    }).growX().get().setAlignment(right);
+                    tab.add("%").color(Color.gray);
+
+                    fold.set(false);
+                  }
+                  else {
+                    tab.add(Core.bundle.get("dialog.calculator.effScale") + Strings.autoFixed(currCard.scale*100, 1) + "%");
+
+                    fold.set(true);
+                  }
+                };
+                doFold.run();
+
+                scl.button(Icon.pencilSmall, Styles.clearNonei, 24, () -> {
+                  if (fold.get()){
+                    doFold.run();
+                  }
+                  else {
+                    currCard.scale = scale[0];
+                    currCard.rebuildConfig.run();
+                    rebuild.run();
+                  }
+                }).update(i -> i.getStyle().imageUp = fold.get()? Icon.pencilSmall: Icon.okSmall).fill().margin(5);
+              });
+              inner.row();
+              inner.add(Core.bundle.format("dialog.calculator.expectedMultiple", balanceValid? balanceAmount + "x": Core.bundle.get("misc.invalid")));
+              inner.row();
+              inner.add(Core.bundle.format("dialog.calculator.currentMul", currCard.mul,
+                  balanceValid? (currCard.mul == balanceAmount? "[gray]" + Core.bundle.get("misc.balanced"): (currCard.mul > balanceAmount? "[accent]+": "[red]") + (currCard.mul - balanceAmount)): ""));
+            }
+            else {
+              inner.add("misc.unset");
+            }
+
+          });
+        }).grow();
+        t.row();
+        t.table(buttons -> {
+          buttons.right().defaults().size(92, 36).pad(6);
+          buttons.button(Core.bundle.get("misc.cancel"), Styles.cleart, this::hide);
+          buttons.button(Core.bundle.get("misc.ensure"), Styles.cleart, () -> {
+            currCard.mul = balanceAmount;
+            currCard.rebuildConfig.run();
+            rebuild.run();
+          }).disabled(b -> !balanceValid);
+        }).growX();
+      }).grow().margin(8);
+
+      resized(() -> {
+        cell.maxSize(Core.scene.getWidth()/Scl.scl(), Core.scene.getHeight()/Scl.scl());
+        cell.get().invalidateHierarchy();
       });
-      t.row();
-      t.table(buttons -> {
-        buttons.right().defaults().size(92, 36).pad(6);
-        buttons.button(Core.bundle.get("misc.cancel"), Styles.cleart, this::hide);
-        buttons.button(Core.bundle.get("misc.ensure"), Styles.cleart, () -> {
-
-        });
-      }).growX();
-    }).fill().margin(8);
-  }};
+    }
+  };
 
   protected OrderedSet<Card> selects = new OrderedSet<>();
 
@@ -199,6 +455,20 @@ public class SchematicDesignerDialog extends BaseDialog {
                 img.setOrigin(center);
                 img.actions(Actions.rotateBy(180, 0.3f), Actions.rotateTo(180));
               }
+            });
+            but.actions(Actions.run(() -> {
+              img.setOrigin(center);
+              img.setRotation(180);
+              setPosition(main.getWidth(), 0);
+              fold.set(true);
+            }));
+            but.hovered(() -> {
+              img.setColor(Pal.accent);
+              Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand);
+            });
+            but.exited(() -> {
+              img.setColor(Color.white);
+              Core.graphics.restoreCursor();
             });
           }).size(36, 122).padRight(-5);
           table(Tex.buttonSideLeft, main -> {
@@ -380,17 +650,18 @@ public class SchematicDesignerDialog extends BaseDialog {
 
           Lines.stroke(Scl.scl(4), Pal.gray);
           Draw.alpha(parentAlpha);
-          for (float offX = 0; offX <= (Core.scene.getWidth())/zoom.scaleX - panX; offX += 150){
+          float gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150));
+          for (float offX = 0; offX <= (Core.scene.getWidth())/zoom.scaleX - panX; offX += gridSize){
             Lines.line(x + offX, -Core.scene.getHeight()/zoom.scaleY, x + offX, Core.scene.getHeight()/zoom.scaleY*2);
           }
-          for (float offX = 0; offX >= -(Core.scene.getWidth())/zoom.scaleX - panX; offX -= 150){
+          for (float offX = 0; offX >= -(Core.scene.getWidth())/zoom.scaleX - panX; offX -= gridSize){
             Lines.line(x + offX, -Core.scene.getHeight()/zoom.scaleY, x + offX, Core.scene.getHeight()/zoom.scaleY*2);
           }
 
-          for (float offY = 0; offY <= (Core.scene.getHeight())/zoom.scaleY - panY; offY += 150){
+          for (float offY = 0; offY <= (Core.scene.getHeight())/zoom.scaleY - panY; offY += gridSize){
             Lines.line(-Core.scene.getWidth()/zoom.scaleX, y + offY, Core.scene.getWidth()/zoom.scaleX*2, y + offY);
           }
-          for (float offY = 0; offY >= -(Core.scene.getHeight())/zoom.scaleY - panY; offY -= 150){
+          for (float offY = 0; offY >= -(Core.scene.getHeight())/zoom.scaleY - panY; offY -= gridSize){
             Lines.line(-Core.scene.getWidth()/zoom.scaleX, y + offY, Core.scene.getWidth()/zoom.scaleX*2, y + offY);
           }
           super.draw();
@@ -646,7 +917,12 @@ public class SchematicDesignerDialog extends BaseDialog {
             //addCard(new IOCard(linker.item, true), x, y, true);
             showMenu(list -> {
               list.table(Consts.darkGrayUIAlpha, items -> {
-                buildItems(items, x, y, true);
+                Seq<RecipeItem<?>> l = TooManyItems.itemsManager.getList()
+                    .removeAll(e -> !TooManyItems.recipesManager.anyMaterial(e) || e.item instanceof Block);
+                buildItems(items, l, item -> {
+                  view.addCard(new IOCard(item, true), x, y, true);
+                  hideMenu();
+                });
               }).update(t -> align(x, y, list, t)).margin(8);
             }, view, bottomLeft, bottomLeft, false);
           }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
@@ -655,7 +931,12 @@ public class SchematicDesignerDialog extends BaseDialog {
             //addCard(new IOCard(linker.item, false), x, y, true);
             showMenu(list -> {
               list.table(Consts.darkGrayUIAlpha, items -> {
-                buildItems(items, x, y, false);
+                Seq<RecipeItem<?>> l = TooManyItems.itemsManager.getList()
+                    .removeAll(e -> !TooManyItems.recipesManager.anyProduction(e) || e.item instanceof Block);
+                buildItems(items, l, item -> {
+                  view.addCard(new IOCard(item, false), x, y, true);
+                  hideMenu();
+                });
               }).update(t -> align(x, y, list, t)).margin(8);
             }, view, bottomLeft, bottomLeft, false);
           }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
@@ -954,7 +1235,6 @@ public class SchematicDesignerDialog extends BaseDialog {
       long id = read.l();
       ItemLinker res = new ItemLinker(TooManyItems.itemsManager.getByName(read.str()), read.bool(), id);
       res.dir = read.i();
-      res.amount = read.f();
       res.expectAmount = read.f();
       res.setBounds(read.f(), read.f(), read.f(), read.f());
       return res;
@@ -997,7 +1277,6 @@ public class SchematicDesignerDialog extends BaseDialog {
       write.str(linker.item.name());
       write.bool(linker.isInput);
       write.i(linker.dir);
-      write.f(linker.amount);
       write.f(linker.expectAmount);
 
       write.f(linker.x);
@@ -1007,7 +1286,7 @@ public class SchematicDesignerDialog extends BaseDialog {
     }
   }
 
-  private void buildItems(Table items, float x, float y, boolean input) {
+  private void buildItems(Table items, Seq<RecipeItem<?>> list, Cons<RecipeItem<?>> callBack) {
     int[] i = {0};
     boolean[] reverse = {false};
     String[] search = new String[]{""};
@@ -1037,19 +1316,16 @@ public class SchematicDesignerDialog extends BaseDialog {
         int ind = 0;
 
         Comparator<RecipeItem<?>> sorting = TooManyItems.recipesDialog.sortings.get(i[0]).sort;
-        Seq<RecipeItem<?>> list = TooManyItems.itemsManager.getList()
-            .removeAll(e -> !e.name().contains(search[0]) && !e.localizedName().contains(search[0])
-                || !((input && TooManyItems.recipesManager.anyMaterial(e)) || (!input && TooManyItems.recipesManager.anyProduction(e)))
-                || e.item instanceof Block)
+        Seq<RecipeItem<?>> ls = list.copy()
+            .removeAll(e -> !e.name().contains(search[0]) && !e.localizedName().contains(search[0]))
             .sort(reverse[0]? (a, b) -> sorting.compare(b, a): sorting);
 
-        for (RecipeItem<?> item : list) {
+        for (RecipeItem<?> item : ls) {
           if (item.locked() || (item.item instanceof Item checkVisible && state.rules.hiddenBuildItems.contains(checkVisible)) || item.hidden())
             continue;
 
           cont.button(new TextureRegionDrawable(item.icon()), Styles.clearNonei, 32, () -> {
-            view.addCard(new IOCard(item, input), x, y, true);
-            hideMenu();
+            callBack.get(item);
           }).margin(4).tooltip(item.localizedName()).get();
 
           if (ind++%8 == 7) {
@@ -1091,6 +1367,7 @@ public class SchematicDesignerDialog extends BaseDialog {
     boolean removing;
 
     public int mul = 1;
+    public float scale = 1f;
 
     public static Card read(Reads read) {
       int id = read.i();
@@ -1236,10 +1513,17 @@ public class SchematicDesignerDialog extends BaseDialog {
       });
     }
 
+    Runnable rebuildConfig, rebuildOptionals, rebuildAttrs;
+
+    float efficiency, multiplier;
+
     final Recipe recipe;
     final RecipeView recipeView;
 
-    final EnvParameter parameter = new EnvParameter();
+    final EnvParameter environments = new EnvParameter();
+    final OrderedSet<RecipeItem<?>> optionalSelected = new OrderedSet<>();
+
+    private final EnvParameter param = new EnvParameter();
 
     public RecipeCard(Recipe recipe) {
       this.recipe = recipe;
@@ -1262,14 +1546,15 @@ public class SchematicDesignerDialog extends BaseDialog {
         RecipeItemStack stack = recipe.materials.get(linker.item);
         if (stack == null) continue;
 
-        linker.expectAmount = stack.amount*mul;
+        if (stack.isBooster) linker.expectAmount = stack.amount*mul*scale;
+        else linker.expectAmount = stack.amount*mul*multiplier;
       }
 
       for (ItemLinker linker : out) {
         RecipeItemStack stack = recipe.productions.get(linker.item);
         if (stack == null) continue;
 
-        linker.expectAmount = stack.amount*mul;
+        linker.expectAmount = stack.amount*mul*efficiency;
       }
     }
 
@@ -1293,10 +1578,13 @@ public class SchematicDesignerDialog extends BaseDialog {
 
           Table[] tab = new Table[1];
           inner.table(inf -> {
-            inf.left().add("").growX().update(l -> l.setText(Core.bundle.format("dialog.calculator.recipeMulti", mul))).left().pad(6).padLeft(12).align(Align.left);
+            inf.left().add("").growX().update(l -> l.setText(Core.bundle.format("dialog.calculator.recipeMulti", mul))).left().pad(6).padLeft(12).align(left);
             inf.add(Core.bundle.format("dialog.calculator.config")).padLeft(30);
             inf.button(Icon.pencil, Styles.clearNonei, 32, () -> tab[0].visible = true).margin(4);
+            inf.row();
+            inf.left().add("").colspan(2).growX().update(l -> l.setText(Core.bundle.format("dialog.calculator.recipeEff", (efficiency == 1? "": efficiency > 1? "[#98ffa9]": "[red]") + Strings.autoFixed(efficiency*100, 1)))).left().pad(6).padLeft(12).align(left);
           }).growX();
+
           inner.row();
           inner.table(i -> i.add(recipeView).fill()).center().fill().pad(36).padTop(12);
 
@@ -1304,32 +1592,211 @@ public class SchematicDesignerDialog extends BaseDialog {
             tab[0] = over;
             over.visible = false;
             over.table(Consts.darkGrayUIAlpha, table -> {
-              table.top();
-              table.table(Consts.grayUI, b -> {
-                b.table(Consts.darkGrayUIAlpha, pane -> {
-                  pane.add(Core.bundle.get("dialog.calculator.config")).growX().padLeft(10);
-                  pane.button(Icon.cancel, Styles.clearNonei, 32, () -> tab[0].visible = false).margin(4);
+              rebuildConfig = () -> {
+                calculateEfficiency();
+                table.clearChildren();
+
+                table.top();
+                table.table(Consts.grayUI, b -> {
+                  b.table(Consts.darkGrayUIAlpha, pane -> {
+                    pane.add(Core.bundle.get("dialog.calculator.config")).growX().padLeft(10);
+                    pane.button(Icon.cancel, Styles.clearNonei, 32, () -> tab[0].visible = false).margin(4);
+                  }).growX();
                 }).growX();
-              }).growX();
-              table.row();
-              table.table(r -> {
-                r.add(Core.bundle.get("calculator.config.multiple"));
-                r.table(inp -> {
-                  inp.field(Integer.toString(mul), TextField.TextFieldFilter.digitsOnly, i -> {
-                    try {
-                      mul = i.isEmpty()? 0: Integer.parseInt(i);
-                    } catch (Throwable ignored){}
-                  }).growX().get().setAlignment(right);
-                  inp.add("x").color(Color.gray);
-                }).growX().padLeft(20);
-                r.row();
+                table.row();
+                table.table(r -> {
+                  r.left().defaults().left().padBottom(4);
+                  r.add(Core.bundle.get("calculator.config.multiple"));
+                  r.table(inp -> {
+                    inp.field(Integer.toString(mul), TextField.TextFieldFilter.digitsOnly, i -> {
+                      try {
+                        mul = i.isEmpty()? 0: Integer.parseInt(i);
+                      } catch (Throwable ignored){}
+                    }).growX().get().setAlignment(right);
+                    inp.add("x").color(Color.gray);
+                  }).growX().padLeft(20);
+                  r.row();
 
+                  r.add(Core.bundle.get("calculator.config.efficiencyScl"));
+                  r.table(inp -> {
+                    inp.field(Strings.autoFixed(scale*100, 1), TextField.TextFieldFilter.floatsOnly, i -> {
+                      try {
+                        scale = i.isEmpty()? 0: Float.parseFloat(i)/100;
+                        calculateEfficiency();
+                      } catch (Throwable ignored){}
+                    }).growX().get().setAlignment(right);
+                    inp.add("%").color(Color.gray);
+                  }).growX().padLeft(20);
+                  r.row();
 
-              }).margin(10).fill();
+                  r.add(Core.bundle.get("calculator.config.optionalMats"));
+                  r.table(in -> in.right().button(Icon.settingsSmall, Styles.clearNonei, 24, () -> {
+                    showMenu(menu -> {
+                      menu.table(Consts.darkGrayUIAlpha, i -> {
+                        i.update(() -> {
+                          if (Core.input.keyDown(KeyCode.mouseLeft) || Core.input.keyDown(KeyCode.mouseRight)){
+                            tmp.set(Core.input.mouse());
+                            i.stageToLocalCoordinates(tmp);
+
+                            if (tmp.x > i.getWidth() || tmp.y > i.getHeight() || tmp.x < 0 || tmp.y < 0){
+                              hideMenu();
+                            }
+                          }
+                        });
+
+                        i.add(Core.bundle.get("calculator.config.selectOptionals")).color(Pal.accent).pad(8).growX().left();
+                        i.row();
+                        if (!recipe.materials.values().toSeq().contains(e -> e.optionalCons && !e.isAttribute)){
+                          i.add(Core.bundle.get("calculator.config.noOptionals")).color(Color.lightGray).pad(8).growX().left();
+                        }
+                        else {
+                          for (RecipeItemStack stack : recipe.materials.values()) {
+                            if (!stack.optionalCons || stack.isAttribute) continue;
+                            CheckBox item = Elem.newCheck("", b -> {
+                              if (b) optionalSelected.add(stack.item);
+                              else optionalSelected.remove(stack.item);
+
+                              calculateEfficiency();
+                              rebuildOptionals.run();
+                            });
+                            item.setChecked(optionalSelected.contains(stack.item));
+                            item.image(stack.item.icon()).size(36).scaling(Scaling.fit);
+                            item.add(stack.item.localizedName()).padLeft(5).growX().left();
+                            item.table(am -> {
+                              am.left().bottom();
+                              am.add(stack.getAmount(), Styles.outlineLabel);
+                              am.pack();
+                            }).padLeft(5).fill().left();
+
+                            i.add(item).margin(6).growX();
+                            i.row();
+                          }
+                        }
+                      }).grow().maxHeight(400).minWidth(260);
+                    }, in, topRight, topLeft, true);
+                  }).right().fill().margin(4)).growX();
+                  r.row();
+                  r.pane(mats -> {
+                    rebuildOptionals = () -> {
+                      mats.clearChildren();
+                      mats.left().top().defaults().left();
+                      if (optionalSelected.isEmpty()) {
+                        mats.add(Core.bundle.get("misc.empty"), Styles.outlineLabel).pad(6).color(Color.gray);
+                      } else {
+                        for (RecipeItem<?> item : optionalSelected) {
+                          mats.table(i -> {
+                            i.image(item.icon()).size(32).scaling(Scaling.fit);
+                            i.add(item.localizedName()).padLeft(4);
+                          }).growX().margin(6);
+                          mats.add("").growX().padLeft(4).update(l -> {
+                            RecipeItemStack stack = recipe.materials.get(item);
+                            float am = stack.amount*mul*(stack.isBooster? scale: multiplier)*60;
+                            l.setText((am > 1000? UI.formatAmount((long) am): Strings.autoFixed(am, 1)) + "/s");
+                          }).labelAlign(right);
+                          mats.row();
+                        }
+                      }
+                    };
+                    rebuildOptionals.run();
+                  }).colspan(1).fillY().growX().scrollX(false).left();
+
+                  r.row();
+                  r.add(Core.bundle.get("calculator.config.attributes"));
+                  r.table(in -> in.right().button(Icon.settingsSmall, Styles.clearNonei, 24, () -> {
+                    showMenu(menu -> {
+                      menu.table(Consts.darkGrayUIAlpha, i -> {
+                        i.update(() -> {
+                          if (Core.input.keyDown(KeyCode.mouseLeft) || Core.input.keyDown(KeyCode.mouseRight)){
+                            tmp.set(Core.input.mouse());
+                            i.stageToLocalCoordinates(tmp);
+
+                            if (tmp.x > i.getWidth() || tmp.y > i.getHeight() || tmp.x < 0 || tmp.y < 0){
+                              hideMenu();
+                            }
+                          }
+                        });
+
+                        i.add(Core.bundle.get("calculator.config.selectAttributes")).color(Pal.accent).pad(8).padBottom(4).growX().left();
+                        i.row();
+                        if (!recipe.materials.values().toSeq().contains(e -> e.isAttribute)){
+                          i.add(Core.bundle.get("calculator.config.noAttributes")).color(Color.lightGray).pad(8).growX().left();
+                        }
+                        else {
+                          i.add(Core.bundle.get("calculator.config.attrTip")).color(Color.lightGray).pad(8).padTop(4).growX().left();
+                          i.row();
+                          for (RecipeItemStack stack : recipe.materials.values()) {
+                            if (!stack.isAttribute) continue;
+                            i.table(item -> {
+                              item.image(stack.item.icon()).size(36).scaling(Scaling.fit);
+                              item.add(stack.item.localizedName()).padLeft(5).growX().left();
+                              item.table(am -> {
+                                am.left().bottom();
+                                am.add(stack.getAmount(), Styles.outlineLabel);
+                                am.pack();
+                              }).padLeft(5).fill().left();
+
+                              TextField field = item.field((int)environments.getAttribute(stack.item) + "", TextField.TextFieldFilter.digitsOnly, f -> {
+                                environments.resetAttr(stack.item);
+                                int amount = Strings.parseInt(f, 0);
+                                if (amount > 0) environments.add(stack.item, amount, true);
+
+                                calculateEfficiency();
+                                rebuildAttrs.run();
+                              }).get();
+                              field.setProgrammaticChangeEvents(true);
+
+                              item.check("", b -> {
+                                if (b) field.setText(((int) stack.amount) + "");
+                                else field.setText("0");
+                              }).update(c -> c.setChecked(environments.getAttribute(stack.item) >= stack.amount));
+                            }).margin(6).growX();
+
+                            i.row();
+                          }
+                        }
+                      }).grow().maxHeight(400).minWidth(260);
+                    }, in, topRight, topLeft, true);
+                  }).right().fill().margin(4)).growX();
+                  r.row();
+                  r.pane(attr -> {
+                    rebuildAttrs = () -> {
+                      attr.clearChildren();
+                      attr.left().top().defaults().left();
+                      if (!environments.hasAttrs()) {
+                        attr.add(Core.bundle.get("misc.empty"), Styles.outlineLabel).pad(6).color(Color.gray);
+                      } else {
+                        environments.eachAttribute((item, f) -> {
+                          attr.table(i -> {
+                            i.image(item.icon()).size(32).scaling(Scaling.fit);
+                            i.add(item.localizedName()).padLeft(4);
+                            i.add("x" + f.intValue(), Styles.outlineLabel).pad(6).color(Color.lightGray);
+                          }).fill().margin(6);
+                          attr.row();
+                        });
+                      }
+                    };
+                    rebuildAttrs.run();
+                  }).colspan(1).fillY().growX().scrollX(false);
+                }).margin(10).fill();
+              };
+
+              rebuildConfig.run();
             }).grow();
           });
         });
       }).fill();
+    }
+
+    public void calculateEfficiency(){
+      param.clear();
+      for (ObjectMap.Entry<RecipeItem<?>, RecipeItemStack> entry : recipe.materials) {
+        if (entry.value.optionalCons && entry.value.isBooster && !entry.value.isAttribute && optionalSelected.contains(entry.key)) param.add(entry.key, entry.value.amount, false);
+      }
+      multiplier = recipe.calculateMultiple(param.setAttributes(environments))*scale;
+
+      param.applyFullRecipe(recipe, false, false, multiplier);
+
+      efficiency = recipe.calculateEfficiency(param, multiplier);
     }
 
     @Override
@@ -1523,8 +1990,6 @@ public class SchematicDesignerDialog extends BaseDialog {
   protected class ItemLinker extends Table {
     final long id;
     public final RecipeItem<?> item;
-
-    public float amount = 0;
     public float expectAmount = 0;
 
     public final boolean isInput;
@@ -1688,7 +2153,9 @@ public class SchematicDesignerDialog extends BaseDialog {
           }
         }
 
-        ItemLinker linker = card.hitLinker(hovering.x, hovering.y);
+        ItemLinker linker = card.in.find(l -> l.item == item);
+
+        if (linker == null) linker = card.hitLinker(hovering.x, hovering.y);
         if (linker != null){
           if (!linker.isInput || linker.item.item != item.item) hoverValid = false;
           else {
@@ -1908,11 +2375,24 @@ public class SchematicDesignerDialog extends BaseDialog {
       ItemLinker res = new ItemLinker(item, isInput);
 
       res.setBounds(x, y, width, height);
-      res.amount = amount;
-      res.expectAmount = amount;
+      res.expectAmount = expectAmount;
       res.dir = dir;
 
       return res;
+    }
+
+    public boolean isNormalized() {
+      if (links.size == 1) return true;
+
+      float total = 0;
+      for (float[] value : links.values()) {
+        if (value[0] < 0) return false;
+        total += value[0];
+
+        if (total > 1 + Mathf.FLOAT_ROUNDING_ERROR) return false;
+      }
+
+      return Mathf.equal(total, 1);
     }
   }
 }
