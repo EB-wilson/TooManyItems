@@ -2,6 +2,7 @@ package tmi.ui;
 
 import arc.Core;
 import arc.func.Cons2;
+import arc.func.Cons3;
 import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.Lines;
@@ -37,9 +38,9 @@ public class RecipeNode extends Button {
   float time;
   int clicked;
 
-  @Nullable Cons2<RecipeItem<?>, RecipesDialog.Mode> click;
+  @Nullable Cons3<RecipeItemStack, NodeType, RecipesDialog.Mode> click;
 
-  public RecipeNode(NodeType type, RecipeItemStack stack, Cons2<RecipeItem<?>, RecipesDialog.Mode> click){
+  public RecipeNode(NodeType type, RecipeItemStack stack, Cons3<RecipeItemStack, NodeType, RecipesDialog.Mode> click){
     this.type = type;
     this.click = click;
 
@@ -65,12 +66,12 @@ public class RecipeNode extends Button {
 
       if (click != null && Time.globalTime - time < 12){
         if (!mobile || Core.settings.getBool("keyboard")) {
-          click.get(stack.item(), Core.input.keyDown(binds.hotKey) ? type == NodeType.block ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
+          click.get(stack, type, Core.input.keyDown(binds.hotKey) ? type == NodeType.block ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage : RecipesDialog.Mode.recipe);
         }
         else {
           clicked++;
           if (clicked >= 2){
-            click.get(stack.item(), type == NodeType.block ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
+            click.get(stack, type, type == NodeType.block ? RecipesDialog.Mode.factory : RecipesDialog.Mode.usage);
             clicked = 0;
           }
         }
@@ -106,7 +107,7 @@ public class RecipeNode extends Button {
     alpha = Mathf.lerpDelta(alpha, touched || activity ? 1 : 0, 0.08f);
     progress = Mathf.approachDelta(progress, stack.item.hasDetails() && click != null && touched? 1.01f : 0, 1/60f);
     if (click != null && Time.globalTime - time > 12 && clicked == 1){
-      click.get(stack.item(), RecipesDialog.Mode.recipe);
+      click.get(stack, type, RecipesDialog.Mode.recipe);
       clicked = 0;
     }
   }

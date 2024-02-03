@@ -4,10 +4,12 @@ import arc.Core;
 import arc.func.Boolf;
 import arc.func.Func;
 import arc.graphics.g2d.TextureRegion;
+import arc.struct.ObjectIntMap;
 import arc.struct.ObjectMap;
 import arc.struct.OrderedMap;
 import arc.struct.Seq;
 import mindustry.Vars;
+import mindustry.ctype.ContentType;
 import mindustry.ctype.UnlockableContent;
 import tmi.recipe.types.RecipeItem;
 
@@ -64,12 +66,21 @@ public class RecipeItemManager {
   }
 
   protected static class RecipeUnlockableContent extends RecipeItem<UnlockableContent>{
+    private static final ObjectIntMap<ContentType> mirror = new ObjectIntMap<>();
+
+    static {
+      mirror.put(ContentType.item, 0);
+      mirror.put(ContentType.liquid, 1);
+      mirror.put(ContentType.block, 2);
+      mirror.put(ContentType.unit, 3);
+    }
+
     public RecipeUnlockableContent(UnlockableContent item) {
       super(item);
     }
 
     @Override public int ordinal() {return item.id;}
-    @Override public int typeID() {return item.getContentType().ordinal();}
+    @Override public int typeID() {return mirror.get(item.getContentType(), item.getContentType().ordinal());}
     @Override public String name() {return item.name;}
     @Override public String localizedName() {return item.localizedName;}
     @Override public TextureRegion icon() {return item.uiIcon;}

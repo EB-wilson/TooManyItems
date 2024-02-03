@@ -2,6 +2,8 @@ package tmi.ui;
 
 import arc.Core;
 import arc.Graphics;
+import arc.KeyBinds;
+import arc.files.Fi;
 import arc.func.Boolc;
 import arc.func.Cons;
 import arc.func.Func;
@@ -34,10 +36,12 @@ import arc.struct.*;
 import arc.util.*;
 import arc.util.io.Reads;
 import arc.util.io.Writes;
+import mindustry.Vars;
 import mindustry.core.UI;
 import mindustry.gen.Icon;
 import mindustry.gen.Tex;
 import mindustry.graphics.Pal;
+import mindustry.input.Binding;
 import mindustry.type.Item;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
@@ -52,7 +56,9 @@ import tmi.recipe.types.GeneratorRecipe;
 import tmi.recipe.types.RecipeItem;
 import tmi.util.Consts;
 
+import javax.sound.sampled.Line;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -67,29 +73,129 @@ public class SchematicDesignerDialog extends BaseDialog {
   private static final Seq<ItemLinker> seq = new Seq<>();
   private static final Vec2 tmp = new Vec2();
   private static final Rect rect = new Rect();
-  protected final View view;
+  protected View view;
   protected final Table menuTable = new Table(){{
     visible = false;
   }};
-  protected final Dialog export = new Dialog("", Consts.transparentBack){{
-    titleTable.clear();
+  protected final Dialog export = new Dialog("", Consts.transparentBack){
+    final FrameBuffer buffer = new FrameBuffer();
+    final TextureRegion tmp = new TextureRegion(((TextureRegionDrawable) Tex.nomap).getRegion());
 
-    cont.table(Consts.darkGrayUIAlpha, t -> {
-      t.table(Consts.darkGrayUI, top -> {
-        top.left().add(Core.bundle.get("dialog.calculator.export")).pad(8);
-      }).grow().padBottom(12);
-      t.row();
-      t.table(Consts.darkGrayUI, inner -> {
+    float imageScale = 1;
+    float boundX, boundY;
+    Fi exportFile;
+    boolean updated;
 
-      }).size(640, 720);
-      t.row();
-      t.table(buttons -> {
-        buttons.right().defaults().size(92, 36).pad(6);
-        buttons.button(Core.bundle.get("misc.cancel"), Styles.cleart, this::hide);
-        buttons.button(Core.bundle.get("misc.export"), Styles.cleart, () -> {});
-      }).growX();
-    }).fill().margin(8);
-  }};
+    {
+      shown(() -> {
+        view.toBuffer(buffer, boundX, boundY, imageScale);
+        updated = true;
+      });
+
+      titleTable.clear();
+
+      cont.table(Consts.darkGrayUIAlpha, t -> {
+        t.table(Consts.darkGrayUI, top -> {
+          top.left().add(Core.bundle.get("dialog.calculator.export")).pad(8);
+        }).grow().padBottom(12);
+        t.row();
+        t.table(Consts.darkGrayUI, inner -> {
+          inner.left().defaults().growX().fillY().pad(5);
+          Image img = inner.image(tmp).scaling(Scaling.fit).fill().size(400).update(i -> {
+            if (updated) {
+              tmp.set(buffer.getTexture());
+              tmp.flip(false, true);
+              i.setDrawable(tmp);
+              updated = false;
+            }
+          }).get();
+          img.clicked(() -> {
+            new BaseDialog(""){{
+              cont.image(tmp).grow().pad(30).scaling(Scaling.fit);
+              cont.row();
+              cont.add("").color(Color.lightGray).update(l -> l.setText(Core.bundle.format("dialog.calculator.exportPrev",
+                  buffer.getWidth(),
+                  buffer.getHeight(),
+                  Mathf.round(imageScale*100)
+              )));
+              titleTable.clear();
+              addCloseButton();
+            }}.show();
+          });
+          inner.row();
+          inner.add("").color(Color.lightGray).update(l -> l.setText(Core.bundle.format("dialog.calculator.exportPrev",
+              buffer.getWidth(),
+              buffer.getHeight(),
+              Mathf.round(imageScale*100)
+          )));
+          inner.row();
+          inner.table(s -> {
+            s.left().defaults().left();
+            s.add(Core.bundle.get("dialog.calculator.exportBoundX"));
+            s.add("").update(l -> l.setText((int)boundX + "px")).width(80).padLeft(5).color(Color.lightGray).right();
+            s.slider(0, 200, 1, boundX, f -> {
+              boundX = f;
+              view.toBuffer(buffer, boundX, boundY, imageScale);
+              updated = true;
+            }).growX().padLeft(5);
+            s.row();
+            s.add(Core.bundle.get("dialog.calculator.exportBoundY"));
+            s.add("").update(l -> l.setText((int)boundY + "px")).width(80).padLeft(5).color(Color.lightGray);
+            s.slider(0, 200, 1, boundY, f -> {
+              boundY = f;
+              view.toBuffer(buffer, boundX, boundY, imageScale);
+              updated = true;
+            }).growX().padLeft(5);
+          });
+          inner.row();
+          inner.add(Core.bundle.get("dialog.calculator.exportScale"));
+          inner.row();
+          inner.table(scl -> {
+            scl.defaults().growX().height(45);
+            int n = 0;
+            for (float scale = 0.25f; scale <= 2f; scale += 0.25f) {
+              n++;
+              float fs = scale;
+              scl.button(Mathf.round(scale*100) + "%", Styles.flatTogglet, () -> {
+                imageScale = fs;
+                view.toBuffer(buffer, boundX, boundY, imageScale);
+                updated = true;
+              }).update(b -> b.setChecked(Mathf.equal(imageScale, fs)));
+              if (n%2 == 0) scl.row();
+            }
+          });
+        }).minWidth(420).grow().margin(8);
+        t.row();
+        t.table(file -> {
+          file.left().defaults().left().pad(4);
+          file.add(Core.bundle.get("dialog.calculator.exportFile"));
+          file.add("").color(Color.lightGray).ellipsis(true).growX()
+              .update(l -> l.setText(exportFile == null? Core.bundle.get("misc.unset"): exportFile.absolutePath()));
+          file.button(Core.bundle.get("misc.select"), Styles.cleart, () -> {
+            platform.showFileChooser(false, "png", f -> {
+              exportFile = f;
+            });
+          }).size(60, 42);
+        }).width(420);
+        t.row();
+        t.table(buttons -> {
+          buttons.right().defaults().size(92, 36).pad(6);
+          buttons.button(Core.bundle.get("misc.cancel"), Styles.cleart, this::hide);
+          buttons.button(Core.bundle.get("misc.export"), Styles.cleart, () -> {
+            try {
+              TextureRegion region = view.toImage(boundX, boundY, imageScale);
+              PixmapIO.writePng(exportFile, region.texture.getTextureData().getPixmap());
+
+              ui.showInfo(Core.bundle.get("dialog.calculator.exportSuccess"));
+            } catch (Exception e) {
+              ui.showException(Core.bundle.get("dialog.calculator.exportFailed"), e);
+              Log.err(e);
+            }
+          }).disabled(b -> exportFile == null);
+        }).growX();
+      }).fill().margin(8);
+    }
+  };
   protected final Dialog balance = new Dialog("", Consts.transparentBack){
     RecipeCard currCard;
 
@@ -265,6 +371,11 @@ public class SchematicDesignerDialog extends BaseDialog {
                         tab.defaults().growX().fillY();
                         if (linker.links.size == 1){
                           ItemLinker other = linker.links.orderedKeys().first();
+                          if (!other.isNormalized()) {
+                            tab.add(Core.bundle.get("misc.assignInvalid")).color(Color.red);
+                            return;
+                          }
+
                           tab.add(Core.bundle.format("dialog.calculator.assigned", (other.expectAmount*60 > 1000? UI.formatAmount((long) (other.expectAmount*60)): Strings.autoFixed(other.expectAmount*60, 1)) + "/s"));
 
                           expected[0] = other.expectAmount;
@@ -364,7 +475,7 @@ public class SchematicDesignerDialog extends BaseDialog {
         t.row();
         t.table(buttons -> {
           buttons.right().defaults().size(92, 36).pad(6);
-          buttons.button(Core.bundle.get("misc.cancel"), Styles.cleart, this::hide);
+          buttons.button(Core.bundle.get("misc.close"), Styles.cleart, this::hide);
           buttons.button(Core.bundle.get("misc.ensure"), Styles.cleart, () -> {
             currCard.mul = balanceAmount;
             currCard.rebuildConfig.run();
@@ -559,8 +670,12 @@ public class SchematicDesignerDialog extends BaseDialog {
     });
   }
 
-  public void addRecipe(Recipe recipe){
-    view.addCard(new RecipeCard(recipe));
+  public RecipeCard addRecipe(Recipe recipe){
+    RecipeCard res = new RecipeCard(recipe);
+    view.addCard(res);
+    res.over.visible = true;
+    res.rebuildConfig.run();
+    return res;
   }
 
   public void addIO(RecipeItem<?> item, boolean isInput) {
@@ -596,8 +711,17 @@ public class SchematicDesignerDialog extends BaseDialog {
       else if((alignment & bottom) == 0)
         v.y += showOn.getHeight() / 2;
 
+      int align = tableAlign;
+      showOn.parent.localToStageCoordinates(tmp.set(v));
+
+      if ((align & right) != 0 && tmp.x - menuTable.getWidth() < 0) align = align & ~right | left;
+      if ((align & left) != 0 && tmp.x + menuTable.getWidth() > Core.scene.getWidth()) align = align & ~left | right;
+
+      if ((align & top) != 0 && tmp.y - menuTable.getHeight() < 0) align = align & ~top | bottom;
+      if ((align & bottom) != 0 && tmp.y + menuTable.getHeight() > Core.scene.getHeight()) align = align & ~bottom | top;
+
       showOn.parent.localToAscendantCoordinates(this, v);
-      menuTable.setPosition(v.x, v.y, tableAlign);
+      menuTable.setPosition(v.x, v.y, align);
     });
 
     r.run();
@@ -608,6 +732,8 @@ public class SchematicDesignerDialog extends BaseDialog {
   }
 
   protected class View extends Group{
+    ItemLinker selecting;
+
     final Seq<Card> cards = new Seq<>();
     final Vec2 selectBegin = new Vec2(), selectEnd = new Vec2();
     boolean isSelecting;
@@ -670,6 +796,76 @@ public class SchematicDesignerDialog extends BaseDialog {
       zoom.addChild(container);
       fill(t -> t.add(zoom).grow());
 
+      update(() -> {
+        if (Core.input.axis(Binding.move_x) > 0){
+          panX -= 10*Time.delta/zoom.scaleX/Scl.scl();
+          clamp();
+        }
+        else if (Core.input.axis(Binding.move_x) < 0){
+          panX += 10*Time.delta/zoom.scaleX/Scl.scl();
+          clamp();
+        }
+
+        if (Core.input.axis(Binding.move_y) > 0){
+          panY -= 10*Time.delta/zoom.scaleY/Scl.scl();
+          clamp();
+        }
+        else if (Core.input.axis(Binding.move_y) < 0){
+          panY += 10*Time.delta/zoom.scaleY/Scl.scl();
+          clamp();
+        }
+      });
+
+      //left tap listener
+      addCaptureListener(new ClickListener(KeyCode.mouseLeft){
+        ItemLinker other;
+        boolean dragged;
+
+        @Override
+        public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button) {
+          dragged = false;
+          return super.touchDown(event, x, y, pointer, button);
+        }
+
+        @Override
+        public void touchDragged(InputEvent event, float x, float y, int pointer) {
+          dragged = true;
+        }
+
+        @Override
+        public void clicked(InputEvent event, float x, float y) {
+          other = null;
+
+          if (selecting != null){
+            eachCard(x, y, c -> {
+              if (other != null) return;
+
+              Vec2 v = c.stageToLocalCoordinates(tmp.set(x, y));
+              other = c.hitLinker(v.x, v.y);
+
+              if (other == selecting){
+
+              }
+              else {
+                //TODO: 连接路径数据配置
+              }
+            }, false);
+          }
+
+          selects.clear();
+          shown = false;
+          isSelecting = false;
+          moveLock(false);
+          hideMenu();
+        }
+
+        @Override
+        public boolean isOver(Element element, float x, float y) {
+          return !dragged;
+        }
+      });
+
+      //zoom and pan with keyboard and mouse
       addListener(new InputListener(){
         @Override
         public boolean scrolled(InputEvent event, float x, float y, float amountX, float amountY){
@@ -688,7 +884,10 @@ public class SchematicDesignerDialog extends BaseDialog {
         }
       });
 
+      //right tap selecting
       addCaptureListener(new InputListener(){
+        Vec2 begin = new Vec2();
+
         @Override
         public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button) {
           if (shown){
@@ -697,6 +896,7 @@ public class SchematicDesignerDialog extends BaseDialog {
           }
           if (!(enabled = pointer == 0 && (button == KeyCode.mouseRight || !useKeyboard()))) return false;
           timer = Time.globalTime;
+          begin.set(x, y);
           return true;
         }
 
@@ -718,10 +918,11 @@ public class SchematicDesignerDialog extends BaseDialog {
         @Override
         public void touchDragged(InputEvent event, float x, float y, int pointer) {
           if (pointer != 0) return;
-          if (Mathf.dst(x, y) > 12) enabled = false;
+          if (Mathf.dst(x - begin.x, y - begin.y) > 12) enabled = false;
         }
       });
 
+      //zoom and pan
       addCaptureListener(new ElementGestureListener(){
         boolean panEnable;
 
@@ -761,6 +962,7 @@ public class SchematicDesignerDialog extends BaseDialog {
         }
       });
 
+      //area selecting
       addCaptureListener(new ElementGestureListener(){
         boolean enable, panned;
         float beginX, beginY;
@@ -784,20 +986,22 @@ public class SchematicDesignerDialog extends BaseDialog {
 
         @Override
         public void touchUp(InputEvent event, float x, float y, int pointer, KeyCode button) {
-          if (selectMode || button == KeyCode.mouseRight) {
+          if ((selectMode || button == KeyCode.mouseRight)) {
             moveLock(false);
             enable = false;
             isSelecting = false;
             panned = false;
 
-            buildMenu(x, y);
+            if (!selects.isEmpty()) {
+              buildMenu(x, y);
+            }
           }
         }
 
         @Override
         public void pan(InputEvent event, float x, float y, float deltaX, float deltaY) {
           if (enable){
-            if (!panned && Mathf.dst(x - beginX, y - beginY) > 12){
+            if (!panned && Mathf.dst(x - beginX, y - beginY) > 14){
               panned = true;
             }
 
@@ -850,13 +1054,47 @@ public class SchematicDesignerDialog extends BaseDialog {
             }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
             menu.row();
 
-            if (selects.size == 1) {
-              menu.button(Core.bundle.get("misc.balance"), Icon.effect, Styles.cleart, 22, () -> {
-                balance.show();
-                hideMenu();
-              }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
-              menu.row();
-            }
+            menu.button(Core.bundle.get("misc.balance"), Icon.effect, Styles.cleart, 22, () -> {
+              if (selects.size == 1) {
+                if (selects.first() instanceof IOCard c) {
+                  if (c.isInput) {
+                    ItemLinker out = c.out.first();
+
+                    if (out.links.isEmpty()) {
+                      ui.showInfo(Core.bundle.format("misc.assignInvalid"));
+                      return;
+                    }
+
+                    if (extracted(c, out)) return;
+                  } else {
+                    ItemLinker in = c.in.first();
+
+                    if (in == null || in.links.isEmpty()){
+                      ui.showInfo(Core.bundle.format("misc.assignInvalid"));
+                      return;
+                    }
+
+                    float sum = 0;
+                    for (ItemLinker linker : in.links.keys()) {
+                      if (!linker.isNormalized()) {
+                        ui.showInfo(Core.bundle.format("misc.assignInvalid"));
+                        return;
+                      }
+
+                      float rate = in.links.size == 1? 1: in.links.get(linker)[0];
+                      sum += linker.expectAmount*rate;
+                    }
+                    c.stack.amount = sum;
+                  }
+                } else balance.show();
+              }
+              else {
+                ui.showInfo("WIP");
+              }
+
+              hideMenu();
+            }).margin(12).get().getLabelCell().padLeft(6).get().setAlignment(left);
+            menu.row();
 
             menu.image().height(4).pad(4).padLeft(0).padRight(0).growX().color(Color.lightGray);
             menu.row();
@@ -945,6 +1183,21 @@ public class SchematicDesignerDialog extends BaseDialog {
 
         tab.setSize(view.width, view.height);
       }, view, bottomLeft, bottomLeft, false);
+    }
+
+    private boolean extracted(IOCard c, ItemLinker out) {
+      float sum = 0;
+      for (ItemLinker linker : out.links.keys()) {
+        if (!linker.isNormalized()) {
+          ui.showInfo(Core.bundle.format("misc.assignInvalid"));
+          return true;
+        }
+
+        float rate = linker.links.size == 1? 1: linker.links.get(out)[0];
+        sum += linker.expectAmount*rate;
+      }
+      c.stack.amount = sum;
+      return false;
     }
 
     private static void align(float x, float y, Table tab, Table t) {
@@ -1085,7 +1338,20 @@ public class SchematicDesignerDialog extends BaseDialog {
 
     public TextureRegion toImage(float boundX, float boundY, float scl){
       FrameBuffer buffer = toBuffer(new FrameBuffer(), boundX, boundY, scl);
-      byte[] lines = ScreenUtils.getFrameBufferPixels(0, 0, buffer.getWidth(), buffer.getHeight(), true);
+      buffer.bind();
+      Gl.pixelStorei(Gl.packAlignment, 1);
+      int numBytes = buffer.getWidth()*buffer.getHeight()*4;
+      final ByteBuffer pixels = Buffers.newByteBuffer(numBytes);
+      Gl.readPixels(0, 0, buffer.getWidth(), buffer.getHeight(), Gl.rgba, Gl.unsignedByte, pixels);
+
+      byte[] lines = new byte[numBytes];
+
+      final int numBytesPerLine = buffer.getWidth()*4;
+      for(int i = 0; i < buffer.getHeight(); i++){
+        pixels.position((buffer.getHeight() - i - 1) * numBytesPerLine);
+        pixels.get(lines, i * numBytesPerLine, numBytesPerLine);
+      }
+
       Pixmap fullPixmap = new Pixmap(buffer.getWidth(), buffer.getHeight());
       Buffers.copy(lines, 0, fullPixmap.pixels, lines.length);
 
@@ -1517,6 +1783,8 @@ public class SchematicDesignerDialog extends BaseDialog {
 
     float efficiency, multiplier;
 
+    Table over;
+
     final Recipe recipe;
     final RecipeView recipeView;
 
@@ -1527,13 +1795,49 @@ public class SchematicDesignerDialog extends BaseDialog {
 
     public RecipeCard(Recipe recipe) {
       this.recipe = recipe;
-      this.recipeView = new RecipeView(recipe, (i, m) -> {
+      this.recipeView = new RecipeView(recipe, (i, t, m) -> {
         TooManyItems.recipesDialog.toggle = r -> {
           TooManyItems.recipesDialog.hide();
-          addRecipe(r);
+
+          RecipeCard card = addRecipe(r);
+
+          if (Core.input.keyDown(TooManyItems.binds.hotKey)){
+            if (t == NodeType.material){
+              ItemLinker linker = card.out.find(e -> e.item == i.item());
+              ItemLinker other = in.find(e -> e.item == i.item());
+              if (other == null){
+                other = new ItemLinker(i.item(), true);
+                other.pack();
+                addIn(other);
+
+                ItemLinker fo = other;
+                Core.app.post(() -> {
+                  fo.adsorption(getWidth()/2, 10, this);
+                });
+              }
+
+              linker.linkTo(other);
+            }
+            else if (t == NodeType.production){
+              ItemLinker linker = out.find(e -> e.item == i.item());
+              ItemLinker other = card.in.find(e -> e.item == i.item());
+
+              if (other == null){
+                other = new ItemLinker(i.item(), true);
+                other.pack();
+                card.addIn(other);
+
+                ItemLinker fo = other;
+                Core.app.post(() -> {
+                  fo.adsorption(card.getWidth()/2, 10, card);
+                });
+              }
+              linker.linkTo(other);
+            }
+          }
         };
         TooManyItems.recipesDialog.show();
-        TooManyItems.recipesDialog.setCurrSelecting(i, m);
+        TooManyItems.recipesDialog.setCurrSelecting(i.item(), m);
       });
       this.recipeView.validate();
     }
@@ -1576,20 +1880,19 @@ public class SchematicDesignerDialog extends BaseDialog {
         t.table(inner -> {
           setMoveLocker(inner);
 
-          Table[] tab = new Table[1];
           inner.table(inf -> {
             inf.left().add("").growX().update(l -> l.setText(Core.bundle.format("dialog.calculator.recipeMulti", mul))).left().pad(6).padLeft(12).align(left);
             inf.add(Core.bundle.format("dialog.calculator.config")).padLeft(30);
-            inf.button(Icon.pencil, Styles.clearNonei, 32, () -> tab[0].visible = true).margin(4);
+            inf.button(Icon.pencil, Styles.clearNonei, 32, () -> over.visible = true).margin(4);
             inf.row();
-            inf.left().add("").colspan(2).growX().update(l -> l.setText(Core.bundle.format("dialog.calculator.recipeEff", (efficiency == 1? "": efficiency > 1? "[#98ffa9]": "[red]") + Strings.autoFixed(efficiency*100, 1)))).left().pad(6).padLeft(12).align(left);
+            inf.left().add("").colspan(3).growX().update(l -> l.setText(Core.bundle.format("dialog.calculator.recipeEff", (efficiency == 1? "": efficiency > 1? "[#98ffa9]": "[red]") + Strings.autoFixed(efficiency*100, 1)))).left().pad(6).padLeft(12).align(left);
           }).growX();
 
           inner.row();
           inner.table(i -> i.add(recipeView).fill()).center().fill().pad(36).padTop(12);
 
           inner.fill(over -> {
-            tab[0] = over;
+            this.over = over;
             over.visible = false;
             over.table(Consts.darkGrayUIAlpha, table -> {
               rebuildConfig = () -> {
@@ -1600,7 +1903,7 @@ public class SchematicDesignerDialog extends BaseDialog {
                 table.table(Consts.grayUI, b -> {
                   b.table(Consts.darkGrayUIAlpha, pane -> {
                     pane.add(Core.bundle.get("dialog.calculator.config")).growX().padLeft(10);
-                    pane.button(Icon.cancel, Styles.clearNonei, 32, () -> tab[0].visible = false).margin(4);
+                    pane.button(Icon.cancel, Styles.clearNonei, 32, () -> over.visible = false).margin(4);
                   }).growX();
                 }).growX();
                 table.row();
@@ -1650,27 +1953,29 @@ public class SchematicDesignerDialog extends BaseDialog {
                           i.add(Core.bundle.get("calculator.config.noOptionals")).color(Color.lightGray).pad(8).growX().left();
                         }
                         else {
-                          for (RecipeItemStack stack : recipe.materials.values()) {
-                            if (!stack.optionalCons || stack.isAttribute) continue;
-                            CheckBox item = Elem.newCheck("", b -> {
-                              if (b) optionalSelected.add(stack.item);
-                              else optionalSelected.remove(stack.item);
+                          i.pane(p -> {
+                            for (RecipeItemStack stack : recipe.materials.values()) {
+                              if (!stack.optionalCons || stack.isAttribute) continue;
+                              CheckBox item = Elem.newCheck("", b -> {
+                                if (b) optionalSelected.add(stack.item);
+                                else optionalSelected.remove(stack.item);
 
-                              calculateEfficiency();
-                              rebuildOptionals.run();
-                            });
-                            item.setChecked(optionalSelected.contains(stack.item));
-                            item.image(stack.item.icon()).size(36).scaling(Scaling.fit);
-                            item.add(stack.item.localizedName()).padLeft(5).growX().left();
-                            item.table(am -> {
-                              am.left().bottom();
-                              am.add(stack.getAmount(), Styles.outlineLabel);
-                              am.pack();
-                            }).padLeft(5).fill().left();
+                                calculateEfficiency();
+                                rebuildOptionals.run();
+                              });
+                              item.setChecked(optionalSelected.contains(stack.item));
+                              item.image(stack.item.icon()).size(36).scaling(Scaling.fit);
+                              item.add(stack.item.localizedName()).padLeft(5).growX().left();
+                              item.table(am -> {
+                                am.left().bottom();
+                                am.add(stack.getAmount(), Styles.outlineLabel);
+                                am.pack();
+                              }).padLeft(5).fill().left();
 
-                            i.add(item).margin(6).growX();
-                            i.row();
-                          }
+                              p.add(item).margin(6).growX();
+                              p.row();
+                            }
+                          }).grow();
                         }
                       }).grow().maxHeight(400).minWidth(260);
                     }, in, topRight, topLeft, true);
@@ -1685,6 +1990,7 @@ public class SchematicDesignerDialog extends BaseDialog {
                       } else {
                         for (RecipeItem<?> item : optionalSelected) {
                           mats.table(i -> {
+                            i.left().defaults().left();
                             i.image(item.icon()).size(32).scaling(Scaling.fit);
                             i.add(item.localizedName()).padLeft(4);
                           }).growX().margin(6);
@@ -1698,7 +2004,7 @@ public class SchematicDesignerDialog extends BaseDialog {
                       }
                     };
                     rebuildOptionals.run();
-                  }).colspan(1).fillY().growX().scrollX(false).left();
+                  }).colspan(2).fillY().minHeight(40).growX().scrollX(false).left();
 
                   r.row();
                   r.add(Core.bundle.get("calculator.config.attributes"));
@@ -1724,35 +2030,37 @@ public class SchematicDesignerDialog extends BaseDialog {
                         else {
                           i.add(Core.bundle.get("calculator.config.attrTip")).color(Color.lightGray).pad(8).padTop(4).growX().left();
                           i.row();
-                          for (RecipeItemStack stack : recipe.materials.values()) {
-                            if (!stack.isAttribute) continue;
-                            i.table(item -> {
-                              item.image(stack.item.icon()).size(36).scaling(Scaling.fit);
-                              item.add(stack.item.localizedName()).padLeft(5).growX().left();
-                              item.table(am -> {
-                                am.left().bottom();
-                                am.add(stack.getAmount(), Styles.outlineLabel);
-                                am.pack();
-                              }).padLeft(5).fill().left();
+                          i.pane(p -> {
+                            for (RecipeItemStack stack : recipe.materials.values()) {
+                              if (!stack.isAttribute) continue;
+                              p.table(item -> {
+                                item.image(stack.item.icon()).size(36).scaling(Scaling.fit);
+                                item.add(stack.item.localizedName()).padLeft(5).growX().left();
+                                item.table(am -> {
+                                  am.left().bottom();
+                                  am.add(stack.getAmount(), Styles.outlineLabel);
+                                  am.pack();
+                                }).padLeft(5).fill().left();
 
-                              TextField field = item.field((int)environments.getAttribute(stack.item) + "", TextField.TextFieldFilter.digitsOnly, f -> {
-                                environments.resetAttr(stack.item);
-                                int amount = Strings.parseInt(f, 0);
-                                if (amount > 0) environments.add(stack.item, amount, true);
+                                TextField field = item.field((int)environments.getAttribute(stack.item) + "", TextField.TextFieldFilter.digitsOnly, f -> {
+                                  environments.resetAttr(stack.item);
+                                  int amount = Strings.parseInt(f, 0);
+                                  if (amount > 0) environments.add(stack.item, amount, true);
 
-                                calculateEfficiency();
-                                rebuildAttrs.run();
-                              }).get();
-                              field.setProgrammaticChangeEvents(true);
+                                  calculateEfficiency();
+                                  rebuildAttrs.run();
+                                }).get();
+                                field.setProgrammaticChangeEvents(true);
 
-                              item.check("", b -> {
-                                if (b) field.setText(((int) stack.amount) + "");
-                                else field.setText("0");
-                              }).update(c -> c.setChecked(environments.getAttribute(stack.item) >= stack.amount));
-                            }).margin(6).growX();
+                                item.check("", b -> {
+                                  if (b) field.setText(((int) stack.amount) + "");
+                                  else field.setText("0");
+                                }).update(c -> c.setChecked(environments.getAttribute(stack.item) >= stack.amount));
+                              }).margin(6).growX();
 
-                            i.row();
-                          }
+                              p.row();
+                            }
+                          }).grow();
                         }
                       }).grow().maxHeight(400).minWidth(260);
                     }, in, topRight, topLeft, true);
@@ -1767,6 +2075,7 @@ public class SchematicDesignerDialog extends BaseDialog {
                       } else {
                         environments.eachAttribute((item, f) -> {
                           attr.table(i -> {
+                            i.left().defaults().left();
                             i.image(item.icon()).size(32).scaling(Scaling.fit);
                             i.add(item.localizedName()).padLeft(4);
                             i.add("x" + f.intValue(), Styles.outlineLabel).pad(6).color(Color.lightGray);
@@ -1776,8 +2085,8 @@ public class SchematicDesignerDialog extends BaseDialog {
                       }
                     };
                     rebuildAttrs.run();
-                  }).colspan(1).fillY().growX().scrollX(false);
-                }).margin(10).fill();
+                  }).colspan(2).minHeight(40).fillY().growX().scrollX(false).left();
+                }).margin(10).fillY().growX().left();
               };
 
               rebuildConfig.run();
@@ -1995,6 +2304,7 @@ public class SchematicDesignerDialog extends BaseDialog {
     public final boolean isInput;
 
     OrderedMap<ItemLinker, float[]> links = new OrderedMap<>();
+    ObjectMap<ItemLinker, Seq<Line>> lines = new ObjectMap<>();
     int dir;
 
     Vec2 linkPos = new Vec2();
@@ -2078,6 +2388,10 @@ public class SchematicDesignerDialog extends BaseDialog {
                 if (hover.links.isEmpty()) hoverCard.removeChild(hover);
               }
             }
+          }
+
+          if (!panned && view.selecting == null) {
+            view.selecting = ItemLinker.this;
           }
 
           if (moving){
@@ -2204,25 +2518,27 @@ public class SchematicDesignerDialog extends BaseDialog {
       if (((posX < targetCard.child.x || posX > targetCard.child.x + targetCard.child.getWidth())
       && (posY < targetCard.child.y || posY > targetCard.child.y + targetCard.child.getHeight()))) return false;
 
-      if (posX >= targetCard.child.x + targetCard.child.getWidth()) {
-        dir = 0;
-        float offX = targetCard.child.getWidth()/2 + getWidth()/1.5f;
-        setPosition(targetCard.child.x + targetCard.child.getWidth()/2 + offX, posY, Align.center);
-      } else if (posY >= targetCard.child.y + targetCard.child.getHeight()) {
+      float angle = Angles.angle(targetCard.child.x + targetCard.child.getWidth()/2, targetCard.child.y + targetCard.child.getHeight()/2, posX, posY);
+      float check = Angles.angle(targetCard.getWidth(), targetCard.getHeight());
+
+      if (angle > check && angle < 180 - check) {
         dir = 1;
         float offY = targetCard.child.getHeight()/2 + getHeight()/1.5f;
         setPosition(posX, targetCard.child.y + targetCard.child.getHeight()/2 + offY, Align.center);
-      } else if (posX <= targetCard.child.x) {
+      } else if (angle > 180 - check && angle < 180 + check) {
         dir = 2;
         float offX = -targetCard.child.getWidth()/2 - getWidth()/1.5f;
         setPosition(targetCard.child.x + targetCard.child.getWidth()/2 + offX, posY, Align.center);
-      } else if (posY <= targetCard.child.y) {
+      } else if (angle > 180 + check && angle < 360 - check) {
         dir = 3;
         float offY = -targetCard.child.getHeight()/2 - getHeight()/1.5f;
         setPosition(posX, targetCard.child.y + targetCard.child.getHeight()/2 + offY, Align.center);
       } else {
-        return false;
+        dir = 0;
+        float offX = targetCard.child.getWidth()/2 + getWidth()/1.5f;
+        setPosition(targetCard.child.x + targetCard.child.getWidth()/2 + offX, posY, Align.center);
       }
+
       return true;
     }
 
@@ -2243,8 +2559,11 @@ public class SchematicDesignerDialog extends BaseDialog {
 
       if (cont) return false;
 
+      Seq<Line> line = new Seq<>();
       links.put(target, new float[]{-1, 0});
       target.links.put(this, new float[]{-1, 0});
+      lines.put(target, line);
+      target.lines.put(this, line);
 
       return true;
     }
@@ -2264,6 +2583,8 @@ public class SchematicDesignerDialog extends BaseDialog {
 
       links.remove(target);
       target.links.remove(this);
+      lines.remove(target);
+      target.lines.remove(this);
     }
 
     public Vec2 getLinkPos(){
@@ -2394,5 +2715,9 @@ public class SchematicDesignerDialog extends BaseDialog {
 
       return Mathf.equal(total, 1);
     }
+  }
+
+  protected static class Line {
+    //TODO: 链接路线数据
   }
 }

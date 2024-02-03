@@ -54,8 +54,8 @@ public class BeamDrillParser extends ConsumerParser<BeamDrill>{
         r.addProduction(getWrap(drop.itemDrop), 1);
 
         if(content.optionalBoostIntensity != 1){
-          registerCons(r, Seq.with(content.consumers).select(e -> !(e.optional && e instanceof ConsumeLiquidBase && e.booster)).toArray(Consume.class));
-          if(content.findConsumer(f -> f instanceof ConsumeLiquidBase) instanceof ConsumeLiquidBase consBase) {
+          registerCons(r, Seq.with(content.consumers).select(e -> !e.booster).toArray(Consume.class));
+          if(content.findConsumer(e -> e.booster) instanceof ConsumeLiquidBase consBase) {
             registerCons(r, s -> s.setEfficiency(content.optionalBoostIntensity)
                 .setBooster()
                 .setOptionalCons()

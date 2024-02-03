@@ -1,6 +1,7 @@
 package tmi.ui;
 
 import arc.func.Cons2;
+import arc.func.Cons3;
 import arc.func.Prov;
 import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
@@ -32,7 +33,7 @@ public class RecipeView extends Group {
 
   final Group childGroup;
 
-  public RecipeView(Recipe recipe, Cons2<RecipeItem<?>, RecipesDialog.Mode> nodeClicked) {
+  public RecipeView(Recipe recipe, Cons3<RecipeItemStack, NodeType, RecipesDialog.Mode> nodeClicked) {
     this.recipe = recipe;
     childGroup = new Group() {};
 

@@ -24,7 +24,7 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
         .setBlock(getWrap(pump))
         .setTime(pump.consumeTime);
 
-    res.addProduction(getWrap(pump.result), pump.pumpAmount);
+    res.addProductionPresec(getWrap(pump.result), pump.pumpAmount);
 
     registerCons(res, pump.consumers);
 

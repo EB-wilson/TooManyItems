@@ -35,6 +35,7 @@ import mindustry.ui.Fonts;
 import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
 import mindustry.world.Block;
+import rhino.Sorting;
 import tmi.TooManyItems;
 import tmi.recipe.Recipe;
 import tmi.recipe.RecipeType;
@@ -46,6 +47,7 @@ import java.text.Collator;
 import java.util.Comparator;
 
 import static mindustry.Vars.mobile;
+import static mindustry.Vars.ui;
 import static tmi.TooManyItems.binds;
 import static tmi.util.Consts.*;
 
@@ -116,9 +118,13 @@ public class RecipesDialog extends BaseDialog {
     super(Core.bundle.get("dialog.recipes.title"));
 
     addCloseButton();
+
     buttons.button(Core.bundle.get("dialog.recipes.designer"), Icon.book, () -> {
+      /* TODO: not usable yet
       TooManyItems.schematicDesigner.show();
       hide();
+      */
+      ui.showInfo("Not yet complete，please wait");
     });
 
     hidden(() -> toggle = null);
@@ -411,7 +417,7 @@ public class RecipesDialog extends BaseDialog {
     Seq<RecipeView> recipeViews = new Seq<>();
     if (recipes != null) {
       for (Recipe recipe : recipes) {
-        RecipeView view = new RecipeView(recipe, this::setCurrSelecting);
+        RecipeView view = new RecipeView(recipe, (i, t, m) -> setCurrSelecting(i.item, m));
         recipeViews.add(view);
       }
     }
