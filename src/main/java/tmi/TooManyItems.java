@@ -1,5 +1,6 @@
 package tmi;
 
+import arc.Core;
 import arc.Events;
 import arc.util.Time;
 import mindustry.Vars;
@@ -38,15 +39,6 @@ public class TooManyItems extends Mod {
       Vars.ui.settings.graphics.sliderPref("tmi_gridSize", 150, 50, 300, 10, Integer::toString);
 
       api.afterInit();
-      recipesManager.mergeGroup();
-
-      schematicDesigner.show();
-      schematicDesigner.draw();
-      schematicDesigner.act(1);
-      schematicDesigner.addRecipe(TooManyItems.recipesManager.getRecipesByProduction(TooManyItems.itemsManager.getItem(Items.silicon)).first());
-
-      schematicDesigner.addIO(TooManyItems.itemsManager.getItem(Items.coal), true);
-      schematicDesigner.addIO(TooManyItems.itemsManager.getItem(Items.sand), true);
     }));
   }
 
@@ -80,7 +72,8 @@ public class TooManyItems extends Mod {
 
     binds = new KeyBinds();
     recipesDialog = new RecipesDialog();
-    schematicDesigner = new SchematicDesignerDialog();
+    //TODO: not usable yet
+    if (Core.settings.getBool("tmi_enable_preview")) schematicDesigner = new SchematicDesignerDialog();
     batchBalance = new BatchBalanceDialog();
 
     binds.load();

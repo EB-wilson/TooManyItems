@@ -132,6 +132,11 @@ public class EntryAssigner {
         Vars.ui.hudGroup.addChild(tmiEntry);
       }});
     }
+
+    //preview switch
+    {
+      Vars.ui.settings.game.checkPref("tmi_enable_preview", false);
+    }
   }
 
   private static void openDialog(){

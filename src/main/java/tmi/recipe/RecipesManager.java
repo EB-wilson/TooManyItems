@@ -132,17 +132,5 @@ public class RecipesManager{
   public boolean anyRecipe(RecipeItem<?> uc) {
     return materials.contains(uc) || productions.contains(uc) || (uc.item instanceof Block b && blocks.contains(uc));
   }
-
-  /**该方法用于合并所有配方中的相似配方，以折叠他们。
-   * <p>具体来说，对于两个{@link Recipe}，如果它们的{@link Recipe#materials}和{@link Recipe#productions}均相似，那么就可以被视为同一个分组的成员。
-   * <p>关于{@link RecipeItemStack}的相似，这要求两个对象的
-   * {@link RecipeItemStack#item}，
-   * {@link RecipeItemStack#optionalCons}，
-   * {@link RecipeItemStack#isAttribute}，
-   * {@link RecipeItemStack#attributeGroup}
-   * 均是一致的才可被视为相似，剩余字段均可忽略*/
-  public void mergeGroup() {
-    //TODO: 对相同配方不同方块进行分组
-  }
 }
 

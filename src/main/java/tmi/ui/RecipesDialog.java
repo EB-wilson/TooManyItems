@@ -119,12 +119,11 @@ public class RecipesDialog extends BaseDialog {
 
     addCloseButton();
 
+    //TODO: not usable yet
+    if (Core.settings.getBool("tmi_enable_preview"))
     buttons.button(Core.bundle.get("dialog.recipes.designer"), Icon.book, () -> {
-      /* TODO: not usable yet
       TooManyItems.schematicDesigner.show();
       hide();
-      */
-      ui.showInfo("Not yet complete，please wait");
     });
 
     hidden(() -> toggle = null);
