@@ -2,9 +2,7 @@ package tmi.ui;
 
 import arc.Core;
 import arc.Graphics;
-import arc.KeyBinds;
 import arc.files.Fi;
-import arc.func.Boolc;
 import arc.func.Cons;
 import arc.func.Func;
 import arc.graphics.*;
@@ -36,7 +34,6 @@ import arc.struct.*;
 import arc.util.*;
 import arc.util.io.Reads;
 import arc.util.io.Writes;
-import mindustry.Vars;
 import mindustry.core.UI;
 import mindustry.gen.Icon;
 import mindustry.gen.Tex;
@@ -56,7 +53,6 @@ import tmi.recipe.types.GeneratorRecipe;
 import tmi.recipe.types.RecipeItem;
 import tmi.util.Consts;
 
-import javax.sound.sampled.Line;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -1455,9 +1451,11 @@ public class SchematicDesignerDialog extends BaseDialog {
       if (head != FI_HEAD)
         throw new IOException("file format error, unknown file head: " + Integer.toHexString(head));
 
+      int ver = read.i();
+
       int cardsLen = read.i();
       for (int i = 0; i < cardsLen; i++) {
-        Card card = Card.read(read);
+        Card card = Card.read(read, ver);
         addCard(card, false);
         card.build();
         card.mul = read.i();
@@ -1467,13 +1465,13 @@ public class SchematicDesignerDialog extends BaseDialog {
         int outputs = read.i();
 
         for (int l = 0; l < inputs; l++) {
-          ItemLinker linker = readLinker(read);
+          ItemLinker linker = readLinker(read, ver);
           linkerMap.put(linker.id, linker);
           card.addIn(linker);
         }
 
         for (int l = 0; l < outputs; l++) {
-          ItemLinker linker = readLinker(read);
+          ItemLinker linker = readLinker(read, ver);
           linkerMap.put(linker.id, linker);
           card.addOut(linker);
 
@@ -1497,7 +1495,7 @@ public class SchematicDesignerDialog extends BaseDialog {
       newSet = null;
     }
 
-    private ItemLinker readLinker(Reads read) {
+    private ItemLinker readLinker(Reads read, int ver) {
       long id = read.l();
       ItemLinker res = new ItemLinker(TooManyItems.itemsManager.getByName(read.str()), read.bool(), id);
       res.dir = read.i();
@@ -1508,6 +1506,7 @@ public class SchematicDesignerDialog extends BaseDialog {
 
     public void write(Writes write){
       write.i(FI_HEAD);
+      write.i(0);
 
       write.i(cards.size);
       for (Card card : cards) {
@@ -1635,7 +1634,7 @@ public class SchematicDesignerDialog extends BaseDialog {
     public int mul = 1;
     public float scale = 1f;
 
-    public static Card read(Reads read) {
+    public static Card read(Reads read, int ver) {
       int id = read.i();
       return provs.get(id).get(read);
     }
