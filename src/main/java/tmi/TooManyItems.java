@@ -43,6 +43,7 @@ public class TooManyItems extends Mod {
   }
 
   private void registerRecipeParser() {
+    //几乎所有的原版游戏工厂方块的分析工具
     recipesManager.registerParser(new GenericCrafterParser());
     recipesManager.registerParser(new UnitFactoryParser());
     recipesManager.registerParser(new ReconstructorParser());

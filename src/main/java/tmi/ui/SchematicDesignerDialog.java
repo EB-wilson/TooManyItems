@@ -90,12 +90,12 @@ public class SchematicDesignerDialog extends BaseDialog {
 
       titleTable.clear();
 
-      cont.table(Consts.darkGrayUIAlpha, t -> {
+      Cell<Table> cell = cont.table(Consts.darkGrayUIAlpha, t -> {
         t.table(Consts.darkGrayUI, top -> {
           top.left().add(Core.bundle.get("dialog.calculator.export")).pad(8);
         }).grow().padBottom(12);
         t.row();
-        t.table(Consts.darkGrayUI, inner -> {
+        t.table(Consts.darkGrayUI).grow().margin(12).get().top().pane(Styles.smallPane, inner -> {
           inner.left().defaults().growX().fillY().pad(5);
           Image img = inner.image(tmp).scaling(Scaling.fit).fill().size(400).update(i -> {
             if (updated) {
@@ -189,7 +189,12 @@ public class SchematicDesignerDialog extends BaseDialog {
             }
           }).disabled(b -> exportFile == null);
         }).growX();
-      }).fill().margin(8);
+      }).grow().margin(8);
+
+      resized(() -> {
+        cell.maxSize(Core.scene.getWidth()/Scl.scl(), Core.scene.getHeight()/Scl.scl());
+        cell.get().invalidateHierarchy();
+      });
     }
   };
   protected final Dialog balance = new Dialog("", Consts.transparentBack){
@@ -549,6 +554,12 @@ public class SchematicDesignerDialog extends BaseDialog {
           table(Tex.buttonSideLeft, but -> {
             but.touchable = Touchable.enabled;
             Image img = but.image(Icon.rightOpen).size(36).get();
+            actions(Actions.run(() -> {
+              img.setOrigin(center);
+              img.setRotation(180);
+              setPosition(main.getWidth(), 0);
+              fold.set(true);
+            }));
             but.clicked(() -> {
               if (fold.get()) {
                 clearActions();
@@ -563,12 +574,6 @@ public class SchematicDesignerDialog extends BaseDialog {
                 img.actions(Actions.rotateBy(180, 0.3f), Actions.rotateTo(180));
               }
             });
-            but.actions(Actions.run(() -> {
-              img.setOrigin(center);
-              img.setRotation(180);
-              setPosition(main.getWidth(), 0);
-              fold.set(true);
-            }));
             but.hovered(() -> {
               img.setColor(Pal.accent);
               Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand);
@@ -576,6 +581,14 @@ public class SchematicDesignerDialog extends BaseDialog {
             but.exited(() -> {
               img.setColor(Color.white);
               Core.graphics.restoreCursor();
+            });
+
+            resized(() -> {
+              actions(Actions.run(() -> {
+                img.setOrigin(center);
+                img.setRotation(fold.get()? 180: 0);
+                setPosition(fold.get()? main.getWidth(): 0, 0);
+              }));
             });
           }).size(36, 122).padRight(-5);
           table(Tex.buttonSideLeft, main -> {
