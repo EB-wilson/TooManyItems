@@ -29,7 +29,7 @@ public class AttributeCrafterParser extends ConsumerParser<AttributeCrafter>{
     registerCons(res, crafter.consumers);
 
     for (Block block : Vars.content.blocks()) {
-      if (block.attributes.get(crafter.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
+      if (crafter.attribute == null || block.attributes.get(crafter.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = Math.min(crafter.boostScale*crafter.size*crafter.size*block.attributes.get(crafter.attribute), crafter.maxBoost);
       res.addMaterialRaw(getWrap(block), crafter.size*crafter.size)

@@ -29,7 +29,7 @@ public class SolidPumpParser extends ConsumerParser<SolidPump>{
     registerCons(res, pump.consumers);
 
     for (Block block : Vars.content.blocks()) {
-      if (block.attributes.get(pump.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
+      if (pump.attribute == null || block.attributes.get(pump.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = block.attributes.get(pump.attribute);
       res.addMaterialRaw(getWrap(block), pump.size*pump.size)

@@ -31,7 +31,7 @@ public class ThermalGeneratorParser extends ConsumerParser<ThermalGenerator>{
     res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction);
 
     for (Block block : Vars.content.blocks()) {
-      if (block.attributes.get(content.attribute) <= 0) continue;
+      if (content.attribute == null || block.attributes.get(content.attribute) <= 0) continue;
 
       float eff = content.displayEfficiencyScale*content.size*content.size*block.attributes.get(content.attribute);
       if (eff <= content.minEfficiency) continue;

@@ -26,7 +26,7 @@ public class WallCrafterParser extends ConsumerParser<WallCrafter>{
     registerCons(res, content.consumers);
 
     for (Block block : Vars.content.blocks()) {
-      if (block.attributes.get(content.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
+      if (content.attribute == null || block.attributes.get(content.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = block.attributes.get(content.attribute);
       res.addMaterialRaw(getWrap(block), block.size)

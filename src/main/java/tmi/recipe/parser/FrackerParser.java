@@ -32,7 +32,7 @@ public class FrackerParser extends ConsumerParser<Fracker>{
     registerCons(res, fracker.consumers);
 
     for (Block block : Vars.content.blocks()) {
-      if (block.attributes.get(fracker.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
+      if (fracker.attribute == null || block.attributes.get(fracker.attribute) <= 0 || (block instanceof Floor f && f.isDeep())) continue;
 
       float eff = block.attributes.get(fracker.attribute);
       res.addMaterialRaw(getWrap(block), fracker.size*fracker.size)
