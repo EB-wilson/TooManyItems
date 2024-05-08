@@ -1,5 +1,5 @@
 jdk:
-  - openjdk17
+  - openjdk8
 install: |
   chmod 777 ./gradlew
   ./gradlew publishToMavenLocal
