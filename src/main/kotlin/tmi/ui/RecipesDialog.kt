@@ -33,6 +33,7 @@ import mindustry.Vars
 import mindustry.ctype.Content
 import mindustry.gen.Icon
 import mindustry.gen.Tex
+import mindustry.graphics.Drawf
 import mindustry.graphics.Pal
 import mindustry.ui.Fonts
 import mindustry.ui.Styles
@@ -624,7 +625,6 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     return true
   }
 
-
   private fun buildPage(table: Table, currPage: Intp, setPage: Intc, maxPage: Intp) {
     table.button(Icon.leftOpen, Styles.clearNonei, 32f) { setPage[currPage.get() - 1] }
       .disabled { currPage.get() <= 0 }.size(45f)
@@ -913,16 +913,16 @@ private fun pageSlider(counts: Intp): SliderStyle {
 
         override fun draw(x: Float, y: Float, width: Float, height: Float) {
           Lines.stroke(Scl.scl(4f), Color.lightGray)
-          Lines.line(x, y + height/2, x + width, y + height/2)
+          Lines.line(x, y, x + width, y)
 
           val n = counts.get() - 1
           val step = counts.get()/10 + 1
           var i = 0
           while (i < n) {
-            Lines.line(x + width/n*i, y + height/2, x + width/n*i, y + height/2 + Scl.scl(8f))
+            Lines.line(x + width/n*i, y, x + width/n*i, y + Scl.scl(8f))
             i += step
           }
-          Lines.line(x + width, y + height/2, x + width, y + height/2 + Scl.scl(8f))
+          Lines.line(x + width, y, x + width, y + Scl.scl(8f))
         }
       }
       knob = object : BaseDrawable() {
@@ -932,7 +932,7 @@ private fun pageSlider(counts: Intp): SliderStyle {
 
         override fun draw(x: Float, y: Float, width: Float, height: Float) {
           Draw.color(Color.lightGray)
-          Fill.circle(x + width/2, y + height/2, Scl.scl(12f))
+          Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
         }
       }
       knobOver = object : BaseDrawable() {
@@ -942,7 +942,7 @@ private fun pageSlider(counts: Intp): SliderStyle {
 
         override fun draw(x: Float, y: Float, width: Float, height: Float) {
           Draw.color(Pal.accent)
-          Fill.circle(x + width/2, y + height/2, Scl.scl(12f))
+          Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
         }
       }
       knobDown = object : BaseDrawable() {
@@ -952,7 +952,7 @@ private fun pageSlider(counts: Intp): SliderStyle {
 
         override fun draw(x: Float, y: Float, width: Float, height: Float) {
           Draw.color(Color.white)
-          Fill.circle(x + width/2, y + height/2, Scl.scl(12f))
+          Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
         }
       }
     }
