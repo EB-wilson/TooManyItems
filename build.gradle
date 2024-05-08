@@ -1,30 +1,33 @@
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
-plugins {
-    id 'java'
+buildscript {
+    ext {
+        kotlin_version = '1.9.23'
+        //the build number that this mod is made for
+        mindustryVersion = "v146"
+        //version of SDK you will be using
+        minSdkAPI = 30
+
+        sdkRoot = System.getenv("ANDROID_HOME")
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
 }
+
+apply plugin: 'kotlin'
 apply plugin: 'maven-publish'
 
 group 'com.github.EB-wilson'
-version '1.5'
+version '2.0'
 
 "java SyncBundles.java ${version}".execute().waitForProcessOutput(System.out, System.err)
-
-ext {
-    //the build number that this mod is made for
-    mindustryVersion = "v146"
-    //version of SDK you will be using
-    minSdkAPI = 30
-
-    sdkRoot = System.getenv("ANDROID_HOME")
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = "UTF-8"
-
-    options.compilerArgs.addAll(['--release', '8'])
-}
 
 publishing {
     publications {
@@ -35,18 +38,23 @@ publishing {
     }
 }
 
-dependencies {
-    repositories {
-        mavenLocal()
-        mavenCentral()
-        maven { url 'https://raw.githubusercontent.com/Zelaux/MindustryRepo/master/repository' }
-        maven { url 'https://www.jitpack.io' }
-    }
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url 'https://raw.githubusercontent.com/Zelaux/MindustryRepo/master/repository' }
+    maven { url 'https://www.jitpack.io' }
+}
 
+compileKotlin{
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
     compileOnly "com.github.Anuken.Arc:arc-core:$mindustryVersion"
     compileOnly "com.github.Anuken.Mindustry:core:$mindustryVersion"
 
-    annotationProcessor "com.github.EB-wilson.UniverseCore:annotations:1.8.9"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 }
 
 tasks.register('jarAndroid') {
@@ -103,6 +111,7 @@ tasks.register('jarAndroid') {
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveFileName = "${project.archivesBaseName}-desktop.jar"
 
     from(rootDir) {
@@ -115,6 +124,8 @@ jar {
         include "**"
         exclude "git"
     }
+
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
 }
 
 tasks.register('deploy', Jar) {

@@ -1,0 +1,26 @@
+package tmi.recipe.parser
+
+import arc.struct.Seq
+import mindustry.Vars.content
+import mindustry.world.Block
+import mindustry.world.blocks.power.PowerGenerator
+import tmi.recipe.Recipe
+import tmi.recipe.RecipeType
+import tmi.recipe.types.PowerMark
+
+class GeneratorParser : ConsumerParser<PowerGenerator>() {
+  override fun isTarget(content: Block): Boolean {
+    return content is PowerGenerator
+  }
+
+  override fun parse(content: PowerGenerator): Seq<Recipe> {
+    val res = Recipe(RecipeType.generator)
+      .setBlock(getWrap(content))
+
+    registerCons(res, *content.consumers)
+
+    res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction)
+
+    return Seq.with(res)
+  }
+}
