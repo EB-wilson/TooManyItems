@@ -44,7 +44,7 @@ class BeamDrillParser : ConsumerParser<BeamDrill>() {
 
       val recipe = res[drop.itemDrop, {
         val r = Recipe(RecipeType.collecting)
-          .setEfficiency(Recipe.zeroEff)
+          .setEff(Recipe.zeroEff)
           .setBlock(getWrap(content))
           .setTime(content.getDrillTime(drop.itemDrop)/content.size)
         r.addProduction(getWrap(drop.itemDrop), 1)
@@ -58,9 +58,9 @@ class BeamDrillParser : ConsumerParser<BeamDrill>() {
           val consBase = content.findConsumer<Consume> { e: Consume -> e.booster }
           if (consBase is ConsumeLiquidBase) {
             registerCons(r, { s: RecipeItemStack? ->
-              s!!.setEfficiency(content.optionalBoostIntensity)
+              s!!.setEff(content.optionalBoostIntensity)
                 .setBooster()
-                .setOptionalCons()
+                .setOptional()
                 .setFormat { f ->
                   """
                   ${
@@ -81,7 +81,7 @@ class BeamDrillParser : ConsumerParser<BeamDrill>() {
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
       recipe!!.addMaterialRaw(getWrap(drop), content.size.toFloat())
-        .setEfficiency(content.drillTime/realDrillTime)
+        .setEff(content.drillTime/realDrillTime)
         .setAttribute()
         .setEmptyFormat()
     }

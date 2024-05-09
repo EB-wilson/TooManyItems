@@ -34,9 +34,7 @@ class ItemLinker @JvmOverloads internal constructor(
   private val ownerDesigner: SchematicDesignerDialog?,
   val item: RecipeItem<*>,
   val isInput: Boolean,
-  val id: Long = Rand(
-    System.nanoTime()
-  ).nextLong()
+  val id: Long = Rand(System.nanoTime()).nextLong()
 ) : Table() {
   var expectAmount = 0f
 

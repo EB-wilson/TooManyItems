@@ -2,6 +2,7 @@ package tmi.recipe
 
 import arc.Core
 import arc.func.Boolf
+import arc.func.Boolp
 import arc.func.Func
 import arc.graphics.g2d.TextureRegion
 import arc.struct.ObjectIntMap
@@ -11,7 +12,10 @@ import arc.struct.Seq
 import mindustry.Vars
 import mindustry.ctype.ContentType
 import mindustry.ctype.UnlockableContent
+import tmi.invoke
 import tmi.recipe.types.RecipeItem
+import tmi.recipe.types.SingleItemMark
+import tmi.set
 
 class RecipeItemManager {
   private val recipeItems = ObjectMap<Any, RecipeItem<*>>()
@@ -29,7 +33,7 @@ class RecipeItemManager {
     return recipeItems.get(item) {
       for (entry in wrapper) {
         if (entry.key[item]) {
-          val res = (entry.value as Func<T, RecipeItem<T>>).get(item)
+          val res = (entry.value as Func<T, RecipeItem<T>>)(item)
           itemNameMap.put(res.name(), res)
           return@get res
         }
@@ -47,41 +51,15 @@ class RecipeItemManager {
     get() = recipeItems.values().toSeq().sort()
 
   private class RecipeUnlockableContent(item: UnlockableContent) : RecipeItem<UnlockableContent>(item) {
-    override fun ordinal(): Int {
-      return item.id.toInt()
-    }
-
-    override fun typeID(): Int {
-      return mirror[item.contentType, item.contentType.ordinal]
-    }
-
-    override fun name(): String {
-      return item.name
-    }
-
-    override fun localizedName(): String {
-      return item.localizedName
-    }
-
-    override fun icon(): TextureRegion {
-      return item.uiIcon
-    }
-
-    override fun hidden(): Boolean {
-      return false
-    }
-
-    override fun locked(): Boolean {
-      return !item.unlockedNow()
-    }
-
-    override fun hasDetails(): Boolean {
-      return true
-    }
-
-    override fun displayDetails() {
-      Vars.ui.content.show(item)
-    }
+    override fun ordinal() = item.id.toInt()
+    override fun typeID() = mirror[item.contentType, item.contentType.ordinal]
+    override fun name(): String = item.name
+    override fun localizedName(): String = item.localizedName
+    override fun icon(): TextureRegion = item.uiIcon
+    override fun hidden() = false
+    override fun locked() = !item.unlockedNow()
+    override fun hasDetails() = true
+    override fun displayDetails() = Vars.ui.content.show(item)
 
     companion object {
       private val mirror = ObjectIntMap<ContentType>()
@@ -96,23 +74,7 @@ class RecipeItemManager {
   }
 
   companion object {
-    private val ERROR = object : RecipeItem<String?>("error") {
-      override fun ordinal(): Int {
-        return -1
-      }
-
-      override fun typeID(): Int {
-        return -1
-      }
-
-      override fun name(): String {
-        return "<error>"
-      }
-
-      override fun localizedName(): String {
-        return "<error>"
-      }
-
+    private val ERROR = object : SingleItemMark("<error>") {
       override fun icon(): TextureRegion {
         return Core.atlas.find("error")
       }
@@ -122,19 +84,21 @@ class RecipeItemManager {
       }
     }
 
-    private val wrapper = OrderedMap<Boolf<Any>, Func<*, RecipeItem<*>>>()
+    val wrapper = OrderedMap<Boolf<Any>, Func<*, RecipeItem<*>>>()
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> registerWrapper(matcher: Boolf<Any>, factory: Func<T, RecipeItem<T>>) {
-      wrapper.put(matcher, factory as Func<*, RecipeItem<*>>)
+    @JvmStatic
+    fun <T> registerWrapper(matcher: Boolf<Any>, factory: Func<T, RecipeItem<T>>) {
+      wrapper[matcher] = factory as Func<*, RecipeItem<*>>
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified T> registerWrapper(factory: Func<T, RecipeItem<T>>) {
+      wrapper[Boolf{ e: Any? -> e is T }] = factory as Func<*, RecipeItem<*>>
     }
 
     init {
-      registerWrapper(
-        Boolf { e: Any? -> e is UnlockableContent },
-        Func<UnlockableContent, RecipeItem<UnlockableContent>> { item ->
-          RecipeUnlockableContent(item)
-        })
+      registerWrapper<UnlockableContent>({ e: Any? -> e is UnlockableContent }) { RecipeUnlockableContent(it) }
     }
   }
 }

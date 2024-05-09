@@ -23,10 +23,10 @@ class ConsGeneratorParser : ConsumerParser<ConsumeGenerator>() {
 
     registerCons(res, *content.consumers)
 
-    res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction)
+    res.addProductionPersec(PowerMark, content.powerProduction)
 
     if (content.outputLiquid != null) {
-      res.addProductionPresec(getWrap(content.outputLiquid.liquid), content.outputLiquid.amount)
+      res.addProductionPersec(getWrap(content.outputLiquid.liquid), content.outputLiquid.amount)
     }
 
     return Seq.with(res)

@@ -1,7 +1,6 @@
 package tmi.recipe.types
 
 import arc.Core
-import arc.func.Boolf
 import arc.math.geom.Vec2
 import arc.scene.Group
 import arc.scene.ui.Label
@@ -19,11 +18,10 @@ import tmi.ui.RecipeView.LineMeta
 class GeneratorRecipe : FactoryRecipe() {
   private val powers = ObjectSet<RecipeItem<*>>()
 
-  init {
-    powers.addAll(
-      PowerMark.INSTANCE,
-      HeatMark.INSTANCE
-    )
+  override val id = 3
+
+  fun addPower(item: RecipeItem<*>){
+    powers.add(item)
   }
 
   override fun buildView(view: Group) {
@@ -42,7 +40,7 @@ class GeneratorRecipe : FactoryRecipe() {
   }
 
   override fun initial(recipe: Recipe): Vec2 {
-    time = recipe.time
+    time = recipe.craftTime
 
     consPos.clear()
     prodPos.clear()
@@ -126,10 +124,6 @@ class GeneratorRecipe : FactoryRecipe() {
       ) && to.type == NodeType.PRODUCTION)
     ) LineMeta()
     else super.line(from, to)
-  }
-
-  override fun id(): Int {
-    return 3
   }
 
   fun isPower(item: RecipeItem<*>): Boolean {

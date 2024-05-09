@@ -47,10 +47,10 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
       val card = ownerDesigner.addRecipe(r)
       if (Core.input.keyDown(TooManyItems.binds.hotKey)) {
         if (t == NodeType.MATERIAL) {
-          val linker = card.linkerOuts.find { e -> e.item === i.item() }!!
-          var other = linkerIns.find { e -> e.item === i.item() }
+          val linker = card.linkerOuts.find { e -> e.item == i.item }!!
+          var other = linkerIns.find { e -> e.item == i.item }
           if (other == null) {
-            other = ItemLinker(ownerDesigner, i.item(), true)
+            other = ItemLinker(ownerDesigner, i.item, true)
             other.pack()
             addIn(other)
 
@@ -63,11 +63,11 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
           linker.linkTo(other)
         }
         else if (t == NodeType.PRODUCTION) {
-          val linker = linkerOuts.find { e -> e.item === i.item() }!!
-          var other = card.linkerIns.find { e -> e.item === i.item() }
+          val linker = linkerOuts.find { e -> e.item == i.item }!!
+          var other = card.linkerIns.find { e -> e.item == i.item }
 
           if (other == null) {
-            other = ItemLinker(ownerDesigner, i.item(), true)
+            other = ItemLinker(ownerDesigner, i.item, true)
             other.pack()
             card.addIn(other)
 
@@ -81,7 +81,7 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
       }
     }
     TooManyItems.recipesDialog.show()
-    TooManyItems.recipesDialog.setCurrSelecting(i.item(), m!!)
+    TooManyItems.recipesDialog.setCurrSelecting(i.item, m!!)
   }
 
   val environments: EnvParameter = EnvParameter()

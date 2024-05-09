@@ -7,8 +7,8 @@ import tmi.recipe.types.PowerMark
 import tmi.recipe.types.RecipeItem
 
 class EnvParameter {
-  private val inputs = ObjectFloatMap<RecipeItem<*>?>()
-  private val attributes = ObjectFloatMap<RecipeItem<*>?>()
+  private val inputs = ObjectFloatMap<RecipeItem<*>>()
+  private val attributes = ObjectFloatMap<RecipeItem<*>>()
 
   fun getInputs(b: RecipeItem<*>?): Float {
     return inputs[b, 0f]
@@ -85,12 +85,12 @@ class EnvParameter {
   }
 
   fun addPower(power: Float): EnvParameter {
-    add(PowerMark.INSTANCE, power + inputs[PowerMark.INSTANCE, 0f], false)
+    add(PowerMark, power + inputs[PowerMark, 0f], false)
     return this
   }
 
   fun addHeat(heat: Float): EnvParameter {
-    add(HeatMark.INSTANCE, heat + inputs[HeatMark.INSTANCE, 0f], false)
+    add(HeatMark, heat + inputs[HeatMark, 0f], false)
     return this
   }
 

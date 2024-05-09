@@ -5,8 +5,6 @@ import arc.func.Cons
 import arc.func.Cons3
 import arc.struct.ObjectMap
 import mindustry.Vars
-import mindustry.type.Item
-import mindustry.type.Liquid
 import mindustry.world.Block
 import mindustry.world.consumers.*
 import tmi.recipe.Recipe
@@ -41,7 +39,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumeItems },
         { recipe: Recipe, consume: Consume, handle ->
           for (item in (consume as ConsumeItems).items) {
-            handle[recipe.addMaterial(getWrap(item.item), item.amount).setOptionalCons(consume.optional)]
+            handle[recipe.addMaterial(getWrap(item.item), item.amount).setOptional(consume.optional)]
           }
         })
       registerVanillaConsParser(
@@ -50,7 +48,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
           val cf = (consume as ConsumeItemFilter)
           for (item in Vars.content.items().select { i -> cf.filter[i] }) {
             handle[recipe.addMaterial(getWrap(item), 1)
-              .setOptionalCons(consume.optional)
+              .setOptional(consume.optional)
               .setAttribute(cf)
               .setMaxAttr()]
           }
@@ -61,23 +59,23 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumeLiquids },
         { recipe, consume, handle ->
           for (liquid in (consume as ConsumeLiquids).liquids) {
-            handle[recipe.addMaterialPresec(getWrap(liquid.liquid), liquid.amount)
-              .setOptionalCons(consume.optional)]
+            handle[recipe.addMaterialPersec(getWrap(liquid.liquid), liquid.amount)
+              .setOptional(consume.optional)]
           }
         })
       registerVanillaConsParser(
         { c -> c is ConsumeLiquid },
         { recipe, consume, handle ->
-          handle[recipe.addMaterialPresec(getWrap((consume as ConsumeLiquid).liquid), consume.amount)
-            .setOptionalCons(consume.optional)]
+          handle[recipe.addMaterialPersec(getWrap((consume as ConsumeLiquid).liquid), consume.amount)
+            .setOptional(consume.optional)]
         })
       registerVanillaConsParser(
         { c -> c is ConsumeLiquidFilter },
         { recipe, consume, handle ->
           val cf = (consume as ConsumeLiquidFilter)
           for (liquid in Vars.content.liquids().select { i -> cf.filter[i] }) {
-            handle[recipe.addMaterialPresec(getWrap(liquid), cf.amount)
-              .setOptionalCons(consume.optional)
+            handle[recipe.addMaterialPersec(getWrap(liquid), cf.amount)
+              .setOptional(consume.optional)
               .setAttribute(cf)
               .setMaxAttr()]
           }
@@ -89,7 +87,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { recipe, consume, handle ->
           for (stack in (consume as ConsumePayloads).payloads) {
             if (stack.amount > 1) handle[recipe.addMaterial(getWrap(stack.item), stack.amount)]
-            else handle[recipe.addMaterial(getWrap(stack.item), 1).setOptionalCons(consume.optional)]
+            else handle[recipe.addMaterial(getWrap(stack.item), 1).setOptional(consume.optional)]
           }
         })
 
@@ -97,8 +95,8 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
       registerVanillaConsParser(
         { c -> c is ConsumePower },
         { recipe, consume, handle ->
-          handle[recipe.addMaterialPresec(PowerMark.INSTANCE, (consume as ConsumePower).usage)
-            .setOptionalCons(consume.optional)]
+          handle[recipe.addMaterialPersec(PowerMark, (consume as ConsumePower).usage)
+            .setOptional(consume.optional)]
         })
     }
   }

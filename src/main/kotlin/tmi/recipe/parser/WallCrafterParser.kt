@@ -28,7 +28,7 @@ class WallCrafterParser : ConsumerParser<WallCrafter>() {
 
       val eff = block.attributes[content.attribute]
       res.addMaterialRaw(getWrap(block), block.size.toFloat())
-        .setEfficiency(eff)
+        .setEff(eff)
         .setAttribute()
         .setFormat { "[#98ffa9]" + Mathf.round(eff*100) + "%" }
     }

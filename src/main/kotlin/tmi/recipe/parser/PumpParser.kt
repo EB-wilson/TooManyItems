@@ -13,7 +13,6 @@ import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 import tmi.util.Consts.markerTile
 import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Method
 
 class PumpParser : ConsumerParser<Pump>() {
   private val floorDrops: ObjectSet<Floor> = ObjectSet()
@@ -42,10 +41,10 @@ class PumpParser : ConsumerParser<Pump>() {
 
       val recipe = res[drop.liquidDrop, {
         val r = Recipe(RecipeType.collecting)
-          .setEfficiency(Recipe.zeroEff)
+          .setEff(Recipe.zeroEff)
           .setBlock(getWrap(content))
           .setTime(content.consumeTime)
-        r.addProductionPresec(getWrap(drop.liquidDrop), content.pumpAmount)
+        r.addProductionPersec(getWrap(drop.liquidDrop), content.pumpAmount)
         registerCons(r, *content.consumers)
         r
       }]

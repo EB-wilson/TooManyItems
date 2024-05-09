@@ -27,7 +27,7 @@ class RecipeView(val recipe: Recipe, nodeClicked: Cons3<RecipeItemStack, NodeTyp
       nodes.add(RecipeNode(NodeType.PRODUCTION, content, nodeClicked))
     }
 
-    if (recipe.block != null) nodes.add(RecipeNode(NodeType.BLOCK, RecipeItemStack(recipe.block!!), nodeClicked))
+    if (recipe.ownerBlock != null) nodes.add(RecipeNode(NodeType.BLOCK, RecipeItemStack(recipe.ownerBlock!!), nodeClicked))
 
     nodes.each { actor: RecipeNode? -> this.addChild(actor) }
 

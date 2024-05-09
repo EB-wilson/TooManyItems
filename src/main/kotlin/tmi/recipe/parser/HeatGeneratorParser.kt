@@ -25,14 +25,14 @@ class HeatGeneratorParser : ConsumerParser<HeaterGenerator>() {
 
     registerCons(res, *content.consumers)
 
-    res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction)
+    res.addProductionPersec(PowerMark, content.powerProduction)
 
     if (content.heatOutput > 0) {
-      res.addProductionRaw(HeatMark.INSTANCE, content.heatOutput).setFloatFormat()
+      res.addProductionRaw(HeatMark, content.heatOutput).setFloatFormat()
     }
 
     if (content.outputLiquid != null) {
-      res.addProductionPresec(getWrap(content.outputLiquid.liquid), content.outputLiquid.amount)
+      res.addProductionPersec(getWrap(content.outputLiquid.liquid), content.outputLiquid.amount)
     }
 
     return Seq.with(res)

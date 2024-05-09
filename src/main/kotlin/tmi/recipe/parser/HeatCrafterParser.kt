@@ -21,7 +21,7 @@ class HeatCrafterParser : ConsumerParser<HeatCrafter>() {
       .setBlock(getWrap(content))
       .setTime(content.craftTime)
 
-    res.addMaterialRaw(HeatMark.INSTANCE, content.heatRequirement).setFloatFormat()
+    res.addMaterialRaw(HeatMark, content.heatRequirement).setFloatFormat()
 
     registerCons(res, *content.consumers)
 
@@ -35,14 +35,14 @@ class HeatCrafterParser : ConsumerParser<HeatCrafter>() {
     }
 
     if (content.outputLiquids == null) {
-      if (content.outputLiquid != null) res.addProductionPresec(
+      if (content.outputLiquid != null) res.addProductionPersec(
         getWrap(content.outputLiquid.liquid),
         content.outputLiquid.amount
       )
     }
     else {
       for (liquid in content.outputLiquids) {
-        res.addProductionPresec(getWrap(liquid.liquid), liquid.amount)
+        res.addProductionPersec(getWrap(liquid.liquid), liquid.amount)
       }
     }
 

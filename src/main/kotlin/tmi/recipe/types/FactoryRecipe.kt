@@ -22,6 +22,7 @@ import mindustry.world.meta.StatUnit
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
+import tmi.set
 import tmi.ui.NODE_SIZE
 import tmi.ui.NodeType
 import tmi.ui.RecipeNode
@@ -39,6 +40,8 @@ open class FactoryRecipe : RecipeType() {
   var doubleOutput: Boolean = false
   var hasOptionals: Boolean = false
   var time: Float = 0f
+
+  override val id = 1
 
   override fun buildView(view: Group) {
     val label = Label(Core.bundle["misc.factory"], Styles.outlineLabel)
@@ -81,7 +84,7 @@ open class FactoryRecipe : RecipeType() {
   }
 
   override fun initial(recipe: Recipe): Vec2 {
-    time = recipe.time
+    time = recipe.craftTime
 
     consPos.clear()
     prodPos.clear()
@@ -158,11 +161,11 @@ open class FactoryRecipe : RecipeType() {
     if (isDouble) {
       for (i in 0 until seq.size) {
         if (turn) {
-          if (i%2 == 0) pos.put(seq[i].item(), Vec2(offX + dx, yOff + NODE_SIZE + ITEM_PAD))
-          else pos.put(seq[i].item(), Vec2(offX + dx, yOff))
+          if (i%2 == 0) pos[seq[i].item] = Vec2(offX + dx, yOff + NODE_SIZE + ITEM_PAD)
+          else pos[seq[i].item] = Vec2(offX + dx, yOff)
         }
-        if (i%2 == 0) pos.put(seq[i].item(), Vec2(offX + dx, yOff))
-        else pos.put(seq[i].item(), Vec2(offX + dx, yOff + NODE_SIZE + ITEM_PAD))
+        if (i%2 == 0) pos[seq[i].item] = Vec2(offX + dx, yOff)
+        else pos[seq[i].item] = Vec2(offX + dx, yOff + NODE_SIZE + ITEM_PAD)
 
         dx += NODE_SIZE/2 + ITEM_PAD
       }
@@ -170,7 +173,7 @@ open class FactoryRecipe : RecipeType() {
     }
     else {
       for (i in 0 until seq.size) {
-        pos.put(seq[i].item(), Vec2(offX + dx, yOff))
+        pos[seq[i].item] = Vec2(offX + dx, yOff)
         dx += NODE_SIZE + ITEM_PAD
       }
       yOff += NODE_SIZE
@@ -205,11 +208,11 @@ open class FactoryRecipe : RecipeType() {
 
   override fun layout(recipeNode: RecipeNode) {
     if (recipeNode.type == NodeType.MATERIAL) {
-      val pos = consPos[recipeNode.stack.item()]
+      val pos = consPos[recipeNode.stack.item]
       recipeNode.setPosition(pos.x, pos.y, Align.center)
     }
     else if (recipeNode.type == NodeType.PRODUCTION) {
-      val pos = prodPos[recipeNode.stack.item()]
+      val pos = prodPos[recipeNode.stack.item]
       recipeNode.setPosition(pos.x, pos.y, Align.center)
     }
     else if (recipeNode.type == NodeType.BLOCK) {
@@ -259,10 +262,6 @@ open class FactoryRecipe : RecipeType() {
     }
 
     return res
-  }
-
-  override fun id(): Int {
-    return 1
   }
 
   companion object {

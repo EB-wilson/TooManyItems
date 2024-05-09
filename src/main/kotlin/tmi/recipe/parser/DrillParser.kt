@@ -44,7 +44,7 @@ class DrillParser : ConsumerParser<Drill>() {
 
       val recipe = res[drop.itemDrop, {
         val r = Recipe(RecipeType.collecting)
-          .setEfficiency(Recipe.zeroEff)
+          .setEff(Recipe.zeroEff)
           .setBlock(getWrap(content))
           .setTime(content.getDrillTime(drop.itemDrop)/content.size/content.size)
         r.addProduction(getWrap(drop.itemDrop), 1)
@@ -55,9 +55,9 @@ class DrillParser : ConsumerParser<Drill>() {
           val consBase = content.findConsumer<Consume> { f: Consume -> f is ConsumeLiquidBase && f.optional && f.booster }
           if (consBase is ConsumeLiquidBase) {
             registerCons(r, { s: RecipeItemStack? ->
-              s!!.setEfficiency(content.liquidBoostIntensity)
+              s!!.setEff(content.liquidBoostIntensity)
                 .setBooster()
-                .setOptionalCons()
+                .setOptional()
                 .setFormat { f ->
                   """${
                     if (f*60 > 1000) UI.formatAmount((f*60).toLong())
@@ -80,7 +80,7 @@ class DrillParser : ConsumerParser<Drill>() {
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
       recipe!!.addMaterialRaw(getWrap(drop), (content.size*content.size).toFloat())
-        .setEfficiency(content.drillTime/realDrillTime)
+        .setEff(content.drillTime/realDrillTime)
         .setAttribute()
         .setEmptyFormat()
     }

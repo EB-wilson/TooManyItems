@@ -11,10 +11,13 @@ import arc.util.Align
 import mindustry.ui.Styles
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
+import tmi.set
 import tmi.ui.NODE_SIZE
 import kotlin.math.max
 
 class CollectingRecipe : FactoryRecipe() {
+  override val id = 2
+
   override fun buildView(view: Group) {
     val label = Label(Core.bundle["misc.collecting"], Styles.outlineLabel)
     label.layout()
@@ -27,7 +30,7 @@ class CollectingRecipe : FactoryRecipe() {
   }
 
   override fun initial(recipe: Recipe): Vec2 {
-    time = recipe.time
+    time = recipe.craftTime
 
     consPos.clear()
     prodPos.clear()
@@ -89,10 +92,6 @@ class CollectingRecipe : FactoryRecipe() {
     return bound
   }
 
-  override fun id(): Int {
-    return 2
-  }
-
   protected fun handleNode(
     seq: Seq<RecipeItemStack>,
     pos: ObjectMap<RecipeItem<*>, Vec2>,
@@ -102,7 +101,7 @@ class CollectingRecipe : FactoryRecipe() {
     var yOff = offY
     var dx = NODE_SIZE/2
     for (i in 0 until seq.size) {
-      pos.put(seq[i].item(), Vec2(offX + dx, yOff))
+      pos[seq[i].item] = Vec2(offX + dx, yOff)
       dx += NODE_SIZE + ITEM_PAD
     }
     yOff += NODE_SIZE

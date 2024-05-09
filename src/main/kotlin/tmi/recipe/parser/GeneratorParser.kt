@@ -1,7 +1,6 @@
 package tmi.recipe.parser
 
 import arc.struct.Seq
-import mindustry.Vars.content
 import mindustry.world.Block
 import mindustry.world.blocks.power.PowerGenerator
 import tmi.recipe.Recipe
@@ -19,7 +18,7 @@ class GeneratorParser : ConsumerParser<PowerGenerator>() {
 
     registerCons(res, *content.consumers)
 
-    res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction)
+    res.addProductionPersec(PowerMark, content.powerProduction)
 
     return Seq.with(res)
   }

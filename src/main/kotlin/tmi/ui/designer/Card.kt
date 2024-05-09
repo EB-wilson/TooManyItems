@@ -22,6 +22,16 @@ import tmi.recipe.RecipeItemStack
 import tmi.util.Consts
 
 abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Table() {
+  companion object {
+    @JvmStatic
+    protected val provs: IntMap<Func<Reads, Card>> = IntMap()
+
+    fun read(read: Reads, ver: Int): Card {
+      val id = read.i()
+      return provs[id][read]
+    }
+  }
+
   val child: Table = object : Table(Consts.darkGrayUIAlpha) {
     override fun drawBackground(x: Float, y: Float) {
       if (ownerDesigner.view!!.newSet === this@Card) {
@@ -254,14 +264,4 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
   abstract fun copy(): Card
 
   abstract fun write(write: Writes)
-
-  companion object {
-    @JvmStatic
-    protected val provs: IntMap<Func<Reads, Card>> = IntMap()
-
-    fun read(read: Reads, ver: Int): Card {
-      val id = read.i()
-      return provs[id][read]
-    }
-  }
 }

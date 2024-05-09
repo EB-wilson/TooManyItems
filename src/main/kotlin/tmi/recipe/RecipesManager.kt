@@ -5,10 +5,8 @@ import arc.struct.ObjectSet
 import arc.struct.Seq
 import mindustry.Vars
 import mindustry.world.Block
-import mindustry.world.meta.StatUnit.blocks
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
-import tmi.ui.Cursor.Companion.recipe
 
 /**全局配方管理器，以单例模式运行，用于管理和查询所有已加载的配方和分组，同时[RecipeParser]也通过添加到该对象以生效 */
 class RecipesManager {
@@ -53,12 +51,12 @@ class RecipesManager {
     for (stack in recipe.productions.values()) {
       productions.add(stack!!.item)
     }
-    if (recipe.block != null) blocks.add(recipe.block)
+    if (recipe.ownerBlock != null) blocks.add(recipe.ownerBlock)
   }
 
   /**以配方的产出项筛选配方，若配方的产出物中包含参数给定的项目则添加到返回列表 */
   fun getRecipesByProduction(production: RecipeItem<*>): Seq<Recipe> {
-    return recipes.select { e: Recipe -> e.containsProduction(production) || (e.recipeType === RecipeType.building && e.block === production) }
+    return recipes.select { e: Recipe -> e.containsProduction(production) || (e.recipeType === RecipeType.building && e.ownerBlock === production) }
   }
 
   /**以配方的材料筛选配方，若配方的消耗材料中包含参数给定的项目则添加到返回列表 */
@@ -66,9 +64,9 @@ class RecipesManager {
     return recipes.select { e: Recipe -> e.containsMaterial(material) }
   }
 
-  /**以配方的建筑方块筛选配方，若配方的[Recipe.block]与给定的参数相同则添加到返回列表 */
+  /**以配方的建筑方块筛选配方，若配方的[Recipe.ownerBlock]与给定的参数相同则添加到返回列表 */
   fun getRecipesByFactory(block: RecipeItem<*>): Seq<Recipe> {
-    return recipes.select { e: Recipe -> e.recipeType !== RecipeType.building && e.block === block }
+    return recipes.select { e: Recipe -> e.recipeType !== RecipeType.building && e.ownerBlock === block }
   }
 
   fun getByID(id: Int): Recipe {

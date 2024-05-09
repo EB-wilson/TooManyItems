@@ -22,7 +22,7 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
 
   override fun parse(content: AttributeCrafter): Seq<Recipe> {
     val res = Recipe(RecipeType.factory)
-      .setEfficiency(getDefaultEff(content.baseEfficiency))
+      .setEff(getDefaultEff(content.baseEfficiency))
       .setBlock(getWrap(content))
       .setTime(content.craftTime)
 
@@ -38,8 +38,8 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
         .toFloat()
       res.addMaterialRaw(getWrap(block), (content.size*content.size).toFloat())
         .setAttribute()
-        .setOptionalCons(content.baseEfficiency > 0.001f)
-        .setEfficiency(eff)
+        .setOptional(content.baseEfficiency > 0.001f)
+        .setEff(eff)
         .setFormat { "[#98ffa9]" + (if (content.baseEfficiency > 0.001f) "+" else "") + Mathf.round(eff*100) + "%" }
     }
 
@@ -53,14 +53,14 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
     }
 
     if (content.outputLiquids == null) {
-      if (content.outputLiquid != null) res.addProductionPresec(
+      if (content.outputLiquid != null) res.addProductionPersec(
         getWrap(content.outputLiquid.liquid),
         content.outputLiquid.amount
       )
     }
     else {
       for (liquid in content.outputLiquids) {
-        res.addProductionPresec(getWrap(liquid.liquid), liquid.amount)
+        res.addProductionPersec(getWrap(liquid.liquid), liquid.amount)
       }
     }
 

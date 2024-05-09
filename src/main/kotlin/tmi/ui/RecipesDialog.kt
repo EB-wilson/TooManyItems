@@ -33,7 +33,6 @@ import mindustry.Vars
 import mindustry.ctype.Content
 import mindustry.gen.Icon
 import mindustry.gen.Tex
-import mindustry.graphics.Drawf
 import mindustry.graphics.Pal
 import mindustry.ui.Fonts
 import mindustry.ui.Styles
@@ -302,8 +301,8 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
         TooManyItems.itemsManager.list.forEach { item ->
           if (TooManyItems.recipesManager.anyRecipe(item)) {
             total++
-            if (item.localizedName().lowercase(Locale.getDefault())?.contains(contentSearch) != true
-              && !item.name().lowercase(Locale.getDefault()).contains(contentSearch)) {
+            if(!item.localizedName().lowercase(Locale.getDefault()).contains(contentSearch)
+            && !item.name().lowercase(Locale.getDefault()).contains(contentSearch)) {
               fold++
               return@run
             }

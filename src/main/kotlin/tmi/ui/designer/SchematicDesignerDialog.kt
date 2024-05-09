@@ -48,6 +48,30 @@ import kotlin.math.max
 import kotlin.math.min
 
 open class SchematicDesignerDialog : BaseDialog("") {
+  companion object {
+    const val FI_HEAD: Int = -0x315240ff
+
+    val seq: Seq<ItemLinker?> = Seq()
+    val tmp: Vec2 = Vec2()
+    val tmp1: Vec2 = Vec2()
+    val tmp2: Vec2 = Vec2()
+    private val rect = Rect()
+    private val alignTable = intArrayOf(
+      Align.topLeft, Align.top, Align.topRight,
+      Align.left, Align.center, Align.right,
+      Align.bottomLeft, Align.bottom, Align.bottomRight,
+    )
+    private val alignIcon = arrayOf(
+      Core.atlas.drawable("tmi-ui-top-left"), Core.atlas.drawable("tmi-ui-top"), Core.atlas.drawable("tmi-ui-top-right"),
+      Core.atlas.drawable("tmi-ui-left"), Core.atlas.drawable("tmi-ui-center"), Core.atlas.drawable("tmi-ui-right"),
+      Core.atlas.drawable("tmi-ui-bottom-left"), Core.atlas.drawable("tmi-ui-bottom"), Core.atlas.drawable("tmi-ui-bottom-right"),
+    )
+
+    protected fun useKeyboard(): Boolean {
+      return !Vars.mobile || Core.settings.getBool("keyboard")
+    }
+  }
+
   var view: View? = null
 
   private val menuTable: Table = object : Table() {
@@ -79,16 +103,15 @@ open class SchematicDesignerDialog : BaseDialog("") {
       TooManyItems.recipesDialog.show()
     },
     SideBtn(Core.bundle["dialog.calculator.standard"], Icon.refresh) { view!!.standardization() },
-    SideBtn(Core.bundle["dialog.calculator.align"], { currAlignIcon }, { b ->
+    SideBtn(Core.bundle["dialog.calculator.align"], { currAlignIcon }) {
       if (menuTable.visible) {
         hideMenu()
       }
       else {
-        showMenu(b, Align.right, Align.left, true) { t ->
+        showMenu(it, Align.right, Align.left, true) { t ->
           t.table(Tex.paneLeft) { ta ->
             for (i in alignTable.indices) {
               val align = alignTable[i]
-              val fi = i
               ta.button(alignIcon[i], Styles.clearNoneTogglei, 32f) {
                 if (cardAlign == align) {
                   cardAlign = -1
@@ -96,7 +119,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
                 }
                 else {
                   cardAlign = align
-                  currAlignIcon = alignIcon[fi]
+                  currAlignIcon = alignIcon[i]
                 }
               }.size(40f).checked { cardAlign == align }
 
@@ -105,11 +128,11 @@ open class SchematicDesignerDialog : BaseDialog("") {
           }.fill()
         }
       }
-    }),
+    },
     SideBtn(Core.bundle["dialog.calculator.selecting"], Icon.resize, {
       selectMode = !selectMode
       if (!selectMode) selects.clear()
-    }, { selectMode }),
+    }) { selectMode },
     SideBtn(Core.bundle["dialog.calculator.read"], Icon.download) {
       Vars.platform.showFileChooser(true, "shd") { file ->
         try {
@@ -122,10 +145,13 @@ open class SchematicDesignerDialog : BaseDialog("") {
     },
     SideBtn(
       Core.bundle["dialog.calculator.save"], Icon.save
-    ) { b: Button? ->
+    ) {
       Vars.platform.showFileChooser(false, "shd") { file ->
         try {
-          view!!.write(file.writes())
+          file.writes().apply {
+            view!!.write(this)
+            close()
+          }
         } catch (e: Exception) {
           Vars.ui.showException(e)
           Log.err(e)
@@ -151,7 +177,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
         )
       )
     }, { removeMode }),
-    SideBtn(Core.bundle["dialog.calculator.lock"], { if (editLock) Icon.lock else Icon.lockOpen }, { b ->
+    SideBtn(Core.bundle["dialog.calculator.lock"], { if (editLock) Icon.lock else Icon.lockOpen }, {
       editLock = !editLock
     }, { editLock })
   )
@@ -921,6 +947,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
 
     private fun clamp() {
       val par = parent ?: return
+
     }
 
     fun eachCard(range: Rect, cons: Cons<Card?>, inner: Boolean) {
@@ -1098,9 +1125,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
 
       val linkerMap = LongMap<ItemLinker>()
 
-      class Pair(val id: Long, val pres: Float)
-
-      val links = ObjectMap<ItemLinker, Seq<Pair>>()
+      val links = ObjectMap<ItemLinker, Seq<Pair<Long, Float>>>()
 
       val head = read.i()
       if (head != FI_HEAD) throw IOException("file format error, unknown file head: " + Integer.toHexString(head))
@@ -1109,7 +1134,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
 
       val cardsLen = read.i()
       for (i in 0 until cardsLen) {
-        val card: Card = Card.Companion.read(read, ver)
+        val card: Card = Card.read(read, ver)
         addCard(card, false)
         card.build()
         card.mul = read.i()
@@ -1130,7 +1155,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
           card.addOut(linker)
 
           val n = read.i()
-          val linkTo = Seq<Pair>()
+          val linkTo = Seq<Pair<Long, Float>>()
           links.put(linker, linkTo)
           for (i1 in 0 until n) {
             linkTo.add(Pair(read.l(), read.f()))
@@ -1140,9 +1165,9 @@ open class SchematicDesignerDialog : BaseDialog("") {
 
       for (link in links) {
         for (pair in link.value) {
-          val target = linkerMap[pair.id]
+          val target = linkerMap[pair.first]
           link.key.linkTo(target)
-          link.key.setPresent(target, pair.pres)
+          link.key.setPresent(target, pair.second)
         }
       }
 
@@ -1276,29 +1301,5 @@ open class SchematicDesignerDialog : BaseDialog("") {
         moveLock(false)
       }
     })
-  }
-
-  companion object {
-    const val FI_HEAD: Int = -0x315240ff
-
-    val seq: Seq<ItemLinker?> = Seq()
-    val tmp: Vec2 = Vec2()
-    val tmp1: Vec2 = Vec2()
-    val tmp2: Vec2 = Vec2()
-    private val rect = Rect()
-    private val alignTable = intArrayOf(
-      Align.topLeft, Align.top, Align.topRight,
-      Align.left, Align.center, Align.right,
-      Align.bottomLeft, Align.bottom, Align.bottomRight,
-    )
-    private val alignIcon = arrayOf(
-      Core.atlas.drawable("tmi-ui-top-left"), Core.atlas.drawable("tmi-ui-top"), Core.atlas.drawable("tmi-ui-top-right"),
-      Core.atlas.drawable("tmi-ui-left"), Core.atlas.drawable("tmi-ui-center"), Core.atlas.drawable("tmi-ui-right"),
-      Core.atlas.drawable("tmi-ui-bottom-left"), Core.atlas.drawable("tmi-ui-bottom"), Core.atlas.drawable("tmi-ui-bottom-right"),
-    )
-
-    protected fun useKeyboard(): Boolean {
-      return !Vars.mobile || Core.settings.getBool("keyboard")
-    }
   }
 }

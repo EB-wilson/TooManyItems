@@ -23,7 +23,7 @@ class HeatProducerParser : ConsumerParser<HeatProducer>() {
 
     registerCons(res, *content.consumers)
 
-    res.addProductionRaw(HeatMark.INSTANCE, content.heatOutput).setFloatFormat()
+    res.addProductionRaw(HeatMark, content.heatOutput).setFloatFormat()
 
     if (content.outputItems == null) {
       if (content.outputItem != null) res.addProduction(getWrap(content.outputItem.item), content.outputItem.amount)
@@ -35,14 +35,14 @@ class HeatProducerParser : ConsumerParser<HeatProducer>() {
     }
 
     if (content.outputLiquids == null) {
-      if (content.outputLiquid != null) res.addProductionPresec(
+      if (content.outputLiquid != null) res.addProductionPersec(
         getWrap(content.outputLiquid.liquid),
         content.outputLiquid.amount
       )
     }
     else {
       for (liquid in content.outputLiquids) {
-        res.addProductionPresec(getWrap(liquid.liquid), liquid.amount)
+        res.addProductionPersec(getWrap(liquid.liquid), liquid.amount)
       }
     }
 

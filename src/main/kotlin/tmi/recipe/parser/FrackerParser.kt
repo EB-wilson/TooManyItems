@@ -22,11 +22,11 @@ class FrackerParser : ConsumerParser<Fracker>() {
 
   override fun parse(content: Fracker): Seq<Recipe> {
     val res = Recipe(RecipeType.collecting)
-      .setEfficiency(getDefaultEff(content.baseEfficiency))
+      .setEff(getDefaultEff(content.baseEfficiency))
       .setBlock(getWrap(content))
       .setTime(content.consumeTime)
 
-    res.addProductionPresec(getWrap(content.result), content.pumpAmount)
+    res.addProductionPersec(getWrap(content.result), content.pumpAmount)
 
     registerCons(res, *content.consumers)
 
@@ -35,8 +35,8 @@ class FrackerParser : ConsumerParser<Fracker>() {
 
       val eff = block.attributes[content.attribute]
       res.addMaterialRaw(getWrap(block), (content.size*content.size).toFloat())
-        .setOptionalCons(content.baseEfficiency > 0.001f)
-        .setEfficiency(eff)
+        .setOptional(content.baseEfficiency > 0.001f)
+        .setEff(eff)
         .setAttribute()
         .setFormat { "[#98ffa9]" + (if (content.baseEfficiency > 0.001f) "+" else "") + Mathf.round(eff*100) + "%" }
     }

@@ -22,7 +22,7 @@ import tmi.set
 import tmi.util.Consts
 
 class IOCard(ownerDesigner: SchematicDesignerDialog, item: RecipeItem<*>, val isInput: Boolean) : Card(ownerDesigner) {
-  val stack: RecipeItemStack = RecipeItemStack(item, 0f).setPresecFormat()
+  val stack: RecipeItemStack = RecipeItemStack(item, 0f).setPersecFormat()
 
   private val itr = Iterable {
     object : Iterator<RecipeItemStack> {

@@ -23,10 +23,10 @@ class VariableReactorParser : ConsumerParser<VariableReactor>() {
 
     registerCons(res, *content.consumers)
 
-    res.addProductionPresec(PowerMark.INSTANCE, content.powerProduction)
+    res.addProductionPersec(PowerMark, content.powerProduction)
 
     if (content.maxHeat > 0) {
-      res.addProductionRaw(HeatMark.INSTANCE, content.maxHeat).setFloatFormat()
+      res.addProductionRaw(HeatMark, content.maxHeat).setFloatFormat()
     }
 
     return Seq.with(res)

@@ -26,6 +26,7 @@ import mindustry.world.meta.StatUnit
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
+import tmi.set
 import tmi.ui.NODE_SIZE
 import tmi.ui.NodeType
 import tmi.ui.RecipeNode
@@ -36,10 +37,12 @@ import kotlin.math.max
 class BuildingRecipe : RecipeType() {
   val bound = Vec2()
   val blockPos = Vec2()
-  val materialPos = ObjectMap<RecipeItem<*>?, Vec2>()
+  val materialPos = ObjectMap<RecipeItem<*>, Vec2>()
 
   var time = 0f
   var build: Block? = null
+
+  override val id = 0
 
   override fun buildView(view: Group) {
     val label = Label(Core.bundle["misc.building"], Styles.outlineLabel)
@@ -89,8 +92,8 @@ class BuildingRecipe : RecipeType() {
   }
 
   override fun initial(recipe: Recipe): Vec2 {
-    build = recipe.block!!.item as Block
-    time = recipe.time
+    build = recipe.ownerBlock!!.item as Block
+    time = recipe.craftTime
 
     bound.setZero()
     blockPos.setZero()
@@ -112,7 +115,7 @@ class BuildingRecipe : RecipeType() {
       val angle = radians*i*Mathf.radDeg + off
       val rot = r.random(0f, RAND) + radius
 
-      materialPos.put(seq[i].item(), Vec2(blockPos.x + Angles.trnsx(angle, rot), blockPos.y + Angles.trnsy(angle, rot)))
+      materialPos[seq[i].item] = Vec2(blockPos.x + Angles.trnsx(angle, rot), blockPos.y + Angles.trnsy(angle, rot))
     }
 
     return bound
@@ -121,7 +124,7 @@ class BuildingRecipe : RecipeType() {
   override fun layout(recipeNode: RecipeNode) {
     when (recipeNode.type) {
       NodeType.MATERIAL -> {
-        val pos = materialPos[recipeNode.stack.item()]
+        val pos = materialPos[recipeNode.stack.item]
         recipeNode.setPosition(pos.x, pos.y, Align.center)
       }
       NodeType.BLOCK -> {
@@ -144,10 +147,6 @@ class BuildingRecipe : RecipeType() {
     res.addVertex(to.x + offX1, to.y + offY1)
 
     return res
-  }
-
-  override fun id(): Int {
-    return 0
   }
 
   companion object {
