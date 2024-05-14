@@ -34,8 +34,8 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
       val eff = min(
         (content.boostScale*content.size*content.size*block.attributes[content.attribute]).toDouble(),
         content.maxBoost.toDouble()
-      )
-        .toFloat()
+      ).toFloat()
+
       res.addMaterialRaw(getWrap(block), (content.size*content.size).toFloat())
         .setAttribute()
         .setOptional(content.baseEfficiency > 0.001f)
@@ -44,11 +44,11 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
     }
 
     if (content.outputItems == null) {
-      if (content.outputItem != null) res.addProduction(getWrap(content.outputItem.item), content.outputItem.amount)
+      if (content.outputItem != null) res.addProduction(getWrap(content.outputItem.item), content.outputItem.amount).setAltPersecFormat()
     }
     else {
       for (item in content.outputItems) {
-        res.addProduction(getWrap(item.item), item.amount)
+        res.addProduction(getWrap(item.item), item.amount).setAltPersecFormat()
       }
     }
 

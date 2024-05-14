@@ -30,8 +30,10 @@ import arc.util.Scaling
 import arc.util.Time
 import arc.util.Tmp
 import mindustry.Vars
+import mindustry.core.Version.type
 import mindustry.ctype.Content
 import mindustry.gen.Icon
+import mindustry.gen.Sounds.click
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Fonts
@@ -39,6 +41,7 @@ import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import mindustry.world.Block
 import tmi.TooManyItems
+import tmi.invoke
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
@@ -126,15 +129,17 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
         _currentSelect = old
       }
     }
-  var recipeMode: Mode? = null
+  private var _currentMode: Mode? = null
+  var recipeMode: Mode?
+    get() = _currentMode
     set(mode) {
       run {
-        if (mode == field) return
-        val oldMode = field
+        if (mode == _currentMode) return
+        val oldMode = _currentMode
 
-        field = mode
+        _currentMode = mode
         if (!buildRecipes()) {
-          field = oldMode
+          _currentMode = oldMode
         }
       }
     }
@@ -225,8 +230,11 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
   }
 
   protected open fun buildContents() {
+    val isScroll = Core.settings.getBool("tmi_items_pane", false)
+
     contentsTable!!.addListener(object : InputListener() {
       override fun scrolled(event: InputEvent, x: Float, y: Float, amountX: Float, amountY: Float): Boolean {
+        if (isScroll) return false
         if (amountY < 0 && currPage > 0) {
           currPage--
           contentsRebuild()
@@ -239,12 +247,10 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       }
 
       override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Element?) {
-        contentsTable!!.requestScroll()
+        if (!isScroll) contentsTable!!.requestScroll()
         super.enter(event, x, y, pointer, fromActor)
       }
     })
-
-    val isScroll = Core.settings.getBool("tmi_items_pane", false)
 
     contentsTable!!.table { filter ->
       filter.add(Core.bundle["misc.search"])
@@ -373,7 +379,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
         buildPage(butt, { currPage }, { page: Int ->
           currPage = page
           contentsRebuild()
-        }, { itemPages })
+        }){ itemPages }
       }.fillY().growX()
     }
 
@@ -400,9 +406,10 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
   }
 
   protected open fun buildRecipes(): Boolean {
+    if (recipesTable == null) return false
     val recipes: Seq<Recipe>?
 
-    if (currentSelect != null && currentSelect!!.item !is Block && recipeMode === FACTORY) recipeMode = null
+    if (currentSelect != null && currentSelect!!.item !is Block && recipeMode == FACTORY) _currentMode = null
 
     if (currentSelect == null) {
       recipes = null
@@ -425,7 +432,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     }
     else {
       if (recipeMode == null) {
-        recipeMode = if (TooManyItems.recipesManager.anyMaterial(currentSelect)) USAGE
+        _currentMode = if (TooManyItems.recipesManager.anyMaterial(currentSelect)) USAGE
         else if (TooManyItems.recipesManager.anyProduction(currentSelect)) RECIPE
         else if (currentSelect?.item is Block)
           if (TooManyItems.recipesManager.getRecipesByFactory(currentSelect!!).any()) FACTORY
@@ -747,41 +754,57 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       init {
         defaults().padLeft(8f).padRight(8f)
 
-        hovered { activity = true }
-        exited { activity = false }
-        tapped {
-          touched = true
-          time = Time.globalTime
-        }
-        released {
-          touched = false
-          if (Time.globalTime - time < 12) {
-            if (!Vars.mobile || Core.settings.getBool("keyboard")) {
-              TooManyItems.recipesDialog.setCurrSelecting(
-                content,
-                if (Core.input.keyDown(TooManyItems.binds.hotKey))
-                  if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) FACTORY
-                  else USAGE
-                else RECIPE
-              )
+        addCaptureListener(object : InputListener(){
+          override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
+            super.enter(event, x, y, pointer, fromActor)
+            activity = true
+          }
+
+          override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Element?) {
+            super.exit(event, x, y, pointer, toActor)
+            activity = false
+          }
+
+          override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
+            if (pointer != 0 && button != KeyCode.mouseLeft && button != KeyCode.mouseRight) return false
+
+            touched = true
+            time = Time.globalTime
+            return true
+          }
+
+          override fun touchUp(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?) {
+            if (pointer != 0 && button != KeyCode.mouseLeft && button != KeyCode.mouseRight) return
+            super.touchUp(event, x, y, pointer, button)
+            touched = false
+            if (Time.globalTime - time < 12) {
+              if (!Vars.mobile || Core.settings.getBool("keyboard")) {
+                TooManyItems.recipesDialog.setCurrSelecting(
+                  content,
+                  if (button == KeyCode.mouseRight)
+                    if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) FACTORY
+                    else USAGE
+                  else RECIPE
+                )
+              }
+              else {
+                clicked++
+                TooManyItems.recipesDialog.setCurrSelecting(
+                  content,
+                  if (clicked%2 == 0)
+                    if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) FACTORY
+                    else USAGE
+                  else RECIPE
+                )
+              }
             }
             else {
-              clicked++
-              TooManyItems.recipesDialog.setCurrSelecting(
-                content,
-                if (clicked%2 == 0)
-                  if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) FACTORY
-                  else USAGE
-                else RECIPE
-              )
+              if (content.hasDetails() && progress >= 0.95f) {
+                content.displayDetails()
+              }
             }
           }
-          else {
-            if (content.hasDetails() && progress >= 0.95f) {
-              content.displayDetails()
-            }
-          }
-        }
+        })
 
         update {
           alpha = Mathf.lerpDelta(alpha, (if (currentSelect === content || touched || activity) 1 else 0).toFloat(), 0.08f)
@@ -854,19 +877,19 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     val oldMode = recipeMode
 
     _currentSelect = content
-    recipeMode = mode
+    _currentMode = mode
     if (_currentSelect == null) return
     if (!buildRecipes()) {
       _currentSelect = old
-      recipeMode = oldMode
+      _currentMode = oldMode
 
       Vars.ui.showInfoFade(Core.bundle["dialog.recipes.no_" + (if (mode == RECIPE) "recipe" else "usage")])
     }
   }
 
   fun show(content: RecipeItem<*>?) {
-    recipeMode = null
-    currentSelect = content
+    _currentMode = null
+    _currentSelect = content
     currPage = -1
     show()
   }

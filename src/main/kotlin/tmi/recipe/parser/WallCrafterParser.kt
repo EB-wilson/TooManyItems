@@ -19,7 +19,7 @@ class WallCrafterParser : ConsumerParser<WallCrafter>() {
       .setBlock(getWrap(content))
       .setTime(content.drillTime)
 
-    res.addProduction(getWrap(content.output), 1)
+    res.addProduction(getWrap(content.output), 1).setAltPersecFormat()
 
     registerCons(res, *content.consumers)
 

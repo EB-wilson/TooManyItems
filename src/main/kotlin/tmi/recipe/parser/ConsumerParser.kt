@@ -7,10 +7,12 @@ import arc.struct.ObjectMap
 import mindustry.Vars
 import mindustry.world.Block
 import mindustry.world.consumers.*
+import sun.misc.Signal.handle
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeParser
 import tmi.recipe.types.PowerMark
+import tmi.invoke
 
 abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
   protected fun registerCons(recipe: Recipe, vararg cons: Consume) {
@@ -39,7 +41,9 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumeItems },
         { recipe: Recipe, consume: Consume, handle ->
           for (item in (consume as ConsumeItems).items) {
-            handle[recipe.addMaterial(getWrap(item.item), item.amount).setOptional(consume.optional)]
+            handle(recipe.addMaterial(getWrap(item.item), item.amount)
+                     .setOptional(consume.optional)
+                     .setAltPersecFormat())
           }
         })
       registerVanillaConsParser(
@@ -47,10 +51,11 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { recipe, consume, handle ->
           val cf = (consume as ConsumeItemFilter)
           for (item in Vars.content.items().select { i -> cf.filter[i] }) {
-            handle[recipe.addMaterial(getWrap(item), 1)
-              .setOptional(consume.optional)
-              .setAttribute(cf)
-              .setMaxAttr()]
+            handle(recipe.addMaterial(getWrap(item), 1)
+                     .setOptional(consume.optional)
+                     .setAltPersecFormat()
+                     .setAttribute(cf)
+                     .setMaxAttr())
           }
         })
 
@@ -59,25 +64,25 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumeLiquids },
         { recipe, consume, handle ->
           for (liquid in (consume as ConsumeLiquids).liquids) {
-            handle[recipe.addMaterialPersec(getWrap(liquid.liquid), liquid.amount)
-              .setOptional(consume.optional)]
+            handle(recipe.addMaterialPersec(getWrap(liquid.liquid), liquid.amount)
+              .setOptional(consume.optional))
           }
         })
       registerVanillaConsParser(
         { c -> c is ConsumeLiquid },
         { recipe, consume, handle ->
-          handle[recipe.addMaterialPersec(getWrap((consume as ConsumeLiquid).liquid), consume.amount)
-            .setOptional(consume.optional)]
+          handle(recipe.addMaterialPersec(getWrap((consume as ConsumeLiquid).liquid), consume.amount)
+            .setOptional(consume.optional))
         })
       registerVanillaConsParser(
         { c -> c is ConsumeLiquidFilter },
         { recipe, consume, handle ->
           val cf = (consume as ConsumeLiquidFilter)
           for (liquid in Vars.content.liquids().select { i -> cf.filter[i] }) {
-            handle[recipe.addMaterialPersec(getWrap(liquid), cf.amount)
+            handle(recipe.addMaterialPersec(getWrap(liquid), cf.amount)
               .setOptional(consume.optional)
               .setAttribute(cf)
-              .setMaxAttr()]
+              .setMaxAttr())
           }
         })
 
@@ -86,8 +91,10 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumePayloads },
         { recipe, consume, handle ->
           for (stack in (consume as ConsumePayloads).payloads) {
-            if (stack.amount > 1) handle[recipe.addMaterial(getWrap(stack.item), stack.amount)]
-            else handle[recipe.addMaterial(getWrap(stack.item), 1).setOptional(consume.optional)]
+            if (stack.amount > 1) handle(recipe.addMaterial(getWrap(stack.item), stack.amount).setAltPersecFormat())
+            else handle(recipe.addMaterial(getWrap(stack.item), 1)
+                          .setOptional(consume.optional)
+                          .setAltPersecFormat())
           }
         })
 
@@ -95,8 +102,9 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
       registerVanillaConsParser(
         { c -> c is ConsumePower },
         { recipe, consume, handle ->
-          handle[recipe.addMaterialPersec(PowerMark, (consume as ConsumePower).usage)
-            .setOptional(consume.optional)]
+          handle(recipe.addMaterialPersec(PowerMark, (consume as ConsumePower).usage)
+                   .setOptional(consume.optional)
+                   .setAltPersecFormat())
         })
     }
   }

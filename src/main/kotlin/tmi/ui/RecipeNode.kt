@@ -6,7 +6,11 @@ import arc.func.Cons3
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
+import arc.input.KeyCode
 import arc.math.Mathf
+import arc.scene.Element
+import arc.scene.event.InputEvent
+import arc.scene.event.InputListener
 import arc.scene.event.Touchable
 import arc.scene.ui.Button
 import arc.scene.ui.Tooltip
@@ -19,6 +23,7 @@ import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.ui.Styles
 import tmi.TooManyItems
+import tmi.invoke
 import tmi.recipe.RecipeItemStack
 
 val NODE_SIZE: Float = Scl.scl(80f)
@@ -51,47 +56,82 @@ class RecipeNode(
       }
     })
 
-    hovered { activity = true }
-    exited { activity = false }
-    tapped {
-      touched = true
-      time = Time.globalTime
-    }
-    released {
-      touched = false
-      if (click != null && Time.globalTime - time < 12) {
-        if (!Vars.mobile || Core.settings.getBool("keyboard")) {
-          click!![stack, type, if (Core.input.keyDown(TooManyItems.binds.hotKey)) if (type == NodeType.BLOCK) RecipesDialog.Mode.FACTORY else RecipesDialog.Mode.USAGE else RecipesDialog.Mode.RECIPE]
+    addListener(object : InputListener(){
+      override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
+        super.enter(event, x, y, pointer, fromActor)
+        activity = true
+      }
+
+      override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Element?) {
+        super.exit(event, x, y, pointer, toActor)
+        activity = false
+      }
+
+      override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
+        if (pointer != 0 && button != KeyCode.mouseLeft && button != KeyCode.mouseRight) return false
+
+        touched = true
+        time = Time.globalTime
+        return true
+      }
+
+      override fun touchUp(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?) {
+        if (pointer != 0 && button != KeyCode.mouseLeft && button != KeyCode.mouseRight) return
+        super.touchUp(event, x, y, pointer, button)
+        touched = false
+        if (click != null && Time.globalTime - time < 12) {
+          if (!Vars.mobile || Core.settings.getBool("keyboard")) {
+            click!!(stack, type,
+              if (button == KeyCode.mouseRight)
+                if (type == NodeType.BLOCK) RecipesDialog.Mode.FACTORY
+                else RecipesDialog.Mode.USAGE
+              else RecipesDialog.Mode.RECIPE
+            )
+          }
+          else {
+            clicked++
+            if (clicked >= 2) {
+              click!!(stack, type, if (type == NodeType.BLOCK) RecipesDialog.Mode.FACTORY else RecipesDialog.Mode.USAGE)
+              clicked = 0
+            }
+          }
         }
         else {
-          clicked++
-          if (clicked >= 2) {
-            click!![stack, type, if (type == NodeType.BLOCK) RecipesDialog.Mode.FACTORY else RecipesDialog.Mode.USAGE]
-            clicked = 0
+          if (stack.item.hasDetails() && (progress >= 0.95f || click == null)) {
+            stack.item.displayDetails()
           }
         }
       }
-      else {
-        if (stack.item.hasDetails() && (progress >= 0.95f || click == null)) {
-          stack.item.displayDetails()
-        }
-      }
-    }
+    })
 
     stack(
-      Table { t: Table -> t.image(stack.item.icon()).size(NODE_SIZE/Scl.scl()*0.62f).scaling(Scaling.fit) },
+      Table { it.image(stack.item.icon()).size(NODE_SIZE/Scl.scl()*0.62f).scaling(Scaling.fit) },
 
-      Table { t: Table ->
-        t.left().bottom()
-        t.add(stack.getAmount(), Styles.outlineLabel)
-        t.pack()
+      Table {
+        var last = false
+
+        it.left().bottom()
+        it.add(stack.getAmount(), Styles.outlineLabel)
+          .apply {
+            if (stack.alternativeFormat != null) update{ l ->
+              val isDown = Core.input.keyDown(TooManyItems.binds.hotKey)
+              if (last != isDown){
+                l.setText(
+                  if (isDown && stack.alternativeFormat != null) stack.alternativeFormat!!.format(stack.amount)
+                  else stack.getAmount()
+                )
+                last = isDown
+              }
+            }
+          }
+        it.pack()
       },
 
-      Table(Cons { t: Table ->
-        if (!stack.item.locked()) return@Cons
-        t.right().bottom().defaults().right().bottom().pad(4f)
-        t.image(Icon.lock).scaling(Scaling.fit).size(10f).color(Color.lightGray)
-      })
+      Table {
+        if (!stack.item.locked()) return@Table
+        it.right().bottom().defaults().right().bottom().pad(4f)
+        it.image(Icon.lock).scaling(Scaling.fit).size(10f).color(Color.lightGray)
+      }
     ).grow().pad(5f)
   }
 

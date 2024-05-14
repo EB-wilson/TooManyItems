@@ -26,11 +26,11 @@ class HeatProducerParser : ConsumerParser<HeatProducer>() {
     res.addProductionRaw(HeatMark, content.heatOutput).setFloatFormat()
 
     if (content.outputItems == null) {
-      if (content.outputItem != null) res.addProduction(getWrap(content.outputItem.item), content.outputItem.amount)
+      if (content.outputItem != null) res.addProduction(getWrap(content.outputItem.item), content.outputItem.amount).setAltPersecFormat()
     }
     else {
       for (item in content.outputItems) {
-        res.addProduction(getWrap(item.item), item.amount)
+        res.addProduction(getWrap(item.item), item.amount).setAltPersecFormat()
       }
     }
 

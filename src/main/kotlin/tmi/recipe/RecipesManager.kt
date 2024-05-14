@@ -4,6 +4,7 @@ import arc.struct.IntMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
 import mindustry.Vars
+import mindustry.type.Item
 import mindustry.world.Block
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem

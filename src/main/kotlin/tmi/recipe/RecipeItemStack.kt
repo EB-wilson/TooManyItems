@@ -17,6 +17,9 @@ class RecipeItemStack(
   /**条目数据显示的文本格式化函数，这里返回的文本将显示在条目上以表示数量信息 */
   var amountFormat: AmountFormatter = AmountFormatter { "" }
 
+  /**备选数目文本的格式化函数，在按下热键时显示*/
+  var alternativeFormat: AmountFormatter? = null
+
   /**此条目的效率系数，应当绑定为该条目在生产工作中可用时的最高效率倍率，以参与生产计算 */
   var efficiency = 1f
     private set
@@ -135,6 +138,17 @@ class RecipeItemStack(
 
   fun setPersecFormat(): RecipeItemStack {
     setFormat { f ->
+      (if (f*60 > 1000) UI.formatAmount((f*60).toLong())
+      else Strings.autoFixed(
+        f*60,
+        2
+      )) + "/" + StatUnit.seconds.localized()
+    }
+    return this
+  }
+
+  fun setAltPersecFormat(): RecipeItemStack {
+    alternativeFormat = AmountFormatter{ f ->
       (if (f*60 > 1000) UI.formatAmount((f*60).toLong())
       else Strings.autoFixed(
         f*60,

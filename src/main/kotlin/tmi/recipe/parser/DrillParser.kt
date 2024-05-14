@@ -42,12 +42,12 @@ class DrillParser : ConsumerParser<Drill>() {
 
       if (!content.canMine(markerTile)) continue
 
-      val recipe = res[drop.itemDrop, {
+      val recipe = res.get(drop.itemDrop) {
         val r = Recipe(RecipeType.collecting)
           .setEff(Recipe.zeroEff)
           .setBlock(getWrap(content))
           .setTime(content.getDrillTime(drop.itemDrop)/content.size/content.size)
-        r.addProduction(getWrap(drop.itemDrop), 1)
+        r.addProduction(getWrap(drop.itemDrop), 1).setAltPersecFormat()
 
         if (content.liquidBoostIntensity != 1f) {
           registerCons(r, *Seq.with(*content.consumers).select { e: Consume -> !(e.optional && e is ConsumeLiquidBase && e.booster) }.toArray(Consume::class.java))
@@ -59,7 +59,8 @@ class DrillParser : ConsumerParser<Drill>() {
                 .setBooster()
                 .setOptional()
                 .setFormat { f ->
-                  """${
+                  """
+                  ${
                     if (f*60 > 1000) UI.formatAmount((f*60).toLong())
                     else Strings.autoFixed(
                       (f*60),
@@ -76,7 +77,7 @@ class DrillParser : ConsumerParser<Drill>() {
           registerCons(r, *content.consumers)
         }
         r
-      }]
+      }
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
       recipe!!.addMaterialRaw(getWrap(drop), (content.size*content.size).toFloat())

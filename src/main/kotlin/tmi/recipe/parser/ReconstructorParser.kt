@@ -18,8 +18,8 @@ class ReconstructorParser : ConsumerParser<Reconstructor>() {
         .setBlock(getWrap(content))
         .setTime(content.constructTime)
 
-      recipe.addMaterial(getWrap(upgrade[0]), 1)
-      recipe.addProduction(getWrap(upgrade[1]), 1)
+      recipe.addMaterial(getWrap(upgrade[0]), 1).setAltPersecFormat()
+      recipe.addProduction(getWrap(upgrade[1]), 1).setAltPersecFormat()
 
       registerCons(recipe, *content.consumers)
 

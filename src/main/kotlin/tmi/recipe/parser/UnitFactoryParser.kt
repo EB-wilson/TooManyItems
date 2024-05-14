@@ -19,10 +19,10 @@ class UnitFactoryParser : ConsumerParser<UnitFactory>() {
         .setBlock(getWrap(content))
         .setTime(plan.time)
 
-      recipe.addProduction(getWrap(plan.unit), 1)
+      recipe.addProduction(getWrap(plan.unit), 1).setAltPersecFormat()
 
       for (stack in plan.requirements) {
-        recipe.addMaterial(getWrap(stack.item), stack.amount)
+        recipe.addMaterial(getWrap(stack.item), stack.amount).setAltPersecFormat()
       }
 
       registerCons(recipe, *content.consumers)

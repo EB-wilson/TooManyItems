@@ -11,11 +11,13 @@ import arc.util.serialization.Jval
 import mindustry.Vars
 import mindustry.mod.Mods.LoadedMod
 import mindustry.world.Block
+import org.intellij.lang.annotations.Language
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
 
+@Language("Nashorn JS")
 const val initJS =
 """
 "use strict";

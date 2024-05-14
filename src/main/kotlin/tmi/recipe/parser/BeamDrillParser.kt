@@ -42,12 +42,12 @@ class BeamDrillParser : ConsumerParser<BeamDrill>() {
 
       if (drop.itemDrop.hardness > content.tier) continue
 
-      val recipe = res[drop.itemDrop, {
+      val recipe = res.get(drop.itemDrop) {
         val r = Recipe(RecipeType.collecting)
           .setEff(Recipe.zeroEff)
           .setBlock(getWrap(content))
           .setTime(content.getDrillTime(drop.itemDrop)/content.size)
-        r.addProduction(getWrap(drop.itemDrop), 1)
+        r.addProduction(getWrap(drop.itemDrop), 1).setAltPersecFormat()
 
         if (content.optionalBoostIntensity != 1f) {
           registerCons(
@@ -77,7 +77,7 @@ class BeamDrillParser : ConsumerParser<BeamDrill>() {
           registerCons(r, *content.consumers)
         }
         r
-      }]
+      }
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
       recipe!!.addMaterialRaw(getWrap(drop), content.size.toFloat())
