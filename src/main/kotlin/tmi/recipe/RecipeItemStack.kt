@@ -97,6 +97,11 @@ class RecipeItemStack(
     return this
   }
 
+  fun setAltFormat(format: AmountFormatter): RecipeItemStack {
+    this.alternativeFormat = format
+    return this
+  }
+
   fun setEmptyFormat(): RecipeItemStack {
     this.amountFormat = AmountFormatter { "" }
     return this
@@ -148,7 +153,7 @@ class RecipeItemStack(
   }
 
   fun setAltPersecFormat(): RecipeItemStack {
-    alternativeFormat = AmountFormatter{ f ->
+    setAltFormat{ f ->
       (if (f*60 > 1000) UI.formatAmount((f*60).toLong())
       else Strings.autoFixed(
         f*60,

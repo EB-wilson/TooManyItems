@@ -1,11 +1,13 @@
 package tmi.recipe
 
+import arc.Core
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
 import arc.math.geom.Vec2
 import arc.scene.Group
 import arc.scene.ui.layout.Scl
 import arc.struct.Seq
+import arc.util.Time
 import tmi.recipe.types.BuildingRecipe
 import tmi.recipe.types.CollectingRecipe
 import tmi.recipe.types.FactoryRecipe
@@ -20,14 +22,18 @@ abstract class RecipeType {
   companion object {
     val all = Seq<RecipeType>()
 
-    @JvmStatic
-    val factory by lazy { FactoryRecipe().also { all.add(it) } }
-    @JvmStatic
-    val building by lazy { BuildingRecipe().also { all.add(it) } }
-    @JvmStatic
-    val collecting by lazy { CollectingRecipe().also { all.add(it) } }
-    @JvmStatic
-    val generator by lazy { GeneratorRecipe().also { all.add(it) } }
+    @JvmField
+    val factory = FactoryRecipe()
+    @JvmField
+    val building = BuildingRecipe()
+    @JvmField
+    val collecting = CollectingRecipe()
+    @JvmField
+    val generator = GeneratorRecipe()
+  }
+
+  init {
+    Core.app.run { all.add(this@RecipeType) }
   }
 
   /**此类型的ID，必须是唯一的，此类型的所有实例共用此id*/
@@ -47,6 +53,8 @@ abstract class RecipeType {
 
   /**向配方显示器内添加显示部件的入口 */
   open fun buildView(view: Group) {}
+
+  open fun buildBack(background: Group){}
 
   fun drawLine(recipeView: RecipeView) {
     Draw.scl(recipeView.scaleX, recipeView.scaleY)

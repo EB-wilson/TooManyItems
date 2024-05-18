@@ -17,9 +17,12 @@ class RecipeView(val recipe: Recipe, nodeClicked: Cons3<RecipeItemStack, NodeTyp
   private val nodes = Seq<RecipeNode>()
 
   val lines = Seq<LineMeta>()
+  private val backGroup = object : Group() {}
   private val childGroup = object : Group() {}
 
   init {
+    addChild(childGroup)
+
     for (content in recipe.materials.values()) {
       nodes.add(RecipeNode(NodeType.MATERIAL, content, nodeClicked))
     }
@@ -36,7 +39,9 @@ class RecipeView(val recipe: Recipe, nodeClicked: Cons3<RecipeItemStack, NodeTyp
 
   override fun layout() {
     super.layout()
+    backGroup.clear()
     childGroup.clear()
+    backGroup.invalidate()
     childGroup.invalidate()
 
     lines.clear()
@@ -50,6 +55,7 @@ class RecipeView(val recipe: Recipe, nodeClicked: Cons3<RecipeItemStack, NodeTyp
     }
 
     recipe.recipeType.buildView(childGroup)
+    recipe.recipeType.buildBack(backGroup)
   }
 
   override fun draw() {

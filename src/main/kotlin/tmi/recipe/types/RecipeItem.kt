@@ -11,15 +11,10 @@ abstract class RecipeItem<T> protected constructor(@JvmField val item: T) : Comp
   abstract fun icon(): TextureRegion
   abstract fun hidden(): Boolean
 
-  open fun hasDetails(): Boolean {
-    return false
-  }
+  open fun hasDetails() = false
+  open fun locked() = false
 
   open fun displayDetails() {}
-
-  open fun locked(): Boolean {
-    return false
-  }
 
   override fun compareTo(other: RecipeItem<*>): Int {
     val n = typeID().compareTo(other.typeID())

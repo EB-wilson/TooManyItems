@@ -98,7 +98,7 @@ class RecipeItemManager {
     }
 
     init {
-      registerWrapper<UnlockableContent>({ e: Any? -> e is UnlockableContent }) { RecipeUnlockableContent(it) }
+      registerWrapper<UnlockableContent> { RecipeUnlockableContent(it) }
     }
   }
 }
