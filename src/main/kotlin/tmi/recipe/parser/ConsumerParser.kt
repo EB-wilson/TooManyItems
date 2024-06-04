@@ -41,9 +41,11 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumeItems },
         { recipe: Recipe, consume: Consume, handle ->
           for (item in (consume as ConsumeItems).items) {
-            handle(recipe.addMaterial(getWrap(item.item), item.amount)
-                     .setOptional(consume.optional)
-                     .setAltPersecFormat())
+            handle(
+              recipe.addMaterial(getWrap(item.item), item.amount)
+                .setOptional(consume.optional)
+                .setAltPersecFormat()
+            )
           }
         })
       registerVanillaConsParser(
@@ -51,11 +53,13 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { recipe, consume, handle ->
           val cf = (consume as ConsumeItemFilter)
           for (item in Vars.content.items().select { i -> cf.filter[i] }) {
-            handle(recipe.addMaterial(getWrap(item), 1)
-                     .setOptional(consume.optional)
-                     .setAltPersecFormat()
-                     .setAttribute(cf)
-                     .setMaxAttr())
+            handle(
+              recipe.addMaterial(getWrap(item), 1)
+                .setOptional(consume.optional)
+                .setAltPersecFormat()
+                .setAttribute(cf)
+                .setMaxAttr()
+            )
           }
         })
 
@@ -92,9 +96,11 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { recipe, consume, handle ->
           for (stack in (consume as ConsumePayloads).payloads) {
             if (stack.amount > 1) handle(recipe.addMaterial(getWrap(stack.item), stack.amount).setAltPersecFormat())
-            else handle(recipe.addMaterial(getWrap(stack.item), 1)
-                          .setOptional(consume.optional)
-                          .setAltPersecFormat())
+            else handle(
+              recipe.addMaterial(getWrap(stack.item), 1)
+                .setOptional(consume.optional)
+                .setAltPersecFormat()
+            )
           }
         })
 
@@ -102,9 +108,11 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
       registerVanillaConsParser(
         { c -> c is ConsumePower },
         { recipe, consume, handle ->
-          handle(recipe.addMaterialPersec(PowerMark, (consume as ConsumePower).usage)
-                   .setOptional(consume.optional)
-                   .setAltPersecFormat())
+          handle(
+            recipe.addMaterialPersec(PowerMark, (consume as ConsumePower).usage)
+              .setOptional(consume.optional)
+              .setAltPersecFormat()
+          )
         })
     }
   }

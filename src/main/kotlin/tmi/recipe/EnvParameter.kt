@@ -31,18 +31,24 @@ class EnvParameter {
     return this
   }
 
-  fun set(other: EnvParameter): EnvParameter {
+  @JvmOverloads
+  fun set(other: EnvParameter, over: Boolean = false): EnvParameter {
+    if (over) clear()
     other.attributes.each { e: ObjectFloatMap.Entry<RecipeItem<*>?> -> add(e.key, e.value, true) }
     other.inputs.each { e: ObjectFloatMap.Entry<RecipeItem<*>?> -> add(e.key, e.value, false) }
     return this
   }
 
-  fun setInputs(other: EnvParameter): EnvParameter {
+  @JvmOverloads
+  fun setInputs(other: EnvParameter, over: Boolean = false): EnvParameter {
+    if (over) clearInputs()
     other.inputs.each { e: ObjectFloatMap.Entry<RecipeItem<*>?> -> add(e.key, e.value, false) }
     return this
   }
 
-  fun setAttributes(other: EnvParameter): EnvParameter {
+  @JvmOverloads
+  fun setAttributes(other: EnvParameter, over: Boolean = false): EnvParameter {
+    if (over) clearAttr()
     other.attributes.each { e: ObjectFloatMap.Entry<RecipeItem<*>?> -> add(e.key, e.value, true) }
     return this
   }
@@ -108,5 +114,12 @@ class EnvParameter {
 
   fun eachAttribute(cons: Cons2<RecipeItem<*>?, Float?>) {
     attributes.each { e: ObjectFloatMap.Entry<RecipeItem<*>?> -> cons[e.key, e.value] }
+  }
+
+  fun copy(): EnvParameter{
+    val copy = EnvParameter()
+    copy.inputs.putAll(inputs)
+    copy.attributes.putAll(attributes)
+    return copy
   }
 }

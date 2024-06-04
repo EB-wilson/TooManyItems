@@ -32,9 +32,9 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
       if (content.attribute == null || block.attributes[content.attribute] <= 0 || (block is Floor && block.isDeep)) continue
 
       val eff = min(
-        (content.boostScale*content.size*content.size*block.attributes[content.attribute]).toDouble(),
-        content.maxBoost.toDouble()
-      ).toFloat()
+        (content.boostScale*content.size*content.size*block.attributes[content.attribute]),
+        content.maxBoost
+      )
 
       res.addMaterialRaw(getWrap(block), (content.size*content.size).toFloat())
         .setAttribute()

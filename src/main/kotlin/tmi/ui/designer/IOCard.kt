@@ -2,7 +2,6 @@ package tmi.ui.designer
 
 import arc.Core
 import arc.Graphics
-import arc.func.Func
 import arc.func.Prov
 import arc.graphics.*
 import arc.scene.event.Touchable
@@ -10,19 +9,18 @@ import arc.scene.ui.*
 import arc.scene.ui.layout.Table
 import arc.util.Align
 import arc.util.Scaling
-import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.gen.Icon
 import mindustry.ui.Styles
 import mindustry.world.meta.StatUnit
-import tmi.TooManyItems
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
-import tmi.set
 import tmi.util.Consts
 
-class IOCard(ownerDesigner: SchematicDesignerDialog, item: RecipeItem<*>, val isInput: Boolean) : Card(ownerDesigner) {
+class IOCard(ownerDesigner: DesignerView, item: RecipeItem<*>, val isInput: Boolean) : Card(ownerDesigner) {
   val stack: RecipeItemStack = RecipeItemStack(item, 0f).setPersecFormat()
+
+  private var setIOHandle: SetIOHandle? = null
 
   private val itr = Iterable {
     object : Iterator<RecipeItemStack> {
@@ -53,7 +51,7 @@ class IOCard(ownerDesigner: SchematicDesignerDialog, item: RecipeItem<*>, val is
     child.table(Consts.grayUI) { t: Table ->
       t.center()
       t.hovered {
-        if (ownerDesigner.view!!.newSet === this) ownerDesigner.view!!.newSet = null
+        if (ownerDesigner.newSet === this) ownerDesigner.newSet = null
       }
 
       t.center().table(Consts.darkGrayUI) { top: Table ->
@@ -99,12 +97,15 @@ class IOCard(ownerDesigner: SchematicDesignerDialog, item: RecipeItem<*>, val is
             ta.clearChildren()
             ta.field((stack.amount*60).toString(), TextField.TextFieldFilter.floatsOnly) { s: String ->
               try {
-                stack.amount = s.toFloat()/60
-              } catch (ignored: Throwable) {
-              }
+                val handle = checkHandle()
+                handle.setTo = s.toFloat()/60
+                handle.handle()
+              } catch (ignored: Throwable) {}
             }.width(100f)
             ta.add(StatUnit.perSecond.localized())
-            ta.button(Icon.ok, Styles.clearNonei, 32f) { build[0]!!.run() }.margin(4f)
+            ta.button(Icon.ok, Styles.clearNonei, 32f) {
+              build[0]!!.run()
+            }.margin(4f)
           }
           build[0]!!.run()
         }
@@ -136,6 +137,23 @@ class IOCard(ownerDesigner: SchematicDesignerDialog, item: RecipeItem<*>, val is
     return itr
   }
 
+  override fun calculateBalance() {
+    if (isInput) {
+      balanceValid = true
+      balanceAmount = 1
+    }
+    else {
+      if (stack.amount > 0 && linkerIns.any() && linkerIns.first().isNormalized){
+        balanceValid = true
+        balanceAmount = 1
+      }
+      else {
+        balanceValid = false
+        balanceAmount = -1
+      }
+    }
+  }
+
   override fun copy(): IOCard {
     val res = IOCard(ownerDesigner, stack.item, isInput)
     res.stack.amount = stack.amount
@@ -152,15 +170,16 @@ class IOCard(ownerDesigner: SchematicDesignerDialog, item: RecipeItem<*>, val is
     write.f(stack.amount)
   }
 
-  companion object {
-    private const val CLASS_ID = 1213124234
-
-    init {
-      provs[CLASS_ID] = Func<Reads, Card> { r: Reads ->
-        val res = IOCard(TooManyItems.schematicDesigner, TooManyItems.itemsManager.getByName<Any>(r.str()), r.bool())
-        res.stack.amount = r.f()
-        res
-      }
+  private fun checkHandle(): SetIOHandle{
+    if (setIOHandle == null || setIOHandle!!.isExpired){
+      setIOHandle = SetIOHandle(ownerDesigner, this)
+        .also { ownerDesigner.pushHandle(it) }
     }
+    setIOHandle!!.updateTimer()
+    return setIOHandle!!
+  }
+
+  companion object {
+    const val CLASS_ID = 1213124234
   }
 }

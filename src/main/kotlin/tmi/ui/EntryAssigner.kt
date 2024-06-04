@@ -2,6 +2,8 @@ package tmi.ui
 
 import arc.Core
 import arc.func.Boolp
+import arc.func.Cons
+import arc.func.Prov
 import arc.graphics.Color
 import arc.input.KeyCode
 import arc.scene.Element
@@ -18,7 +20,9 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.ContentInfoDialog
 import tmi.TooManyItems
+import tmi.invoke
 import tmi.util.Consts
+import tmi.util.MultiKeyBind
 
 object EntryAssigner {
   private var tmiEntry: ImageButton? = null
@@ -30,18 +34,34 @@ object EntryAssigner {
       val stack = pane.widget as Stack
       val table = stack.children[0] as Table
       table.removeChild(table.children[table.children.size - 1])
-
       table.row()
+
       table.add(Core.bundle["dialog.recipes.title"]).color(Color.gray).colspan(4).pad(10f).padBottom(4f).row()
       table.image().color(Color.gray).fillX().height(3f).pad(6f).colspan(4).padTop(0f).padBottom(10f).row()
 
-      table.add(Core.bundle["keybind.tmi.name"], Color.white).left().padRight(40f).padLeft(8f)
-      table.label { TooManyItems.binds.hotKey.toString() }.color(Pal.accent).left().minWidth(90f).padRight(20f)
+      createKeybindTable(
+        table,
+        Core.bundle["keybind.tmi.name"],
+        { TooManyItems.binds.hotKey.toString() },
+        { TooManyItems.binds.hotKey = it[0] },
+        { TooManyItems.binds.reset("hot_key") },
+        false
+      )
+      createKeybindTable(
+        table,
+        Core.bundle["keybind.undo.name"],
+        { TooManyItems.binds.undo.toString() },
+        { TooManyItems.binds.undo = MultiKeyBind(*it) },
+        { TooManyItems.binds.reset("undo") }
+      )
+      createKeybindTable(
+        table,
+        Core.bundle["keybind.redo.name"],
+        { TooManyItems.binds.redo.toString() },
+        { TooManyItems.binds.redo = MultiKeyBind(*it) },
+        { TooManyItems.binds.reset("redo") }
+      )
 
-      table.button("@settings.rebind", Styles.defaultt) { openDialog() }.width(130f)
-      table.button("@settings.resetKey", Styles.defaultt) { TooManyItems.binds.reset("hot_key") }.width(130f).pad(2f)
-        .padLeft(4f)
-      table.row()
       table.button("@settings.reset") {
         Core.keybinds.resetToDefaults()
         TooManyItems.binds.resetAll()
@@ -126,25 +146,75 @@ object EntryAssigner {
     }
   }
 
-  private fun openDialog() {
-    val rebindDialog = Dialog(Core.bundle["keybind.press"])
+  private fun createKeybindTable(table: Table, name: String, key: Prov<CharSequence>, hotKeyMethod: Cons<Array<KeyCode>>, resetMethod: Runnable, isCombine: Boolean = true) {
+    table.add(name, Color.white).left().padRight(40f).padLeft(8f)
+    table.label{ key().ifBlank { Core.bundle["misc.requireInput"] } }.color(Pal.accent).left().minWidth(90f).padRight(20f)
+
+    table.button("@settings.rebind", Styles.defaultt) { openDialog(isCombine){ hotKeyMethod(it) } }.width(130f)
+    table.button("@settings.resetKey", Styles.defaultt) { resetMethod.run() }.width(130f).pad(2f).padLeft(4f)
+    table.row()
+  }
+
+  private fun openDialog(isCombine: Boolean, callBack: Cons<Array<KeyCode>>) {
+    val rebindDialog = Dialog()
+    val res = linkedSetOf<KeyCode>()
+    var show = ""
+
+    rebindDialog.cont.table{
+      it.add(Core.bundle["misc.pressAnyKeys".takeIf { isCombine }?:"keybind.press"])
+        .color(Pal.accent)
+      if (!isCombine) return@table
+
+      it.row()
+      it.label{ show.ifBlank { Core.bundle["misc.requireInput"] } }
+        .padTop(8f)
+    }
 
     rebindDialog.titleTable.cells.first().pad(4f)
 
     rebindDialog.addListener(object : InputListener() {
       override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode): Boolean {
-        if (Core.app.isAndroid) return false
-        TooManyItems.binds.hotKey = button
-        TooManyItems.binds.save()
-        return false
+        if (Core.app.isAndroid) {
+          rebindDialog.hide()
+          return false
+        }
+
+        keySet(button)
+        return true
       }
 
       override fun keyDown(event: InputEvent, keycode: KeyCode): Boolean {
-        rebindDialog.hide()
-        if (keycode == KeyCode.escape) return false
-        TooManyItems.binds.hotKey = keycode
-        TooManyItems.binds.save()
-        return false
+        if (keycode == KeyCode.escape) {
+          rebindDialog.hide()
+          return false
+        }
+
+        keySet(keycode)
+        return true
+      }
+
+      private fun keySet(button: KeyCode) {
+        if (!isCombine) {
+          callBack(arrayOf(button))
+          rebindDialog.hide()
+          return
+        }
+
+        if (button != KeyCode.enter) {
+          res.add(button)
+          show = MultiKeyBind.toString(res)
+        }
+        else {
+          callBack(res.toTypedArray())
+          rebindDialog.hide()
+        }
+      }
+
+      override fun keyUp(event: InputEvent?, keycode: KeyCode?): Boolean {
+        res.remove(keycode)
+        show = MultiKeyBind.toString(res)
+
+        return true
       }
     })
 

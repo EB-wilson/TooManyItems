@@ -3,17 +3,16 @@ package tmi.ui.designer
 import arc.Core
 import arc.Graphics
 import arc.func.Cons
-import arc.func.Func
 import arc.func.Prov
 import arc.graphics.*
 import arc.input.KeyCode
+import arc.math.Mathf
 import arc.scene.event.Touchable
 import arc.scene.ui.*
 import arc.scene.ui.layout.Table
 import arc.scene.utils.Elem
 import arc.struct.OrderedSet
 import arc.util.*
-import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.core.UI
 import mindustry.gen.Icon
@@ -26,31 +25,32 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
 import tmi.recipe.types.GeneratorRecipe
 import tmi.recipe.types.RecipeItem
-import tmi.set
 import tmi.ui.NodeType
 import tmi.ui.RecipeView
 import tmi.util.Consts
+import tmi.util.vec1
+import kotlin.math.max
 
-class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : Card(ownerDesigner) {
+class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) {
   var rebuildConfig = {}
   var rebuildOptionals = {}
   var rebuildAttrs = {}
 
-  var efficiency = 0f
-  var multiplier = 0f
+  val environments: EnvParameter = EnvParameter()
+  val optionalSelected: OrderedSet<RecipeItem<*>> = OrderedSet()
 
   var over: Table? = null
 
   val recipeView: RecipeView = RecipeView(recipe) { i, t, m ->
-    TooManyItems.recipesDialog.toggle = Cons { r ->
+    TooManyItems.recipesDialog.toggle = Cons { recipe ->
       TooManyItems.recipesDialog.hide()
-      val card = ownerDesigner.addRecipe(r)
+      val card = ownerView.addRecipe(recipe)
       if (Core.input.keyDown(TooManyItems.binds.hotKey)) {
         if (t == NodeType.MATERIAL) {
           val linker = card.linkerOuts.find { e -> e.item == i.item }!!
           var other = linkerIns.find { e -> e.item == i.item }
           if (other == null) {
-            other = ItemLinker(ownerDesigner, i.item, true)
+            other = ItemLinker(ownerView, i.item, true)
             other.pack()
             addIn(other)
 
@@ -67,7 +67,7 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
           var other = card.linkerIns.find { e -> e.item == i.item }
 
           if (other == null) {
-            other = ItemLinker(ownerDesigner, i.item, true)
+            other = ItemLinker(ownerView, i.item, true)
             other.pack()
             card.addIn(other)
 
@@ -84,13 +84,26 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
     TooManyItems.recipesDialog.setCurrSelecting(i.item, m!!)
   }
 
-  val environments: EnvParameter = EnvParameter()
-  val optionalSelected: OrderedSet<RecipeItem<*>?> = OrderedSet()
+  var efficiency = 0f
+    private set
+  var multiplier = 0f
+    private set
 
   private val param = EnvParameter()
 
+  private var setArgsHandle: SetRecipeArgsHandle? = null
+
   init {
     recipeView.validate()
+  }
+
+  private fun checkHandle(): SetRecipeArgsHandle{
+    if (setArgsHandle == null || setArgsHandle!!.isExpired){
+      setArgsHandle = SetRecipeArgsHandle(ownerDesigner, this)
+        .also { ownerDesigner.pushHandle(it) }
+    }
+    setArgsHandle!!.updateTimer()
+    return setArgsHandle!!
   }
 
   override fun act(delta: Float) {
@@ -111,10 +124,12 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
   }
 
   override fun buildCard() {
+    setDefAttribute()
+
     child.table(Consts.grayUI) { t ->
       t.center()
       t.hovered {
-        if (ownerDesigner.view!!.newSet === this) ownerDesigner.view!!.newSet = null
+        if (ownerDesigner.newSet == this) ownerDesigner.newSet = null
       }
 
       t.center().table(Consts.darkGrayUI) { top ->
@@ -130,7 +145,9 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
         ownerDesigner.setMoveLocker(inner)
         inner.table { inf ->
           inf.left().add("").growX()
-            .update { l -> l.setText(Core.bundle.format("dialog.calculator.recipeMulti", mul)) }
+            .update { l -> l.setText(
+              Core.bundle.format("dialog.calculator.recipeMulti", if (balanceValid) mul else "--" )
+            ) }
             .left().pad(6f).padLeft(12f).align(Align.left)
           inf.add(Core.bundle.format("dialog.calculator.config")).padLeft(30f)
           inf.button(Icon.pencil, Styles.clearNonei, 32f) { over!!.visible = true }.margin(4f)
@@ -145,8 +162,7 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
                 )
               )
             )
-          }
-            .left().pad(6f).padLeft(12f).align(Align.left)
+          }.left().pad(6f).padLeft(12f).align(Align.left)
         }.growX()
 
         inner.row()
@@ -170,24 +186,14 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
               table.row()
               table.table { r ->
                 r.left().defaults().left().padBottom(4f)
-                r.add(Core.bundle["calculator.config.multiple"])
-                r.table { inp ->
-                  inp.field(mul.toString(), TextField.TextFieldFilter.digitsOnly) { i ->
-                    try {
-                      mul = if (i.isEmpty()) 0 else i.toInt()
-                    } catch (ignored: Throwable) {
-                    }
-                  }.growX().get().setAlignment(Align.right)
-                  inp.add("x").color(Color.gray)
-                }.growX().padLeft(20f)
-                r.row()
 
                 r.add(Core.bundle["calculator.config.efficiencyScl"])
                 r.table { inp ->
                   inp.field(Strings.autoFixed(effScale*100, 1), TextField.TextFieldFilter.floatsOnly) { i ->
                     try {
-                      effScale = if (i.isEmpty()) 0f else i.toFloat()/100
-                      calculateEfficiency()
+                      val setArgsHandle = checkHandle()
+                      setArgsHandle.effScale = 0f.takeIf { i.isEmpty() }?: (i.toFloat()/100)
+                      setArgsHandle.handle()
                     } catch (ignored: Throwable) { }
                   }.growX().get().setAlignment(Align.right)
                   inp.add("%").color(Color.gray)
@@ -196,7 +202,7 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
 
                 r.add(Core.bundle["calculator.config.optionalMats"])
                 r.table { inner ->
-                  inner.right().button(Icon.settingsSmall, Styles.clearNonei, 24f) { buildOptionals(inner) }
+                  inner.right().button(Icon.settingsSmall, Styles.clearNonei, 24f) { buildOptSetter(inner) }
                     .right().fill().margin(4f)
                 }.growX()
                 r.row()
@@ -216,8 +222,8 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
                         }.growX().margin(6f)
                         mats.add("").growX().padLeft(4f).update { l ->
                           val stack = recipe.materials[item]!!
-                          val am = stack.amount*mul*(if (stack.isBooster) effScale else multiplier)*60
-                          l.setText((if (am > 1000) UI.formatAmount(am.toLong()) else Strings.autoFixed(am, 1)) + "/s")
+                          val am = stack.amount*mul*(effScale.takeIf { stack.isBooster }?:multiplier)*60
+                          l.setText((UI.formatAmount(am.toLong()).takeIf { am > 1000 }?: Strings.autoFixed(am, 1)) + "/s")
                         }.labelAlign(Align.right)
                         mats.row()
                       }
@@ -230,7 +236,7 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
                 r.add(Core.bundle["calculator.config.attributes"])
                 r.table { inner ->
                   inner.right().button(Icon.settingsSmall, Styles.clearNonei, 24f) {
-                    buildAttributes(inner)
+                    buildAttrSetter(inner)
                   }.right().fill().margin(4f)
                 }.growX()
                 r.row()
@@ -242,7 +248,7 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
                       attr.add(Core.bundle["misc.empty"], Styles.outlineLabel).pad(6f).color(Color.gray)
                     }
                     else {
-                      environments.eachAttribute { item: RecipeItem<*>?, f: Float? ->
+                      environments.eachAttribute { item, f ->
                         attr.table { i ->
                           i.left().defaults().left()
                           i.image(item!!.icon()).size(32f).scaling(Scaling.fit)
@@ -264,59 +270,65 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
     }.grow()
   }
 
-  private fun buildAttributes(inner: Table?) {
-     ownerDesigner.showMenu(inner, Align.topRight, Align.topLeft, true) { menu ->
-       menu.table(Consts.darkGrayUIAlpha) { i ->
-         i.checkHideMenu()
-         i.add(Core.bundle["calculator.config.selectAttributes"]).color(Pal.accent).pad(8f)
-           .padBottom(4f).growX().left()
-         i.row()
-         if (!recipe.materials.values().toSeq().contains { e -> e.isAttribute }) {
-           i.add(Core.bundle["calculator.config.noAttributes"]).color(Color.lightGray).pad(8f)
-             .growX()
-             .left()
-         }
-         else {
-           i.add(Core.bundle["calculator.config.attrTip"]).color(Color.lightGray).pad(8f)
-             .padTop(4f)
-             .growX().left()
-           i.row()
-           i.pane { p ->
-             for (stack in recipe.materials.values()) {
-               if (!stack.isAttribute) continue
-               p.table { item ->
-                 item.buildIcon(stack)
-
-                 val field = item.field(
-                   environments.getAttribute(stack.item).toInt().toString() + "",
-                   TextField.TextFieldFilter.digitsOnly
-                 ) { f: String? ->
-                   environments.resetAttr(stack.item)
-                   val amount = Strings.parseInt(f, 0)
-                   if (amount > 0) environments.add(stack.item, amount.toFloat(), true)
-
-                   calculateEfficiency()
-                   rebuildAttrs()
-                 }.get()
-                 field.programmaticChangeEvents = true
-                 item.check("") { b ->
-                   if (b) field.text = stack.amount.toInt().toString() + ""
-                   else field.text = "0"
-                 }.update { c ->
-                   c.isChecked = environments.getAttribute(stack.item) >= stack.amount
-                 }
-               }.margin(6f).growX()
-
-               p.row()
-             }
-           }.grow()
-         }
-       }.grow().maxHeight(400f).minWidth(260f)
-     }
+  private fun setDefAttribute() {
+    recipe.materials.firstOrNull { it.value.run { isAttribute && !optionalCons } }?.apply {
+      environments.add(this.key, this.value.amount, true)
+    }
   }
 
-  private fun buildOptionals(inner: Table?) {
-    ownerDesigner.showMenu(inner, Align.topRight, Align.topLeft, true) { menu ->
+  private fun buildAttrSetter(inner: Table) {
+    ownerDesigner.parentDialog.showMenu(inner, Align.topRight, Align.topLeft, true) { menu ->
+      menu.table(Consts.darkGrayUIAlpha) { i ->
+        i.checkHideMenu()
+        i.add(Core.bundle["calculator.config.selectAttributes"]).color(Pal.accent)
+          .pad(8f).padBottom(4f).growX().left()
+        i.row()
+        if (!recipe.materials.values().toSeq().contains { e -> e.isAttribute }) {
+          i.add(Core.bundle["calculator.config.noAttributes"]).color(Color.lightGray)
+            .pad(8f).growX().left()
+        }
+        else {
+          i.add(Core.bundle["calculator.config.attrTip"]).color(Color.lightGray)
+            .pad(8f).padTop(4f).growX().left()
+          i.row()
+          i.pane { p ->
+            for (stack in recipe.materials.values()) {
+              if (!stack.isAttribute) continue
+              p.table { item ->
+                item.buildIcon(stack)
+
+                val field = item.field(
+                  environments.getAttribute(stack.item).toInt().toString() + "",
+                  TextField.TextFieldFilter.digitsOnly
+                ) {
+                  val setArgsHandle = checkHandle()
+                  setArgsHandle.envArgs.resetAttr(stack.item)
+
+                  val amount = Strings.parseInt(it, 0)
+                  if (amount > 0) setArgsHandle.envArgs.add(stack.item, amount.toFloat(), true)
+
+                  setArgsHandle.handle()
+                }.get()
+
+                field.programmaticChangeEvents = true
+                item.check("") { b ->
+                  if (b) field.text = stack.amount.toInt().toString() + ""
+                  else field.text = "0"
+                }.update { c ->
+                  c.isChecked = environments.getAttribute(stack.item) >= stack.amount
+                }
+              }.margin(6f).growX()
+
+              p.row()
+            }
+          }.grow()
+        }
+      }.grow().maxHeight(400f).minWidth(260f)
+    }
+  }
+
+  private fun buildOptSetter(inner: Table) {
+    ownerDesigner.parentDialog.showMenu(inner, Align.topRight, Align.topLeft, true) { menu ->
       menu.table(Consts.darkGrayUIAlpha) { i ->
         i.checkHideMenu()
         i.add(Core.bundle["calculator.config.selectOptionals"]).color(Pal.accent).pad(8f).growX()
@@ -333,10 +345,12 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
             for (stack in recipe.materials.values()) {
               if (!stack.optionalCons || stack.isAttribute) continue
               val item = Elem.newCheck("") { b ->
-                if (b) optionalSelected.add(stack.item)
-                else optionalSelected.remove(stack.item)
-                calculateEfficiency()
-                rebuildOptionals()
+                val setArgsHandle = checkHandle()
+
+                if (b) setArgsHandle.optionals.add(stack.item)
+                else setArgsHandle.optionals.remove(stack.item)
+
+                setArgsHandle.handle()
               }
               item.isChecked = optionalSelected.contains(stack.item)
               item.buildIcon(stack)
@@ -353,11 +367,11 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
   private fun Table.checkHideMenu() {
     update {
       if (Core.input.keyDown(KeyCode.mouseLeft) || Core.input.keyDown(KeyCode.mouseRight)) {
-        SchematicDesignerDialog.tmp.set(Core.input.mouse())
-        stageToLocalCoordinates(SchematicDesignerDialog.tmp)
+        vec1.set(Core.input.mouse())
+        stageToLocalCoordinates(vec1)
 
-        if (SchematicDesignerDialog.tmp.x > width || SchematicDesignerDialog.tmp.y > height || SchematicDesignerDialog.tmp.x < 0 || SchematicDesignerDialog.tmp.y < 0) {
-          ownerDesigner.hideMenu()
+        if (vec1.x > width || vec1.y > height || vec1.x < 0 || vec1.y < 0) {
+          ownerDesigner.parentDialog.hideMenu()
         }
       }
     }
@@ -420,6 +434,66 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
     return recipe.productions.values()
   }
 
+  override fun calculateBalance() {
+    balanceValid = false
+    balanceAmount = -1
+    for (stack in recipe.productions.values()) {
+      if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(stack.item)) continue
+
+      val linker = linkerOuts.find { it.item === stack.item }
+      if (linker != null) {
+        if (linker.links.size == 1) {
+          val other = linker.links.orderedKeys().first()
+          if (!other!!.isNormalized || !(other.parent as Card).balanceValid) {
+            balanceValid = false
+            balanceAmount = -1
+            break
+          }
+
+          balanceValid = true
+          balanceAmount = Mathf.ceil(
+            max(other.expectAmount/(stack.amount*efficiency), balanceAmount.toFloat())
+          )
+        }
+        else if (!linker.links.isEmpty) {
+          var anyUnset = false
+
+          var amo = 0f
+          for (other in linker.links.keys()) {
+            var rate = other!!.links[linker]?:-1f
+
+            if (!other.isNormalized) {
+              anyUnset = true
+              break
+            }
+            else if (rate < 0) rate = 1f
+
+            amo += rate*other.expectAmount
+          }
+
+          if (!anyUnset) {
+            balanceValid = true
+            balanceAmount = Mathf.ceil(
+              max(amo/(stack.amount*efficiency), balanceAmount.toFloat())
+            )
+          }
+        }
+      }
+    }
+  }
+
+  override fun onObserveUpdated() {
+    if (mul != balanceAmount || allUpdate){
+      mul = balanceAmount
+
+      linkerIns.forEach{l ->
+        l.links.forEach {
+          (it.key.parent as? Card)?.observeUpdate()
+        }
+      }
+    }
+  }
+
   override fun copy(): RecipeCard {
     val res = RecipeCard(ownerDesigner, recipe)
     res.mul = mul
@@ -435,13 +509,6 @@ class RecipeCard(ownerDesigner: SchematicDesignerDialog, val recipe: Recipe) : C
   }
 
   companion object {
-    private const val CLASS_ID = 2134534563
-
-    init {
-      provs[CLASS_ID] = Func<Reads, Card> { r ->
-        val id = r.i()
-        RecipeCard(TooManyItems.schematicDesigner, TooManyItems.recipesManager.getByID(id))
-      }
-    }
+    const val CLASS_ID = 2134534563
   }
 }

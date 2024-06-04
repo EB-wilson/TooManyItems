@@ -9,9 +9,7 @@ import arc.graphics.gl.FrameBuffer
 import arc.math.Mathf
 import arc.scene.style.TextureRegionDrawable
 import arc.scene.ui.Dialog
-import arc.scene.ui.Image
-import arc.scene.ui.Label
-import arc.scene.ui.TextButton
+import arc.scene.ui.layout.Cell
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.util.Log
@@ -22,7 +20,7 @@ import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.util.Consts
 
-class ExportDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.transparentBack) {
+class ExportDialog(private val ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.transparentBack) {
   private val buffer = FrameBuffer()
   private val tmp = TextureRegion((Tex.nomap as TextureRegionDrawable).region)
 
@@ -35,13 +33,22 @@ class ExportDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.t
 
   init {
     shown {
-      ownerDesigner.view!!.toBuffer(buffer, boundX, boundY, imageScale)
+      ownerDesigner.currPage!!.view.toBuffer(buffer, boundX, boundY, imageScale)
       updated = true
     }
 
     titleTable.clear()
 
-    val cell = cont.table(Consts.darkGrayUIAlpha) { t ->
+    val cell = buildInner(ownerDesigner)
+
+    resized {
+      cell.maxSize(Core.scene.width/Scl.scl(), Core.scene.height/Scl.scl())
+      cell.get().invalidateHierarchy()
+    }
+  }
+
+  private fun buildInner(ownerDesigner: SchematicDesignerDialog): Cell<Table> =
+    cont.table(Consts.darkGrayUIAlpha) { t ->
       t.table(Consts.darkGrayUI) { top ->
         top.left().add(
           Core.bundle["dialog.calculator.export"]
@@ -95,7 +102,7 @@ class ExportDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.t
             .width(80f).padLeft(5f).color(Color.lightGray).right()
           s.slider(0f, 200f, 1f, boundX) { f ->
             boundX = f
-            ownerDesigner.view!!.toBuffer(buffer, boundX, boundY, imageScale)
+            ownerDesigner.currPage!!.view.toBuffer(buffer, boundX, boundY, imageScale)
             updated = true
           }.growX().padLeft(5f)
           s.row()
@@ -104,7 +111,7 @@ class ExportDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.t
             .width(80f).padLeft(5f).color(Color.lightGray)
           s.slider(0f, 200f, 1f, boundY) { f ->
             boundY = f
-            ownerDesigner.view!!.toBuffer(buffer, boundX, boundY, imageScale)
+            ownerDesigner.currPage!!.view.toBuffer(buffer, boundX, boundY, imageScale)
             updated = true
           }.growX().padLeft(5f)
         }
@@ -120,7 +127,7 @@ class ExportDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.t
             val fs = scale
             scl.button(Mathf.round(scale*100).toString() + "%", Styles.flatTogglet) {
               imageScale = fs
-              ownerDesigner.view!!.toBuffer(buffer, boundX, boundY, imageScale)
+              ownerDesigner.currPage!!.view.toBuffer(buffer, boundX, boundY, imageScale)
               updated = true
             }.update { b -> b.isChecked = Mathf.equal(imageScale, fs) }
             if (n%2 == 0) scl.row()
@@ -146,7 +153,7 @@ class ExportDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.t
         buttons.button(Core.bundle["misc.cancel"], Styles.cleart) { this.hide() }
         buttons.button(Core.bundle["misc.export"], Styles.cleart) {
           try {
-            val region = ownerDesigner.view!!.toImage(boundX, boundY, imageScale)
+            val region = ownerDesigner.currPage!!.view.toImage(boundX, boundY, imageScale)
             PixmapIO.writePng(exportFile, region.texture.textureData.pixmap)
 
             Vars.ui.showInfo(Core.bundle["dialog.calculator.exportSuccess"])
@@ -157,10 +164,4 @@ class ExportDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.t
         }.disabled { exportFile == null }
       }.growX()
     }.grow().margin(8f)
-
-    resized {
-      cell.maxSize(Core.scene.width/Scl.scl(), Core.scene.height/Scl.scl())
-      cell.get().invalidateHierarchy()
-    }
-  }
 }

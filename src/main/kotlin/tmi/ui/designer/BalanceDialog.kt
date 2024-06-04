@@ -17,6 +17,7 @@ import tmi.util.Consts
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 
+@Deprecated("Responsive structures don't require this work")
 class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.transparentBack) {
   private var currCard: RecipeCard? = null
 
@@ -39,7 +40,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
         shown(Runnable {
           inner.clearChildren()
           inner.defaults().left().growX().fillY().pad(5f)
-          currCard = ownerDesigner.selects.run { if (size == 1 && first() is RecipeCard) first() as RecipeCard else null }
+          currCard = ownerDesigner.currPage!!.view.selects.run { if (size == 1 && first() is RecipeCard) first() as RecipeCard else null }
 
           inner.add(Core.bundle["dialog.calculator.targetRec"]).color(Pal.accent)
           if (currCard != null) {
@@ -125,7 +126,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
                             assign.check("", currCard!!.optionalSelected.contains(stack.item)) { b: Boolean ->
                               if (b) currCard!!.optionalSelected.add(stack.item)
                               else currCard!!.optionalSelected.remove(stack.item)
-                              currCard!!.rebuildConfig()
+                              currCard!!.rebuildConfig.invoke()
                               rebuild.run()
                             }.margin(4f).fill()
                           }
@@ -202,7 +203,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
                     }.padLeft(5f)
                   }
 
-                  val expected = FloatArray(1)
+                  var expected = 1f
                   val amount = stack.amount*currCard!!.mul*currCard!!.efficiency
                   p.table(Consts.grayUIAlpha) { actual ->
                     actual.defaults().growX().left()
@@ -214,7 +215,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
                       )) + "/s",
                     )
                     actual.add("").update { l: Label ->
-                      val diff = amount - expected[0]
+                      val diff = amount - expected
                       if (balanceValid) {
                         if (Mathf.zero(diff)) {
                           l.setText(Core.bundle["misc.balanced"])
@@ -260,15 +261,14 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
                           ),
                         )
 
-                        expected[0] = other.expectAmount
+                        expected = other.expectAmount
 
                         balanceValid = true
                         balanceAmount = Mathf.ceil(
                           max(
-                            (other.expectAmount/(stack.amount*currCard!!.efficiency)).toDouble(),
-                            balanceAmount.toDouble(),
+                            (other.expectAmount/(stack.amount*currCard!!.efficiency)),
+                            balanceAmount.toFloat(),
                           )
-                            .toFloat(),
                         )
                       }
                       else if (linker.links.isEmpty) {
@@ -279,7 +279,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
 
                         var amo = 0f
                         for (other in linker.links.keys()) {
-                          var rate = other!!.links[linker]!![0]
+                          var rate = other!!.links[linker]?:-1f
 
                           if (!other.isNormalized) {
                             anyUnset = true
@@ -290,7 +290,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
                           amo += rate*other.expectAmount
                         }
 
-                        expected[0] = amo
+                        expected = amo
                         if (!anyUnset) {
                           tab.add(
                             Core.bundle.format(
@@ -303,8 +303,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
                           )
                           balanceValid = true
                           balanceAmount = Mathf.ceil(
-                            max((amo/(stack.amount*currCard!!.efficiency)).toDouble(), balanceAmount.toDouble())
-                              .toFloat(),
+                            max(amo/(stack.amount*currCard!!.efficiency), balanceAmount.toFloat())
                           )
                         }
                         else tab.add(Core.bundle["misc.assignInvalid"]).color(Color.red)
@@ -386,7 +385,10 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
       t.row()
       t.table { buttons ->
         buttons.right().defaults().size(92f, 36f).pad(6f)
-        buttons.button(Core.bundle["misc.close"], Styles.cleart) { this.hide() }
+        buttons.button(Core.bundle["misc.close"], Styles.cleart) {
+          ownerDesigner.currPage!!.view.selects.clear()
+          hide()
+        }
         buttons.button(Core.bundle["misc.ensure"], Styles.cleart) {
           currCard!!.mul = balanceAmount
           currCard!!.rebuildConfig()

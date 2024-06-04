@@ -17,7 +17,6 @@ import arc.scene.actions.Actions
 import arc.scene.event.ElementGestureListener
 import arc.scene.event.InputEvent
 import arc.scene.event.Touchable
-import arc.scene.ui.Label
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
@@ -28,17 +27,18 @@ import mindustry.core.UI
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.recipe.types.RecipeItem
+import tmi.set
 import kotlin.math.abs
 
 class ItemLinker @JvmOverloads internal constructor(
-  private val ownerDesigner: SchematicDesignerDialog?,
+  private val ownerDesigner: DesignerView,
   val item: RecipeItem<*>,
   val isInput: Boolean,
   val id: Long = Rand(System.nanoTime()).nextLong()
 ) : Table() {
   var expectAmount = 0f
 
-  var links = OrderedMap<ItemLinker, FloatArray>()
+  var links = OrderedMap<ItemLinker, Float>()
   var lines = ObjectMap<ItemLinker, Seq<Line>>()
   var dir = 0
 
@@ -57,7 +57,7 @@ class ItemLinker @JvmOverloads internal constructor(
   var hoverValid: Boolean = false
 
   init {
-    touchablility = Prov { if (ownerDesigner!!.editLock) Touchable.disabled else Touchable.enabled }
+    touchablility = Prov { if (ownerDesigner.editLock) Touchable.disabled else Touchable.enabled }
 
     stack(
       Table { t ->
@@ -79,98 +79,6 @@ class ItemLinker @JvmOverloads internal constructor(
     hovered { Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand) }
     exited { Core.graphics.restoreCursor() }
 
-    addCaptureListener(object : ElementGestureListener() {
-      var beginX: Float = 0f
-      var beginY: Float = 0f
-      var panned: Boolean = false
-
-      override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
-        if (pointer != 0 || button != KeyCode.mouseLeft) return
-
-        (parent as Card).rise()
-        ownerDesigner!!.moveLock(true)
-
-        setOrigin(Align.center)
-        isTransform = true
-
-        beginX = x
-        beginY = y
-
-        tim = true
-        time = Time.globalTime
-        linking = false
-        moving = false
-
-        panned = false
-
-        if (isInput) {
-          tim = false
-          moving = true
-          hover = this@ItemLinker
-          hovering.set(Core.input.mouse())
-          clearActions()
-          actions(Actions.scaleTo(1.1f, 1.1f, 0.3f))
-          tim = false
-        }
-      }
-
-      override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
-        if (pointer != 0 || button != KeyCode.mouseLeft) return
-
-        if (!isInput && linking) {
-          if (hover != null && hoverValid) {
-            if (linkTo(hover!!)) {
-              if (hover!!.parent == null) hoverCard!!.addIn(hover)
-            }
-            else {
-              deLink(hover)
-              if (hover!!.links.isEmpty) hoverCard!!.removeChild(hover)
-            }
-          }
-        }
-
-        if (!panned && ownerDesigner!!.view!!.selecting == null) {
-          ownerDesigner.view!!.selecting = this@ItemLinker
-        }
-
-        if (moving) {
-          clearActions()
-          actions(Actions.scaleTo(1f, 1f, 0.3f))
-        }
-
-        ownerDesigner!!.moveLock(false)
-        resetHov()
-        temp = null
-        tim = false
-        linking = false
-        moving = false
-      }
-
-      override fun pan(event: InputEvent, x: Float, y: Float, deltaX: Float, deltaY: Float) {
-        super.pan(event, x, y, deltaX, deltaY)
-
-        if (!panned && abs((x - beginX).toDouble()) < 14 && abs((y - beginY).toDouble()) < 14) return
-
-        if (!panned) {
-          panned = true
-        }
-
-        if (tim && !isInput && Time.globalTime - time < 30) {
-          linking = true
-          hovering.set(Core.input.mouse())
-          tim = false
-        }
-
-        hovering.set(Core.input.mouse())
-        if (linking) {
-          checkLinking()
-        }
-        else if (moving) {
-          checkMoving()
-        }
-      }
-    })
-
     update {
       if (tim && Time.globalTime - time > 30) {
         moving = true
@@ -181,6 +89,8 @@ class ItemLinker @JvmOverloads internal constructor(
         tim = false
       }
     }
+
+    setCoreListener()
   }
 
   val isNormalized: Boolean
@@ -188,9 +98,9 @@ class ItemLinker @JvmOverloads internal constructor(
       if (links.size == 1) return true
 
       var total = 0f
-      links.values().forEach { value ->
-        if (value!![0] < 0) return false
-        total += value[0]
+      links.values().forEach { rate ->
+        if (rate < 0) return false
+        total += rate
 
         if (total > 1 + Mathf.FLOAT_ROUNDING_ERROR) return false
       }
@@ -207,7 +117,7 @@ class ItemLinker @JvmOverloads internal constructor(
 
   fun checkLinking() {
     hover = null
-    val card = ownerDesigner!!.view!!.hitCard(hovering.x, hovering.y, false)
+    val card = ownerDesigner.hitCard(hovering.x, hovering.y, false)
 
     if (card != null && card !== parent) {
       card.stageToLocalCoordinates(hovering)
@@ -298,51 +208,165 @@ class ItemLinker @JvmOverloads internal constructor(
     return true
   }
 
-  private fun resetHov() {
-    hover = null
-    hoverCard = null
-  }
-
-  fun linkTo(target: ItemLinker): Boolean {
-    if (target.item.item != item.item) return false
-
+  fun linkTo(target: ItemLinker) {
     check(!isInput) { "Only output can do link" }
     check(target.isInput) { "Cannot link input to input" }
 
-    val cont = links.containsKey(target) && target.links.containsKey(this)
-
-    if (cont) return false
-
     val line = Seq<Line>()
-    links.put(target, floatArrayOf(-1f, 0f))
-    target.links.put(this, floatArrayOf(-1f, 0f))
+    links.put(target, -1f)
+    target.links.put(this, -1f)
     lines.put(target, line)
     target.lines.put(this, line)
 
-    return true
+    (parent as Card).observeUpdate()
+    (target.parent as Card).observeUpdate(true)
   }
 
   fun setPresent(target: ItemLinker, pres: Float) {
     check(!isInput) { "Only output can do link" }
     check(target.isInput) { "Cannot link input to input" }
 
-    links[target]!![0] = pres
-    target.links[this]!![0] = pres
+    links[target] = pres
+    target.links[this] = pres
+
+    (parent as Card).observeUpdate()
+    (target.parent as Card).observeUpdate()
   }
 
-  fun deLink(target: ItemLinker?) {
-    if (target!!.item.item != item.item) return
+  fun deLink(target: ItemLinker) {
+    if (target.item.item != item.item) return
 
     links.remove(target)
     target.links.remove(this)
     lines.remove(target)
     target.lines.remove(this)
+
+    (parent as Card).observeUpdate()
+    (target.parent as Card).observeUpdate(true)
   }
 
   private fun updateLinkPos() {
     val p = Geometry.d4(dir)
     linkPos.set(p.x.toFloat(), p.y.toFloat()).scl(width/2 + Scl.scl(24f), height/2 + Scl.scl(24f))
       .add(width/2, height/2).add(x, y)
+  }
+
+  private fun resetHov() {
+    hover = null
+    hoverCard = null
+  }
+
+  private fun setCoreListener() {
+    addCaptureListener(object : ElementGestureListener() {
+      var beginX: Float = 0f
+      var beginY: Float = 0f
+      var panned: Boolean = false
+
+      var moveHandle: MoveLinkerHandle? = null
+
+      override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
+        if (pointer != 0 || button != KeyCode.mouseLeft) return
+
+        (parent as Card).rise()
+        ownerDesigner.moveLock(true)
+
+        setOrigin(Align.center)
+        isTransform = true
+
+        beginX = x
+        beginY = y
+
+        tim = true
+        time = Time.globalTime
+        linking = false
+        moving = false
+
+        panned = false
+
+        if (isInput) {
+          tim = false
+          moving = true
+          hover = this@ItemLinker
+          hovering.set(Core.input.mouse())
+          clearActions()
+          actions(Actions.scaleTo(1.1f, 1.1f, 0.3f))
+          tim = false
+        }
+      }
+
+      override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
+        if (pointer != 0 || button != KeyCode.mouseLeft) return
+
+        moveHandle = null
+
+        if (!isInput && linking) {
+          if (hover != null && hoverValid) {
+            val hover = hover!!
+            val canLink = run a@{
+              if (hover.item.item != item.item) return@a false
+              val cont = links.containsKey(hover) && hover.links.containsKey(this@ItemLinker)
+
+              !cont
+            }
+
+            if (canLink) {
+              if (hover.parent == null) hoverCard!!.addIn(hover)
+              ownerDesigner.pushHandle(DoLinkHandle(ownerDesigner, this@ItemLinker, hover, false))
+            }
+            else {
+              ownerDesigner.pushHandle(DoLinkHandle(ownerDesigner, this@ItemLinker, hover, true))
+              if (hover.links.isEmpty) hoverCard!!.removeChild(hover)
+            }
+          }
+        }
+
+        if (!panned && ownerDesigner.selecting == null) {
+          ownerDesigner.selecting = this@ItemLinker
+        }
+
+        if (moving) {
+          clearActions()
+          actions(Actions.scaleTo(1f, 1f, 0.3f))
+        }
+
+        ownerDesigner.moveLock(false)
+        resetHov()
+        temp = null
+        tim = false
+        linking = false
+        moving = false
+      }
+
+      override fun pan(event: InputEvent, x: Float, y: Float, deltaX: Float, deltaY: Float) {
+        super.pan(event, x, y, deltaX, deltaY)
+
+        if (!panned && abs((x - beginX).toDouble()) < 14 && abs((y - beginY).toDouble()) < 14) return
+
+        if (!panned) {
+          panned = true
+        }
+
+        if (tim && !isInput && Time.globalTime - time < 30) {
+          linking = true
+          hovering.set(Core.input.mouse())
+          tim = false
+        }
+
+        hovering.set(Core.input.mouse())
+        if (linking) {
+          checkLinking()
+        }
+        else if (moving) {
+          if (moveHandle == null) moveHandle = MoveLinkerHandle(ownerDesigner, this@ItemLinker)
+            .also { ownerDesigner.pushHandle(it) }
+
+          checkMoving()
+          moveHandle!!.endX = this@ItemLinker.x
+          moveHandle!!.endY = this@ItemLinker.y
+          moveHandle!!.endDir = dir
+        }
+      }
+    })
   }
 
   override fun draw() {

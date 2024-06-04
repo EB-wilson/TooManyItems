@@ -18,13 +18,30 @@ import arc.util.Align
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.graphics.Pal
+import tmi.TooManyItems
 import tmi.recipe.RecipeItemStack
+import tmi.set
 import tmi.util.Consts
 
-abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Table() {
+abstract class Card(protected val ownerDesigner: DesignerView) : Table() {
   companion object {
+    private val tmp = Vec2()
+
     @JvmStatic
     protected val provs: IntMap<Func<Reads, Card>> = IntMap()
+
+    init {
+      provs[IOCard.CLASS_ID] = Func<Reads, Card> { r ->
+        val res = IOCard(TooManyItems.schematicDesigner.currPage!!.view, TooManyItems.itemsManager.getByName<Any>(r.str()), r.bool())
+        res.stack.amount = r.f()
+        res
+      }
+
+      provs[RecipeCard.CLASS_ID] = Func<Reads, Card> { r ->
+        val id = r.i()
+        RecipeCard(TooManyItems.schematicDesigner.currPage!!.view, TooManyItems.recipesManager.getByID(id))
+      }
+    }
 
     fun read(read: Reads, ver: Int): Card {
       val id = read.i()
@@ -34,7 +51,7 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
 
   val child: Table = object : Table(Consts.darkGrayUIAlpha) {
     override fun drawBackground(x: Float, y: Float) {
-      if (ownerDesigner.view!!.newSet === this@Card) {
+      if (ownerDesigner.newSet === this@Card) {
         Lines.stroke(Scl.scl(5f))
         Draw.color(Pal.accentBack, parentAlpha)
         Lines.rect(x - Scl.scl(45f), y - Scl.scl(45f), getWidth() + 2*Scl.scl(40f), getHeight() + 2*Scl.scl(40f))
@@ -43,6 +60,11 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
         Draw.color()
       }
       super.drawBackground(x, y)
+    }
+
+    override fun draw() {
+      if (!inStage) return
+      super.draw()
     }
 
     override fun getPrefWidth(): Float {
@@ -63,11 +85,17 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
   val linkerOuts = Seq<ItemLinker>()
   val linkerIns = Seq<ItemLinker>()
 
+  protected var observeUpdated = false
+  protected var allUpdate = false
+  protected var inStage = false
+
   var removing = false
   var aligning = false
   var alignPos = Vec2()
+  var balanceValid = false
+  var balanceAmount = -1
 
-  var mul = 1
+  var mul = -1
   var effScale = 1f
   var isSizeAlign = false
     private set
@@ -78,25 +106,29 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
   }
 
   fun rise() {
-    ownerDesigner.view!!.cards.remove(this)
-    ownerDesigner.view!!.container.removeChild(this)
+    ownerDesigner.cards.remove(this)
+    ownerDesigner.container.removeChild(this)
 
-    ownerDesigner.view!!.cards.add(this)
-    ownerDesigner.view!!.container.addChild(this)
+    ownerDesigner.cards.add(this)
+    ownerDesigner.container.addChild(this)
   }
 
-  fun addIn(linker: ItemLinker?) {
+  fun addIn(linker: ItemLinker) {
     linkerIns.add(linker)
     addChild(linker)
+
+    observeUpdate()
   }
 
-  fun addOut(linker: ItemLinker?) {
+  fun addOut(linker: ItemLinker) {
     linkerOuts.add(linker)
     addChild(linker)
+
+    observeUpdate()
   }
 
   fun hitLinker(x: Float, y: Float): ItemLinker? {
-    for (linker in SchematicDesignerDialog.Companion.seq.clear().addAll(linkerIns).addAll(linkerOuts)) {
+    for (linker in SchematicDesignerDialog.seq.clear().addAll(linkerIns).addAll(linkerOuts)) {
       if (x > linker!!.x - linker.width/2
         && x < linker.x + linker.width*1.5f
         && y > linker.y - linker.height/2
@@ -107,10 +139,27 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
     return null
   }
 
+  override fun act(delta: Float) {
+    super.act(delta)
+
+    inStage = ownerDesigner.checkCardClip(this)
+
+    if (observeUpdated) {
+      observeUpdated = false
+
+      calculateBalance()
+      onObserveUpdated()
+
+      allUpdate = false
+    }
+  }
+
   override fun removeChild(element: Element, unfocus: Boolean): Boolean {
     if (element is ItemLinker) {
       linkerIns.remove(element)
       linkerOuts.remove(element)
+
+      observeUpdate()
     }
     return super.removeChild(element, unfocus)
   }
@@ -131,6 +180,11 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
     Draw.mixcol()
   }
 
+  fun observeUpdate(allUpdate: Boolean = false){
+    observeUpdated = true
+    this.allUpdate = this.allUpdate or allUpdate
+  }
+
   abstract fun buildCard()
 
   abstract fun buildLinker()
@@ -139,12 +193,31 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
 
   abstract fun outputs(): Iterable<RecipeItemStack>
 
+  abstract fun calculateBalance()
+
+  open fun onObserveUpdated(){
+    linkerIns.forEach{l ->
+      l.links.forEach {
+        (it.key.parent as? Card)?.observeUpdate()
+      }
+    }
+
+    if (allUpdate) {
+      linkerOuts.forEach {l ->
+        l.links.forEach {
+          (it.key.parent as? Card)?.observeUpdate()
+        }
+      }
+    }
+  }
+
   protected fun moveListener(element: Element): EventListener {
     return object : ElementGestureListener() {
       var enabled: Boolean = false
+      var moveHandle: MoveCardHandle? = null
 
       override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
-        if (pointer != 0 || button != KeyCode.mouseLeft || ownerDesigner.view!!.isSelecting) return
+        if (pointer != 0 || button != KeyCode.mouseLeft || ownerDesigner.isSelecting) return
         enabled = true
         ownerDesigner.moveLock(true)
         this@Card.removing = false
@@ -153,25 +226,26 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
       }
 
       override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
-        if (pointer != 0 || button != KeyCode.mouseLeft || ownerDesigner.view!!.isSelecting) return
+        if (pointer != 0 || button != KeyCode.mouseLeft || ownerDesigner.isSelecting) return
         val align = ownerDesigner.cardAlign
-        val selects = ownerDesigner.selects
 
         enabled = false
         ownerDesigner.moveLock(false)
 
-        SchematicDesignerDialog.Companion.tmp.set(element.x, element.y)
-        element.parent.localToStageCoordinates(SchematicDesignerDialog.Companion.tmp)
+        tmp.set(element.x, element.y)
+        element.parent.localToStageCoordinates(tmp)
 
-        if (ownerDesigner.removeMode && SchematicDesignerDialog.Companion.tmp.y < Core.scene.height*0.15f) {
-          if (selects.contains(this@Card)) selects.each { card: Card? -> ownerDesigner.view!!.removeCard(card) }
-          else ownerDesigner.view!!.removeCard(this@Card)
+        if (ownerDesigner.removeMode && tmp.y < Core.scene.height*0.15f) {
+          ownerDesigner.pushHandle(RemoveCardHandle(
+            ownerDesigner,
+            ownerDesigner.selects.run { if (contains(this@Card)) toList() else listOf(this@Card) }
+          ))
         }
-        else if (align != -1) {
+        else if (moveHandle != null && align != -1) {
           if (ownerDesigner.selects.contains(this@Card)) {
-            ownerDesigner.selects.each { e: Card? ->
-              e!!.aligning = false
-              e.gridAlign(align)
+            ownerDesigner.selects.each {
+              it.aligning = false
+              it.gridAlign(align)
             }
           }
           else {
@@ -179,14 +253,30 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
             gridAlign(align)
           }
         }
+
+        moveHandle?.computeAlign()
+        moveHandle = null
       }
 
       override fun pan(event: InputEvent, x: Float, y: Float, deltaX: Float, deltaY: Float) {
         if (!enabled) return
+
+        if (moveHandle == null) ownerDesigner.selects.run { if (contains(this@Card)) toList() else listOf(this@Card) }
+          .also { cards ->
+            moveHandle = MoveCardHandle(
+              ownerDesigner,
+              cards,
+              cards.map { Vec2(it.x, it.y) }
+            ).also { ownerDesigner.pushHandle(it) }
+          }
+        moveHandle!!.moveX += deltaX
+        moveHandle!!.moveY += deltaY
+
+        moveHandle!!.handle()
+
         val align = ownerDesigner.cardAlign
         if (ownerDesigner.selects.contains(this@Card)) {
-          ownerDesigner.selects.each { e: Card? ->
-            e!!.moveBy(deltaX, deltaY)
+          ownerDesigner.selects.each { e ->
             e.aligning = align != -1
             if (e.aligning) {
               e.alignPos(align, e.alignPos)
@@ -195,7 +285,6 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
           }
         }
         else {
-          moveBy(deltaX, deltaY)
           aligning = align != -1
           if (aligning) {
             alignPos(align, alignPos)
@@ -203,12 +292,12 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
           }
         }
 
-        SchematicDesignerDialog.Companion.tmp.set(element.x, element.y)
-        element.parent.localToStageCoordinates(SchematicDesignerDialog.Companion.tmp)
+        tmp.set(element.x, element.y)
+        element.parent.localToStageCoordinates(tmp)
 
-        val b = ownerDesigner.removeMode && SchematicDesignerDialog.Companion.tmp.y < Core.scene.height*0.15f
-        if (ownerDesigner.selects.contains(this@Card)) ownerDesigner.selects.each { e: Card? -> e!!.removing = b }
-        else this@Card.removing = b
+        val removing = ownerDesigner.removeMode && tmp.y < Core.scene.height*0.15f
+        if (ownerDesigner.selects.contains(this@Card)) ownerDesigner.selects.each { it.removing = removing }
+        else this@Card.removing = removing
       }
     }
   }
@@ -234,7 +323,7 @@ abstract class Card(protected val ownerDesigner: SchematicDesignerDialog) : Tabl
   fun gridAlign(align: Int) {
     if (align == -1) return
 
-    val out = alignPos(align, SchematicDesignerDialog.Companion.tmp)
+    val out = alignPos(align, tmp)
     setPosition(out.x, out.y)
   }
 

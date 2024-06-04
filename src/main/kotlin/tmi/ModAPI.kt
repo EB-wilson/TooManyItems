@@ -22,6 +22,10 @@ const val initJS =
 """
 "use strict";
 
+const afterInits = []
+
+function afterInit(func){ afterInits.push(func) }
+
 const formatter = (method) => new AmountFormatter(){ format: method }
 
 const TMI = Packages.rhino.NativeJavaPackage("tmi", Vars.mods.mainLoader())
@@ -36,6 +40,12 @@ importPackage(TMI.designer)
 importPackage(TMI.util)
 
 const AmountFormatter = Packages.tmi.recipe.RecipeItemStack.AmountFormatter
+"""
+
+@Language("Nashorn JS")
+const val afterInit =
+"""
+afterInits.forEach(f => f())
 """
 
 class ModAPI {
@@ -274,5 +284,12 @@ class ModAPI {
     for (entry in entries) {
       entry.afterInit()
     }
+
+    Vars.mods.scripts.context.evaluateString(
+      Vars.mods.scripts.scope,
+      afterInit,
+      "tmiAfter.js",
+      0
+    )
   }
 }

@@ -13,6 +13,9 @@ import mindustry.content.Items
 import mindustry.game.EventType.ClientLoadEvent
 import mindustry.mod.Mod
 import rhino.ScriptRuntime
+import tmi.TooManyItems.Companion.api
+import tmi.TooManyItems.Companion.binds
+import tmi.TooManyItems.Companion.recipesManager
 import tmi.recipe.RecipeItemManager
 import tmi.recipe.RecipeType
 import tmi.recipe.RecipesManager
@@ -32,6 +35,8 @@ class TooManyItems : Mod() {
     var itemsManager: RecipeItemManager = RecipeItemManager()
     @JvmField
     var api: ModAPI = ModAPI()
+    @JvmField
+    val binds = KeyBinds()
 
     @JvmStatic
     val recipesDialog by lazy { RecipesDialog() }
@@ -39,8 +44,6 @@ class TooManyItems : Mod() {
     val schematicDesigner by lazy { SchematicDesignerDialog() }
     @JvmStatic
     val batchBalance by lazy { BatchBalanceDialog() }
-    @JvmStatic
-    val binds by lazy { KeyBinds() }
   }
 
   init {

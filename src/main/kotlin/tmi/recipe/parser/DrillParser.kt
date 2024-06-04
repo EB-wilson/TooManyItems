@@ -62,10 +62,7 @@ class DrillParser : ConsumerParser<Drill>() {
                   """
                   ${
                     if (f*60 > 1000) UI.formatAmount((f*60).toLong())
-                    else Strings.autoFixed(
-                      (f*60),
-                      2
-                    )
+                    else Strings.autoFixed((f*60), 2)
                   }/${StatUnit.seconds.localized()}
                   [#98ffa9]+${Mathf.round(content.liquidBoostIntensity*100)}%
                   """.trimIndent()
