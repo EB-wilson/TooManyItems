@@ -14,6 +14,7 @@ import arc.math.Rand
 import arc.math.geom.Geometry
 import arc.math.geom.Vec2
 import arc.scene.actions.Actions
+import arc.scene.event.ClickListener
 import arc.scene.event.ElementGestureListener
 import arc.scene.event.InputEvent
 import arc.scene.event.Touchable
@@ -29,6 +30,7 @@ import mindustry.ui.Styles
 import tmi.recipe.types.RecipeItem
 import tmi.set
 import tmi.ui.addEventBlocker
+import tmi.util.Consts
 import kotlin.math.abs
 
 class ItemLinker @JvmOverloads internal constructor(
@@ -375,6 +377,14 @@ class ItemLinker @JvmOverloads internal constructor(
         }
       }
     })
+
+    clicked {
+      ownerDesigner.parentDialog.showMenu(this@ItemLinker, Align.bottom, Align.top) { frame ->
+        frame.table(Consts.padDarkGrayUIAlpha) {
+          //TODO
+        }
+      }
+    }
   }
 
   override fun draw() {

@@ -173,7 +173,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       }
     }
 
-    setTapListener()
     setPanListener()
     setSelectListener()
     setZoomListener()
@@ -752,46 +751,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Element?) {
         requestScroll()
         super.enter(event, x, y, pointer, fromActor)
-      }
-    })
-  }
-
-  private fun setTapListener() {
-    addListener(object : ClickListener(KeyCode.mouseLeft) {
-      var other: ItemLinker? = null
-      var dragged: Boolean = false
-
-      override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode): Boolean {
-        dragged = false
-        return super.touchDown(event, x, y, pointer, button)
-      }
-
-      override fun touchDragged(event: InputEvent, x: Float, y: Float, pointer: Int) {
-        dragged = true
-      }
-
-      override fun clicked(event: InputEvent, x: Float, y: Float) {
-        other = null
-
-        if (selecting != null) {
-          eachCard(x, y, false) { c ->
-            if (other != null) return@eachCard
-            val v = localToDescendantCoordinates(c, vec1.set(x, y))
-            other = c.hitLinker(v.x, v.y)
-            if (other == selecting) {
-            }
-            else {
-              //TODO: 连接路径数据配置
-            }
-          }
-        }
-
-        isSelecting = false
-        moveLock(false)
-      }
-
-      override fun isOver(element: Element, x: Float, y: Float): Boolean {
-        return !dragged
       }
     })
   }
