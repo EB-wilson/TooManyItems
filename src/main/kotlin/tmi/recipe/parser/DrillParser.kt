@@ -43,19 +43,22 @@ class DrillParser : ConsumerParser<Drill>() {
       if (!content.canMine(markerTile)) continue
 
       val recipe = res.get(drop.itemDrop) {
-        val r = Recipe(RecipeType.collecting)
-          .setEff(Recipe.zeroEff)
-          .setBlock(getWrap(content))
-          .setTime(content.getDrillTime(drop.itemDrop)/content.size/content.size)
-        r.addProduction(getWrap(drop.itemDrop), 1).setAltPersecFormat()
+        val r = Recipe(
+          recipeType = RecipeType.collecting,
+          ownerBlock = getWrap(content),
+          craftTime = content.getDrillTime(drop.itemDrop)/content.size/content.size,
+        ).setEff(Recipe.zeroEff)
+
+        r.addProductionInteger(getWrap(drop.itemDrop), 1)
 
         if (content.liquidBoostIntensity != 1f) {
           registerCons(r, *Seq.with(*content.consumers).select { e: Consume -> !(e.optional && e is ConsumeLiquidBase && e.booster) }.toArray(Consume::class.java))
 
           val consBase = content.findConsumer<Consume> { f: Consume -> f is ConsumeLiquidBase && f.optional && f.booster }
           if (consBase is ConsumeLiquidBase) {
-            registerCons(r, { s: RecipeItemStack? ->
-              s!!.setEff(content.liquidBoostIntensity)
+            registerCons(r, { s ->
+              val eff = content.liquidBoostIntensity*content.liquidBoostIntensity
+              s!!.setEff(eff)
                 .setBooster()
                 .setOptional()
                 .setFormat { f ->
@@ -64,7 +67,7 @@ class DrillParser : ConsumerParser<Drill>() {
                     if (f*60 > 1000) UI.formatAmount((f*60).toLong())
                     else Strings.autoFixed((f*60), 2)
                   }/${StatUnit.seconds.localized()}
-                  [#98ffa9]+${Mathf.round(content.liquidBoostIntensity*100)}%
+                  [#98ffa9]+${Mathf.round(eff*100)}%
                   """.trimIndent()
                 }
             }, consBase)
@@ -77,10 +80,10 @@ class DrillParser : ConsumerParser<Drill>() {
       }
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
-      recipe!!.addMaterialRaw(getWrap(drop), (content.size*content.size).toFloat())
+      recipe!!.addMaterial(getWrap(drop), (content.size*content.size) as Number)
         .setEff(content.drillTime/realDrillTime)
         .setAttribute()
-        .setEmptyFormat()
+        .emptyFormat()
     }
 
     return res.values().toSeq()

@@ -22,7 +22,7 @@ import mindustry.ui.dialogs.ContentInfoDialog
 import tmi.TooManyItems
 import tmi.invoke
 import tmi.util.Consts
-import tmi.util.MultiKeyBind
+import tmi.util.CombinedKeys
 
 object EntryAssigner {
   private var tmiEntry: ImageButton? = null
@@ -47,20 +47,6 @@ object EntryAssigner {
         { TooManyItems.binds.reset("hot_key") },
         false
       )
-      createKeybindTable(
-        table,
-        Core.bundle["keybind.undo.name"],
-        { TooManyItems.binds.undo.toString() },
-        { TooManyItems.binds.undo = MultiKeyBind(*it) },
-        { TooManyItems.binds.reset("undo") }
-      )
-      createKeybindTable(
-        table,
-        Core.bundle["keybind.redo.name"],
-        { TooManyItems.binds.redo.toString() },
-        { TooManyItems.binds.redo = MultiKeyBind(*it) },
-        { TooManyItems.binds.reset("redo") }
-      )
 
       table.button("@settings.reset") {
         Core.keybinds.resetToDefaults()
@@ -70,8 +56,8 @@ object EntryAssigner {
 
     run { //content information entry
       Vars.ui.database.buttons.button(Core.bundle["recipes.open"], Consts.tmi, 38f) {
-        TooManyItems.recipesDialog.currentSelect = null
-        TooManyItems.recipesDialog.show()
+        TmiUI.recipesDialog.currentSelect = null
+        TmiUI.recipesDialog.show()
       }
     }
 
@@ -88,7 +74,7 @@ object EntryAssigner {
             val t = ta.children[0] as Table
 
             t.button(Consts.tmi, Styles.clearNonei, 38f) {
-              TooManyItems.recipesDialog.show(TooManyItems.itemsManager.getItem(content))
+              TmiUI.recipesDialog.show(TooManyItems.itemsManager.getItem(content))
               hide()
             }.padLeft(12f).margin(6f)
           }
@@ -126,7 +112,7 @@ object EntryAssigner {
             }
 
             override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
-              if (!isDragging) TooManyItems.recipesDialog.show()
+              if (!isDragging) TmiUI.recipesDialog.show()
               else {
                 Core.settings.put("tmi_button_x", tmiEntry!!.x)
                 Core.settings.put("tmi_button_y", tmiEntry!!.y)
@@ -202,7 +188,7 @@ object EntryAssigner {
 
         if (button != KeyCode.enter) {
           res.add(button)
-          show = MultiKeyBind.toString(res)
+          show = CombinedKeys.toString(res)
         }
         else {
           callBack(res.toTypedArray())
@@ -212,7 +198,7 @@ object EntryAssigner {
 
       override fun keyUp(event: InputEvent?, keycode: KeyCode?): Boolean {
         res.remove(keycode)
-        show = MultiKeyBind.toString(res)
+        show = CombinedKeys.toString(res)
 
         return true
       }

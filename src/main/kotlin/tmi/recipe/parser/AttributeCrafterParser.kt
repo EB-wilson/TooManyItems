@@ -21,10 +21,11 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
   }
 
   override fun parse(content: AttributeCrafter): Seq<Recipe> {
-    val res = Recipe(RecipeType.factory)
-      .setEff(getDefaultEff(content.baseEfficiency))
-      .setBlock(getWrap(content))
-      .setTime(content.craftTime)
+    val res = Recipe(
+      recipeType = RecipeType.factory,
+      ownerBlock = getWrap(content),
+      craftTime = content.craftTime,
+    ).setEff(getDefaultEff(content.baseEfficiency))
 
     registerCons(res, *content.consumers)
 
@@ -36,7 +37,7 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
         content.maxBoost
       )
 
-      res.addMaterialRaw(getWrap(block), (content.size*content.size).toFloat())
+      res.addMaterial(getWrap(block), (content.size*content.size) as Number)
         .setAttribute()
         .setOptional(content.baseEfficiency > 0.001f)
         .setEff(eff)
@@ -44,11 +45,11 @@ class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
     }
 
     if (content.outputItems == null) {
-      if (content.outputItem != null) res.addProduction(getWrap(content.outputItem.item), content.outputItem.amount).setAltPersecFormat()
+      if (content.outputItem != null) res.addProductionInteger(getWrap(content.outputItem.item), content.outputItem.amount)
     }
     else {
       for (item in content.outputItems) {
-        res.addProduction(getWrap(item.item), item.amount).setAltPersecFormat()
+        res.addProductionInteger(getWrap(item.item), item.amount)
       }
     }
 

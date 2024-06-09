@@ -7,7 +7,6 @@ import arc.struct.ObjectMap
 import mindustry.Vars
 import mindustry.world.Block
 import mindustry.world.consumers.*
-import sun.misc.Signal.handle
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeParser
@@ -42,9 +41,8 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { recipe: Recipe, consume: Consume, handle ->
           for (item in (consume as ConsumeItems).items) {
             handle(
-              recipe.addMaterial(getWrap(item.item), item.amount)
+              recipe.addMaterialInteger(getWrap(item.item), item.amount)
                 .setOptional(consume.optional)
-                .setAltPersecFormat()
             )
           }
         })
@@ -54,9 +52,8 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
           val cf = (consume as ConsumeItemFilter)
           for (item in Vars.content.items().select { i -> cf.filter[i] }) {
             handle(
-              recipe.addMaterial(getWrap(item), 1)
+              recipe.addMaterialInteger(getWrap(item), 1)
                 .setOptional(consume.optional)
-                .setAltPersecFormat()
                 .setAttribute(cf)
                 .setMaxAttr()
             )
@@ -95,11 +92,10 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumePayloads },
         { recipe, consume, handle ->
           for (stack in (consume as ConsumePayloads).payloads) {
-            if (stack.amount > 1) handle(recipe.addMaterial(getWrap(stack.item), stack.amount).setAltPersecFormat())
+            if (stack.amount > 1) handle(recipe.addMaterialInteger(getWrap(stack.item), stack.amount))
             else handle(
-              recipe.addMaterial(getWrap(stack.item), 1)
+              recipe.addMaterialInteger(getWrap(stack.item), 1)
                 .setOptional(consume.optional)
-                .setAltPersecFormat()
             )
           }
         })
@@ -111,7 +107,6 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
           handle(
             recipe.addMaterialPersec(PowerMark, (consume as ConsumePower).usage)
               .setOptional(consume.optional)
-              .setAltPersecFormat()
           )
         })
     }

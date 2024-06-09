@@ -28,18 +28,20 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.recipe.types.RecipeItem
 import tmi.set
+import tmi.ui.addEventBlocker
 import kotlin.math.abs
 
 class ItemLinker @JvmOverloads internal constructor(
-  private val ownerDesigner: DesignerView,
+  val parentCard: Card,
   val item: RecipeItem<*>,
   val isInput: Boolean,
   val id: Long = Rand(System.nanoTime()).nextLong()
 ) : Table() {
+  val ownerDesigner = parentCard.ownerDesigner
   var expectAmount = 0f
 
   var links = OrderedMap<ItemLinker, Float>()
-  var lines = ObjectMap<ItemLinker, Seq<Line>>()
+  var lines = ObjectMap<ItemLinker, Seq<Any>>() //TODO: Lines
   var dir = 0
 
   private var linkPos = Vec2()
@@ -76,6 +78,8 @@ class ItemLinker @JvmOverloads internal constructor(
       }
     ).size(60f)
 
+    fill()
+
     hovered { Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand) }
     exited { Core.graphics.restoreCursor() }
 
@@ -90,7 +94,8 @@ class ItemLinker @JvmOverloads internal constructor(
       }
     }
 
-    setCoreListener()
+    setHandleListener()
+    addEventBlocker{ e -> e !is InputEvent || e.keyCode != KeyCode.mouseRight  }
   }
 
   val isNormalized: Boolean
@@ -111,7 +116,7 @@ class ItemLinker @JvmOverloads internal constructor(
   fun checkMoving() {
     val card = parent as Card
 
-    card.stageToLocalCoordinates(hovering)
+    ownerDesigner.localToDescendantCoordinates(card, hovering)
     adsorption(hovering.x, hovering.y, card)
   }
 
@@ -119,22 +124,24 @@ class ItemLinker @JvmOverloads internal constructor(
     hover = null
     val card = ownerDesigner.hitCard(hovering.x, hovering.y, false)
 
-    if (card != null && card !== parent) {
-      card.stageToLocalCoordinates(hovering)
+    if (card != null && card != parent) {
+      ownerDesigner.localToDescendantCoordinates(card, hovering)
 
-      hoverValid = card.accepts().any { it.item === item }
+      hoverValid = card.checkLinking(this)
 
-      var linker = card.linkerIns.find { l: ItemLinker? -> l!!.item === item }
+      var linker = card.linkerIns.find { l -> l!!.item === item }
 
       if (linker == null) linker = card.hitLinker(hovering.x, hovering.y)
       if (linker != null) {
-        if (!linker.isInput || linker.item.item !== item.item) hoverValid = false
+        if (!linker.isInput || linker.item.item != item.item) {
+          hoverValid = false
+        }
         else {
           hover = linker
           hoverCard = card
 
           hovering[hover!!.x + hover!!.width/2] = hover!!.y + hover!!.height/2
-          card.localToStageCoordinates(hovering)
+          card.localToAscendantCoordinates(ownerDesigner, hovering)
 
           return
         }
@@ -143,8 +150,8 @@ class ItemLinker @JvmOverloads internal constructor(
       hoverCard = card
 
       if (hover == null) {
-        if (temp == null || temp!!.item !== item) {
-          temp = ItemLinker(ownerDesigner, item, true)
+        if (temp == null || temp!!.item != item) {
+          temp = ItemLinker(parentCard, item, true)
           temp!!.draw()
           temp!!.pack()
         }
@@ -156,13 +163,13 @@ class ItemLinker @JvmOverloads internal constructor(
       if (!hover!!.adsorption(hovering.x, hovering.y, card)) {
         resetHov()
 
-        card.localToStageCoordinates(hovering)
+        card.localToAscendantCoordinates(ownerDesigner, hovering)
 
         return
       }
 
       hovering[hover!!.x + hover!!.width/2] = hover!!.y + hover!!.height/2
-      card.localToStageCoordinates(hovering)
+      card.localToAscendantCoordinates(ownerDesigner, hovering)
       hover!!.parent = null
 
       return
@@ -212,11 +219,10 @@ class ItemLinker @JvmOverloads internal constructor(
     check(!isInput) { "Only output can do link" }
     check(target.isInput) { "Cannot link input to input" }
 
-    val line = Seq<Line>()
     links.put(target, -1f)
     target.links.put(this, -1f)
-    lines.put(target, line)
-    target.lines.put(this, line)
+    lines.put(target, null)
+    target.lines.put(this, null)
 
     (parent as Card).observeUpdate()
     (target.parent as Card).observeUpdate(true)
@@ -247,8 +253,10 @@ class ItemLinker @JvmOverloads internal constructor(
 
   private fun updateLinkPos() {
     val p = Geometry.d4(dir)
-    linkPos.set(p.x.toFloat(), p.y.toFloat()).scl(width/2 + Scl.scl(24f), height/2 + Scl.scl(24f))
-      .add(width/2, height/2).add(x, y)
+    linkPos.set(p.x.toFloat(), p.y.toFloat())
+      .scl(width/2 + Scl.scl(24f), height/2 + Scl.scl(24f))
+      .add(width/2, height/2)
+      .add(x, y)
   }
 
   private fun resetHov() {
@@ -256,8 +264,8 @@ class ItemLinker @JvmOverloads internal constructor(
     hoverCard = null
   }
 
-  private fun setCoreListener() {
-    addCaptureListener(object : ElementGestureListener() {
+  private fun setHandleListener() {
+    addListener(object : ElementGestureListener() {
       var beginX: Float = 0f
       var beginY: Float = 0f
       var panned: Boolean = false
@@ -346,13 +354,13 @@ class ItemLinker @JvmOverloads internal constructor(
           panned = true
         }
 
+        hovering.set(x, y)
+        localToAscendantCoordinates(ownerDesigner, hovering)
         if (tim && !isInput && Time.globalTime - time < 30) {
           linking = true
-          hovering.set(Core.input.mouse())
           tim = false
         }
 
-        hovering.set(Core.input.mouse())
         if (linking) {
           checkLinking()
         }
@@ -382,8 +390,11 @@ class ItemLinker @JvmOverloads internal constructor(
       drawLinkLine(link.linkPos, link.dir)
     }
 
-    val c =
-      if (linking) if (hoverCard == null || (hoverValid && !hover!!.links.containsKey(this))) Pal.accent else Color.crimson else Color.white
+    val c = if (linking)
+      if (hoverCard == null || (hoverValid && !hover!!.links.containsKey(this)))
+        Pal.accent
+      else Color.crimson
+    else Color.white
     Draw.color(c, parentAlpha)
     val pos = linkPos
 
@@ -407,7 +418,7 @@ class ItemLinker @JvmOverloads internal constructor(
           val cy = hover!!.y
 
           Tmp.v2.set(hovering)
-          stageToLocalCoordinates(Tmp.v2)
+          ownerDesigner.localToDescendantCoordinates(this, Tmp.v2)
           hover!!.setPosition(x + Tmp.v2.x, y + Tmp.v2.y, Align.center)
           Draw.mixcol(Color.crimson, if (hoverValid) 0f else 0.5f)
           hover!!.draw()
@@ -425,7 +436,7 @@ class ItemLinker @JvmOverloads internal constructor(
       else {
         val lin = linkPos
         Tmp.v2.set(hovering)
-        stageToLocalCoordinates(Tmp.v2)
+        ownerDesigner.localToDescendantCoordinates(this, Tmp.v2)
 
         Lines.stroke(Scl.scl(4f), c)
         drawLinkLine(
@@ -472,7 +483,7 @@ class ItemLinker @JvmOverloads internal constructor(
   }
 
   fun copy(): ItemLinker {
-    val res = ItemLinker(ownerDesigner, item, isInput)
+    val res = ItemLinker(parentCard, item, isInput)
 
     res.setBounds(x, y, width, height)
     res.expectAmount = expectAmount

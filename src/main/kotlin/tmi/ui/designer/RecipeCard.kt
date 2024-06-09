@@ -7,6 +7,8 @@ import arc.func.Prov
 import arc.graphics.*
 import arc.input.KeyCode
 import arc.math.Mathf
+import arc.scene.event.EventListener
+import arc.scene.event.SceneEvent
 import arc.scene.event.Touchable
 import arc.scene.ui.*
 import arc.scene.ui.layout.Table
@@ -27,6 +29,9 @@ import tmi.recipe.types.GeneratorRecipe
 import tmi.recipe.types.RecipeItem
 import tmi.ui.NodeType
 import tmi.ui.RecipeView
+import tmi.ui.TmiUI
+import tmi.ui.addEventBlocker
+import tmi.ui.designer.IOCard.Companion.CLASS_ID
 import tmi.util.Consts
 import tmi.util.vec1
 import kotlin.math.max
@@ -42,15 +47,17 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   var over: Table? = null
 
   val recipeView: RecipeView = RecipeView(recipe) { i, t, m ->
-    TooManyItems.recipesDialog.toggle = Cons { recipe ->
-      TooManyItems.recipesDialog.hide()
+    Time.run(0f){ ownerView.parentDialog.hideMenu() }
+
+    TmiUI.recipesDialog.toggle = Cons { recipe ->
+      TmiUI.recipesDialog.hide()
       val card = ownerView.addRecipe(recipe)
       if (Core.input.keyDown(TooManyItems.binds.hotKey)) {
         if (t == NodeType.MATERIAL) {
           val linker = card.linkerOuts.find { e -> e.item == i.item }!!
           var other = linkerIns.find { e -> e.item == i.item }
           if (other == null) {
-            other = ItemLinker(ownerView, i.item, true)
+            other = ItemLinker(this, i.item, true)
             other.pack()
             addIn(other)
 
@@ -67,7 +74,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
           var other = card.linkerIns.find { e -> e.item == i.item }
 
           if (other == null) {
-            other = ItemLinker(ownerView, i.item, true)
+            other = ItemLinker(this, i.item, true)
             other.pack()
             card.addIn(other)
 
@@ -80,8 +87,8 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
         }
       }
     }
-    TooManyItems.recipesDialog.show()
-    TooManyItems.recipesDialog.setCurrSelecting(i.item, m!!)
+    TmiUI.recipesDialog.show()
+    TmiUI.recipesDialog.setCurrSelecting(i.item, m!!)
   }
 
   var efficiency = 0f
@@ -112,7 +119,8 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
     for (linker in linkerIns) {
       val stack = recipe.materials[linker.item] ?: continue
 
-      if (stack.isBooster) linker.expectAmount = stack.amount*mul*effScale
+      if (stack.isBooster) linker.expectAmount = (stack.amount*mul*effScale)
+        .takeIf { stack.optionalCons && optionalSelected.contains(stack.item) }?: 0f
       else linker.expectAmount = stack.amount*mul*multiplier
     }
 
@@ -202,8 +210,9 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
 
                 r.add(Core.bundle["calculator.config.optionalMats"])
                 r.table { inner ->
-                  inner.right().button(Icon.settingsSmall, Styles.clearNonei, 24f) { buildOptSetter(inner) }
-                    .right().fill().margin(4f)
+                  inner.right().button(Icon.settingsSmall, Styles.clearNonei, 24f) {
+                    buildOptSetter(inner)
+                  }.right().fill().margin(4f).get().addEventBlocker()
                 }.growX()
                 r.row()
                 r.pane { mats ->
@@ -237,7 +246,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
                 r.table { inner ->
                   inner.right().button(Icon.settingsSmall, Styles.clearNonei, 24f) {
                     buildAttrSetter(inner)
-                  }.right().fill().margin(4f)
+                  }.right().fill().margin(4f).get().addEventBlocker()
                 }.growX()
                 r.row()
                 r.pane { attr ->
@@ -297,6 +306,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
               p.table { item ->
                 item.buildIcon(stack)
 
+                var check: CheckBox? = null
                 val field = item.field(
                   environments.getAttribute(stack.item).toInt().toString() + "",
                   TextField.TextFieldFilter.digitsOnly
@@ -308,15 +318,17 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
                   if (amount > 0) setArgsHandle.envArgs.add(stack.item, amount.toFloat(), true)
 
                   setArgsHandle.handle()
+
+                  check!!.isChecked = environments.getAttribute(stack.item) >= stack.amount
                 }.get()
 
                 field.programmaticChangeEvents = true
-                item.check("") { b ->
-                  if (b) field.text = stack.amount.toInt().toString() + ""
+                check = item.check("", environments.getAttribute(stack.item) >= stack.amount) { b ->
+                  if (b) {
+                    field.text = stack.amount.toInt().toString() + ""
+                  }
                   else field.text = "0"
-                }.update { c ->
-                  c.isChecked = environments.getAttribute(stack.item) >= stack.amount
-                }
+                }.get()
               }.margin(6f).growX()
 
               p.row()
@@ -406,7 +418,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
     for (item in outputs()) {
       if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(item.item)) continue
 
-      val linker = ItemLinker(ownerDesigner, item.item, false)
+      val linker = ItemLinker(this, item.item, false)
       addOut(linker)
     }
 
@@ -492,6 +504,10 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
         }
       }
     }
+  }
+
+  override fun checkLinking(linker: ItemLinker): Boolean {
+    return recipe.materials.containsKey(linker.item)
   }
 
   override fun copy(): RecipeCard {

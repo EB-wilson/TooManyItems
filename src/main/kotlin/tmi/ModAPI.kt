@@ -2,7 +2,6 @@ package tmi
 
 import arc.Core
 import arc.func.Cons
-import arc.func.Func
 import arc.graphics.g2d.TextureRegion
 import arc.struct.ObjectMap
 import arc.struct.Seq
@@ -17,40 +16,40 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
 
-@Language("Nashorn JS")
-const val initJS =
-"""
-"use strict";
-
-const afterInits = []
-
-function afterInit(func){ afterInits.push(func) }
-
-const formatter = (method) => new AmountFormatter(){ format: method }
-
-const TMI = Packages.rhino.NativeJavaPackage("tmi", Vars.mods.mainLoader())
-Packages.rhino.ScriptRuntime.setObjectProtoAndParent(TMI, Vars.mods.scripts.scope)
-
-importPackage(TMI)
-importPackage(TMI.recipe)
-importPackage(TMI.recipe.parser)
-importPackage(TMI.recipe.types)
-importPackage(TMI.ui)
-importPackage(TMI.designer)
-importPackage(TMI.util)
-
-const AmountFormatter = Packages.tmi.recipe.RecipeItemStack.AmountFormatter
-"""
-
-@Language("Nashorn JS")
-const val afterInit =
-"""
-afterInits.forEach(f => f())
-"""
-
 class ModAPI {
   companion object {
     private val recipeNameMap = ObjectMap<String, RecipeType>()
+
+    @Language("Nashorn JS")
+    private const val initJS =
+      """
+      "use strict";
+      
+      const afterInits = []
+      
+      function afterInit(func){ afterInits.push(func) }
+      
+      const formatter = (method) => new AmountFormatter(){ format: method }
+      
+      const TMI = Packages.rhino.NativeJavaPackage("tmi", Vars.mods.mainLoader())
+      Packages.rhino.ScriptRuntime.setObjectProtoAndParent(TMI, Vars.mods.scripts.scope)
+      
+      importPackage(TMI)
+      importPackage(TMI.recipe)
+      importPackage(TMI.recipe.parser)
+      importPackage(TMI.recipe.types)
+      importPackage(TMI.ui)
+      importPackage(TMI.designer)
+      importPackage(TMI.util)
+      
+      const AmountFormatter = Packages.tmi.recipe.RecipeItemStack.AmountFormatter
+      """
+
+    @Language("Nashorn JS")
+    private const val afterInit =
+      """
+      afterInits.forEach(f => f())
+      """
 
     @Suppress("UNCHECKED_CAST")
     fun <T: RecipeType> getRecipeType(name: String): T = recipeNameMap[name] as T
@@ -97,12 +96,14 @@ class ModAPI {
 
   @Suppress("UNCHECKED_CAST")
   private fun loadModJavaEntries(mod: LoadedMod, meta: Jval) {
-    if (!meta.has("recipeEntry")) return
+    val entryAnno = mod.main?.let { it::class.java.getAnnotation(RecipeEntryPoint::class.java) }
+    if (!meta.has("recipeEntry") && entryAnno == null) return
 
-    val entryPath = meta.getString("recipeEntry")
+    val entryClass = entryAnno?.value?.java
+      ?:mod.loader.loadClass(meta.getString("recipeEntry")) as Class<out RecipeEntry>
+
     try {
       if (mod.loader == null) mod.loader = Vars.platform.loadJar(mod.file, Vars.mods.mainLoader())
-      val entryClass = mod.loader.loadClass(entryPath) as Class<out RecipeEntry>
       val entry = entryClass.getConstructor().newInstance()
       entries.add(entry)
 
@@ -219,16 +220,17 @@ class ModAPI {
       val isDefaultEff = rawEff[0] == "default"
       val defBase = rawEff[1].toFloat()
 
-      val recipe = Recipe(getRecipeType(type))
-        .setTime(craftTime)
-        .setBlock(ownerBlock?.let { TooManyItems.itemsManager.getByName<Block>(ownerBlock) })
-        .setEff(
-          if (isDefaultEff) Recipe.getDefaultEff(defBase)
-          else Recipe.oneEff
-        )
+      val recipe = Recipe(
+        recipeType = getRecipeType(type),
+        craftTime = craftTime,
+        ownerBlock = ownerBlock?.let { TooManyItems.itemsManager.getByName<Block>(ownerBlock) }
+      ).setEff(
+        if (isDefaultEff) Recipe.getDefaultEff(defBase)
+        else Recipe.oneEff
+      )
 
       if (subInfo != null){
-        recipe.subInfoBuilder = Cons{ it.add(Core.bundle[subInfo]) }
+        recipe.setSubInfo { it.add(Core.bundle[subInfo]) }
       }
 
       if (materials != null) recipe.materials.putAll(materials.map{
@@ -263,12 +265,12 @@ class ModAPI {
         }
         .apply {
           when (amountFormat) {
-            "integer" -> setIntegerFormat(it.craftTime)
-            "float" -> setFloatFormat(it.craftTime)
-            "persecond" -> setPersecFormat()
-            "rawInt" -> setFloatFormat()
-            "rawFloat" -> setFloatFormat()
-            else -> setEmptyFormat()
+            "integer" -> integerFormat(it.craftTime)
+            "float" -> floatFormat(it.craftTime)
+            "persecond" -> persecFormat()
+            "rawInt" -> floatFormat()
+            "rawFloat" -> floatFormat()
+            else -> emptyFormat()
           }
           setEff(efficiency)
           setOptional(isOptional)

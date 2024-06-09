@@ -18,15 +18,17 @@ class VariableReactorParser : ConsumerParser<VariableReactor>() {
   }
 
   override fun parse(content: VariableReactor): Seq<Recipe> {
-    val res = Recipe(RecipeType.generator)
-      .setBlock(getWrap(content))
+    val res = Recipe(
+      recipeType = RecipeType.generator,
+      ownerBlock = getWrap(content)
+    )
 
     registerCons(res, *content.consumers)
 
     res.addProductionPersec(PowerMark, content.powerProduction)
 
     if (content.maxHeat > 0) {
-      res.addProductionRaw(HeatMark, content.maxHeat).setFloatFormat()
+      res.addProduction(HeatMark, content.maxHeat as Number).floatFormat()
     }
 
     return Seq.with(res)

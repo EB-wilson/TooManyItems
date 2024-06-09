@@ -21,9 +21,10 @@ import mindustry.graphics.Pal
 import tmi.TooManyItems
 import tmi.recipe.RecipeItemStack
 import tmi.set
+import tmi.ui.TmiUI
 import tmi.util.Consts
 
-abstract class Card(protected val ownerDesigner: DesignerView) : Table() {
+abstract class Card(val ownerDesigner: DesignerView) : Table() {
   companion object {
     private val tmp = Vec2()
 
@@ -32,14 +33,21 @@ abstract class Card(protected val ownerDesigner: DesignerView) : Table() {
 
     init {
       provs[IOCard.CLASS_ID] = Func<Reads, Card> { r ->
-        val res = IOCard(TooManyItems.schematicDesigner.currPage!!.view, TooManyItems.itemsManager.getByName<Any>(r.str()), r.bool())
+        val res = IOCard(
+          TmiUI.schematicDesigner.currPage!!.view,
+          TooManyItems.itemsManager.getByName<Any>(r.str()), r.bool()
+        )
+
         res.stack.amount = r.f()
         res
       }
 
       provs[RecipeCard.CLASS_ID] = Func<Reads, Card> { r ->
         val id = r.i()
-        RecipeCard(TooManyItems.schematicDesigner.currPage!!.view, TooManyItems.recipesManager.getByID(id))
+        RecipeCard(
+          TmiUI.schematicDesigner.currPage!!.view,
+          TooManyItems.recipesManager.getByID(id)
+        )
       }
     }
 
@@ -129,10 +137,10 @@ abstract class Card(protected val ownerDesigner: DesignerView) : Table() {
 
   fun hitLinker(x: Float, y: Float): ItemLinker? {
     for (linker in SchematicDesignerDialog.seq.clear().addAll(linkerIns).addAll(linkerOuts)) {
-      if (x > linker!!.x - linker.width/2
-        && x < linker.x + linker.width*1.5f
-        && y > linker.y - linker.height/2
-        && y < linker.y + linker.height*1.5f) {
+      if (x > linker.x
+        && x < linker.x + linker.width
+        && y > linker.y
+        && y < linker.y + linker.height) {
         return linker
       }
     }
@@ -350,6 +358,7 @@ abstract class Card(protected val ownerDesigner: DesignerView) : Table() {
     return out.set(ex, ey)
   }
 
+  abstract fun checkLinking(linker: ItemLinker): Boolean
   abstract fun copy(): Card
 
   abstract fun write(write: Writes)

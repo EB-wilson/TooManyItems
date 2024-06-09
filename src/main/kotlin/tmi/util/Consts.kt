@@ -3,9 +3,12 @@ package tmi.util
 import arc.Core
 import arc.func.Prov
 import arc.graphics.Color
+import arc.graphics.g2d.Lines
+import arc.scene.style.BaseDrawable
 import arc.scene.style.Drawable
 import arc.scene.style.TextureRegionDrawable
 import arc.scene.ui.Dialog.DialogStyle
+import arc.scene.ui.layout.Scl
 import arc.struct.Seq
 import arc.util.Tmp
 import mindustry.content.Blocks
@@ -25,6 +28,22 @@ object Consts {
   val darkGrayUI: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkestGray)) }
   val grayUIAlpha: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f)) }
   val darkGrayUIAlpha: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkestGray).a(0.7f)) }
+  val padGrayUI: Drawable by lazy {
+    val res = (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkerGray))
+    res.leftWidth = 8f
+    res.rightWidth = 8f
+    res.topHeight = 8f
+    res.bottomHeight = 8f
+    return@lazy res
+  }
+  val padDarkGrayUI: Drawable by lazy {
+    val res = (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkestGray))
+    res.leftWidth = 8f
+    res.rightWidth = 8f
+    res.topHeight = 8f
+    res.bottomHeight = 8f
+    return@lazy res
+  }
   val padGrayUIAlpha: Drawable by lazy {
     val res = (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f))
     res.leftWidth = 8f
@@ -33,6 +52,28 @@ object Consts {
     res.bottomHeight = 8f
     return@lazy res
   }
+  val padDarkGrayUIAlpha: Drawable by lazy {
+    val res = (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkestGray).a(0.7f))
+    res.leftWidth = 8f
+    res.rightWidth = 8f
+    res.topHeight = 8f
+    res.bottomHeight = 8f
+    return@lazy res
+  }
+  val leftLine by lazy { object : BaseDrawable(){
+    init {
+      leftWidth = 4f
+      rightWidth = 4f
+      topHeight = 4f
+      bottomHeight = 4f
+    }
+
+    override fun draw(x: Float, y: Float, width: Float, height: Float) {
+      val lw = Scl.scl(3f)
+      Lines.stroke(lw, Color.gray)
+      Lines.line(x + lw/2f, y + lw, x + lw/2f, y + height - lw)
+    }
+  } }
   val a_z: Drawable by lazy { Core.atlas.getDrawable("tmi-a_z") }
   val tmi: Drawable by lazy { Core.atlas.getDrawable("tmi-tmi") }
   val transparent: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Color.clear) }

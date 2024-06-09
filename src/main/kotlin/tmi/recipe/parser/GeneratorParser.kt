@@ -13,8 +13,10 @@ class GeneratorParser : ConsumerParser<PowerGenerator>() {
   }
 
   override fun parse(content: PowerGenerator): Seq<Recipe> {
-    val res = Recipe(RecipeType.generator)
-      .setBlock(getWrap(content))
+    val res = Recipe(
+      recipeType = RecipeType.generator,
+      ownerBlock = getWrap(content)
+    )
 
     registerCons(res, *content.consumers)
 

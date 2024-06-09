@@ -5,7 +5,6 @@ import arc.struct.IntMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
 import mindustry.Vars
-import mindustry.type.Item
 import mindustry.world.Block
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
@@ -110,11 +109,14 @@ class RecipesManager {
       }
 
       if (block.requirements.isNotEmpty() && block.placeablePlayer) {
-        val recipe = Recipe(RecipeType.building)
-        recipe.setBlock(TooManyItems.itemsManager.getItem(block))
-        recipe.setTime(block.buildCost)
+        val recipe = Recipe(
+          RecipeType.building,
+          TooManyItems.itemsManager.getItem(block),
+          block.buildCost
+        )
+
         for (stack in block.requirements) {
-          recipe.addMaterial(TooManyItems.itemsManager.getItem(stack.item), stack.amount)
+          recipe.addMaterialInteger(TooManyItems.itemsManager.getItem(stack.item), stack.amount)
         }
         addRecipe(recipe)
       }

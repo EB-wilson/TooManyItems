@@ -17,9 +17,10 @@ class ConsGeneratorParser : ConsumerParser<ConsumeGenerator>() {
   }
 
   override fun parse(content: ConsumeGenerator): Seq<Recipe> {
-    val res = Recipe(RecipeType.generator)
-      .setBlock(getWrap(content))
-      .setTime(content.itemDuration)
+    val res = Recipe(
+      recipeType = RecipeType.generator,
+      ownerBlock = getWrap(content)
+    )
 
     registerCons(res, *content.consumers)
 

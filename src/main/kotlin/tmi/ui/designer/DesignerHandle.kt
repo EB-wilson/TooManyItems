@@ -2,7 +2,7 @@ package tmi.ui.designer
 
 import arc.math.geom.Vec2
 import arc.util.Time
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils.IO
+import mindustry.content.Fx.v
 import tmi.recipe.EnvParameter
 import tmi.recipe.types.RecipeItem
 
@@ -31,6 +31,26 @@ abstract class TimedHandle(
 
   override fun quash() {
     timer = -maxInterval
+  }
+}
+
+class CardSizeAlignHandle(
+  ownerView: DesignerView,
+  private val isAlign: Boolean,
+  private val cards: List<Card>
+): DesignerHandle(ownerView) {
+  override fun handle() {
+    doAlign(isAlign)
+  }
+
+  override fun quash() {
+    doAlign(!isAlign)
+  }
+
+  private fun doAlign(align: Boolean){
+    for (card in cards) {
+      card.adjustSize(align)
+    }
   }
 }
 
@@ -80,9 +100,9 @@ class MoveCardHandle(
   }
 }
 
-class RemoveCardHandle(
+abstract class CardsHandle(
   ownerView: DesignerView,
-  private val removedCards: List<Card>
+  private val handleCards: List<Card>
 ): DesignerHandle(ownerView){
   data class Link(
     val card: Card,
@@ -90,14 +110,14 @@ class RemoveCardHandle(
     val linker: ItemLinker
   )
 
-  private val linkOuts = removedCards.map { removed ->
+  private val linkOuts = handleCards.map { removed ->
     removed.linkerOuts.map {
       it.item to it.links.map { link ->
         Link(link.key.parent as Card, it.item, link.key)
       }
     }.toMap()
   }
-  private val linkIns = removedCards.map { removed ->
+  private val linkIns = handleCards.map { removed ->
     removed.linkerIns.map {
       it.item to it.links.map { link ->
         Link(link.key.parent as Card, it.item, link.key)
@@ -105,13 +125,13 @@ class RemoveCardHandle(
     }.toMap()
   }
 
-  override fun handle() {
-    removedCards.forEach { ownerView.removeCard(it) }
+  fun removeAll() {
+    handleCards.forEach { ownerView.removeCard(it) }
   }
 
-  override fun quash() {
-    removedCards.forEach { ownerView.addCard(it) }
-    removedCards.forEachIndexed { index, removed ->
+  fun addAll() {
+    handleCards.forEach { ownerView.addCard(it) }
+    handleCards.forEachIndexed { index, removed ->
       for (linkOut in linkOuts[index]) removed.linkerOuts.find { it.item == linkOut.key }
         ?.apply {
           linkOut.value.forEach { link ->
@@ -129,6 +149,32 @@ class RemoveCardHandle(
           }
         }
     }
+  }
+}
+
+class RemoveCardHandle(
+  ownerView: DesignerView,
+  removeCards: List<Card>
+): CardsHandle(ownerView, removeCards){
+  override fun handle() {
+    removeAll()
+  }
+
+  override fun quash() {
+    addAll()
+  }
+}
+
+class AddCardsHandle(
+  ownerView: DesignerView,
+  addCards: List<Card>
+): CardsHandle(ownerView, addCards){
+  override fun handle() {
+    addAll()
+  }
+
+  override fun quash() {
+    removeAll()
   }
 }
 
@@ -228,8 +274,6 @@ class SetRecipeArgsHandle(
 
   val envArgs: EnvParameter = originEnvArgs.copy()
   val optionals: MutableSet<RecipeItem<*>?> = originOpts.toMutableSet()
-
-  var lock: Boolean = false
 
   override fun handle() {
     target.effScale = effScale

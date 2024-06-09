@@ -18,7 +18,6 @@ import arc.scene.Group
 import arc.scene.actions.Actions
 import arc.scene.event.*
 import arc.scene.style.Drawable
-import arc.scene.style.TextureRegionDrawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.LongMap
@@ -34,45 +33,44 @@ import arc.util.io.Writes
 import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.graphics.Pal
-import mindustry.input.Binding
-import mindustry.type.Item
 import mindustry.ui.Styles
-import mindustry.world.Block
 import tmi.TooManyItems
+import tmi.invoke
 import tmi.recipe.Recipe
 import tmi.recipe.types.RecipeItem
 import tmi.util.*
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 import kotlin.math.min
 
 class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   companion object{
-    val seq: Seq<ItemLinker> = Seq()
+    private val seq: Seq<ItemLinker> = Seq()
+    private const val SHD_REV = 2
   }
 
-  var maximumHistories = 300
   var currAlignIcon: Drawable = Icon.none
   var removeMode = false
   var cardAlign = -1
   var selectMode = false
   var editLock = false
   var isSelecting = false
+
   var newSet: Card? = null
   var selecting: ItemLinker? = null
+  val menuPos: Element = Element()
 
   val cards = Seq<Card>()
   val selects = ObjectSet<Card>()
 
   private val history = Seq<DesignerHandle>()
   private var historyIndex = 0
+  private var updatedIndex = historyIndex
 
   private val selectBegin: Vec2 = Vec2()
   private val selectEnd: Vec2 = Vec2()
 
   private var enabled: Boolean = false
-  private var shown: Boolean = false
   private var timer: Float = 0f
 
   private var lock: Boolean = false
@@ -81,11 +79,48 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   private var panX: Float = 0f
   private var panY: Float = 0f
 
-  private var _container: Group? = null
   private var zoomBar: Table? = null
 
-  val container: Group
-    get() = _container!!
+  val isUpdated
+    get() = updatedIndex != historyIndex
+  fun makeSaved(){ updatedIndex = historyIndex }
+
+  val container: Group = object : Group() {
+    override fun act(delta: Float) {
+      super.act(delta)
+
+      setPosition(panX + parent.width/2f, panY + parent.height/2f, Align.center)
+    }
+
+    override fun draw() {
+      Lines.stroke(Scl.scl(4f), Pal.gray)
+      Draw.alpha(parentAlpha)
+      val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
+
+      var offX = 0f
+      while (offX <= (Core.scene.width)/zoom.scaleX - panX) {
+        Lines.line(x + offX, -Core.scene.height/zoom.scaleY, x + offX, Core.scene.height/zoom.scaleY*2)
+        offX += gridSize
+      }
+      offX = 0f
+      while (offX >= -(Core.scene.width)/zoom.scaleX - panX) {
+        Lines.line(x + offX, -Core.scene.height/zoom.scaleY, x + offX, Core.scene.height/zoom.scaleY*2)
+        offX -= gridSize
+      }
+
+      var offY = 0f
+      while (offY <= (Core.scene.height)/zoom.scaleY - panY) {
+        Lines.line(-Core.scene.width/zoom.scaleX, y + offY, Core.scene.width/zoom.scaleX*2, y + offY)
+        offY += gridSize
+      }
+      offY = 0f
+      while (offY >= -(Core.scene.height)/zoom.scaleY - panY) {
+        Lines.line(-Core.scene.width/zoom.scaleX, y + offY, Core.scene.width/zoom.scaleX*2, y + offY)
+        offY -= gridSize
+      }
+      super.draw()
+    }
+  }
 
   val zoom: Group = object : Group() {
     init {
@@ -100,43 +135,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 
   fun build() {
-    _container = object : Group() {
-      override fun act(delta: Float) {
-        super.act(delta)
-
-        setPosition(panX + parent.width/2f, panY + parent.height/2f, Align.center)
-      }
-
-      override fun draw() {
-        Lines.stroke(Scl.scl(4f), Pal.gray)
-        Draw.alpha(parentAlpha)
-        val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
-
-        var offX = 0f
-        while (offX <= (Core.scene.width)/zoom.scaleX - panX) {
-          Lines.line(x + offX, -Core.scene.height/zoom.scaleY, x + offX, Core.scene.height/zoom.scaleY*2)
-          offX += gridSize
-        }
-        offX = 0f
-        while (offX >= -(Core.scene.width)/zoom.scaleX - panX) {
-          Lines.line(x + offX, -Core.scene.height/zoom.scaleY, x + offX, Core.scene.height/zoom.scaleY*2)
-          offX -= gridSize
-        }
-
-        var offY = 0f
-        while (offY <= (Core.scene.height)/zoom.scaleY - panY) {
-          Lines.line(-Core.scene.width/zoom.scaleX, y + offY, Core.scene.width/zoom.scaleX*2, y + offY)
-          offY += gridSize
-        }
-        offY = 0f
-        while (offY >= -(Core.scene.height)/zoom.scaleY - panY) {
-          Lines.line(-Core.scene.width/zoom.scaleX, y + offY, Core.scene.width/zoom.scaleX*2, y + offY)
-          offY -= gridSize
-        }
-        super.draw()
-      }
-    }
-
+    addChild(menuPos)
     zoom.addChild(container)
     fill { t -> t.add(zoom).grow() }
 
@@ -154,25 +153,24 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
 
     update {
-      if (Core.input.axis(Binding.move_x) > 0) {
-        panX -= 10*Time.delta/zoom.scaleX/Scl.scl()
+      val mul = 2.8f.takeIf { Core.input.keyDown(TooManyItems.binds.hotKey) }?: 1f
+      if (Core.input.keyDown(KeyCode.right)) {
+        panX -= 10*Time.delta/zoom.scaleX/Scl.scl()*mul
         clamp()
       }
-      else if (Core.input.axis(Binding.move_x) < 0) {
-        panX += 10*Time.delta/zoom.scaleX/Scl.scl()
-        clamp()
-      }
-      if (Core.input.axis(Binding.move_y) > 0) {
-        panY -= 10*Time.delta/zoom.scaleY/Scl.scl()
-        clamp()
-      }
-      else if (Core.input.axis(Binding.move_y) < 0) {
-        panY += 10*Time.delta/zoom.scaleY/Scl.scl()
+      if (Core.input.keyDown(KeyCode.left)) {
+        panX += 10*Time.delta/zoom.scaleX/Scl.scl()*mul
         clamp()
       }
 
-      if (TooManyItems.binds.undo.isTap(Core.input)) undoHistory()
-      if (TooManyItems.binds.redo.isTap(Core.input)) redoHistory()
+      if (Core.input.keyDown(KeyCode.up)) {
+        panY -= 10*Time.delta/zoom.scaleY/Scl.scl()*mul
+        clamp()
+      }
+      if (Core.input.keyDown(KeyCode.down)) {
+        panY += 10*Time.delta/zoom.scaleY/Scl.scl()*mul
+        clamp()
+      }
     }
 
     setTapListener()
@@ -218,11 +216,11 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 
   fun checkCardClip(card: Card): Boolean {
-    val v1 = container.localToStageCoordinates(vec2.set(card.x, card.y))
-    val v2 = container.localToStageCoordinates(vec3.set(card.x, card.y).add(card.width, card.height))
+    val v1 = container.localToAscendantCoordinates(this, vec2.set(card.x, card.y))
+    val v2 = container.localToAscendantCoordinates(this, vec3.set(card.x, card.y).add(card.width, card.height))
 
-    return v1.x < Core.scene.width && v2.x > Core.scene.viewport.screenX
-        && v1.y < Core.scene.height && v2.y > Core.scene.viewport.screenY
+    return v1.x < width && v2.x > x
+        && v1.y < height && v2.y > y
   }
 
   fun addCard(card: Card) {
@@ -230,8 +228,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     container.addChild(card)
   }
 
-  fun buildCard(card: Card, x: Float = Core.scene.width/2, y: Float = Core.scene.height/2) {
-    container.stageToLocalCoordinates(vec1.set(x, y))
+  fun buildCard(card: Card, x: Float = width/2, y: Float = height/2) {
+    localToDescendantCoordinates(container, vec1.set(x, y))
 
     card.build()
     card.pack()
@@ -264,16 +262,16 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       val wy = v2.y
 
       rect1.set(ox, oy, wx - ox, wy - oy)
-      if (range.contains(rect1) || (!inner && range.overlaps(rect1))) cons[card]
+      if (range.contains(rect1) || (!inner && range.overlaps(rect1))) cons(card)
     }
   }
 
-  fun eachCard(stageX: Float, stageY: Float, inner: Boolean, cons: Cons<Card>) {
-    Tmp.r1[stageX, stageY, 0f] = 0f
+  fun eachCard(x: Float, y: Float, inner: Boolean, cons: Cons<Card>) {
+    Tmp.r1.set(x, y, 0f, 0f)
     eachCard(Tmp.r1, cons, inner)
   }
 
-  fun hitCard(stageX: Float, stageY: Float, inner: Boolean): Card? {
+  fun hitCard(x: Float, y: Float, inner: Boolean): Card? {
     for (s in cards.size - 1 downTo 0) {
       val card = cards[s]
 
@@ -284,7 +282,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       val wx = v2.x
       val wy = v2.y
 
-      if (ox < stageX && stageX < wx && oy < stageY && stageY < wy) {
+      if (ox < x && x < wx && oy < y && y < wy) {
         return card
       }
     }
@@ -302,14 +300,13 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
     pushHandle(StandardizeHandle(this, offX, offY))
 
-    panX = 0f
-    panY = 0f
+    resetView()
   }
 
   fun pushHandle(handle: DesignerHandle){
     if (history.size <= historyIndex) {
       history.add(handle)
-      if (history.size > maximumHistories) history.remove(0)
+      if (history.size > parentDialog.maximumHistories) history.remove(0)
       else historyIndex++
     }
     else {
@@ -319,6 +316,9 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
     handle.handle()
   }
+
+  fun canRedo(): Boolean = historyIndex < history.size
+  fun canUndo(): Boolean = historyIndex > 0
 
   fun redoHistory() {
     if (historyIndex < history.size) {
@@ -419,17 +419,20 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     return buff
   }
 
+  fun write(write: Writes) {
+    write.i(SchematicDesignerDialog.FI_HEAD)
+    write.i(SHD_REV)
+
+    write.f(panX)
+    write.f(panY)
+    write.f(zoom.scaleX)
+
+    this.writeCards(write)
+  }
+
   fun read(read: Reads) {
-    cards.each { actor: Card? -> container.removeChild(actor) }
+    cards.each { actor -> container.removeChild(actor) }
     cards.clear()
-    panX = 0f
-    panY = 0f
-    zoom.scaleX = 1f
-    zoom.scaleY = 1f
-
-    val linkerMap = LongMap<ItemLinker>()
-
-    val links = ObjectMap<ItemLinker, Seq<Pair<Long, Float>>>()
 
     val head = read.i()
     if (head != SchematicDesignerDialog.FI_HEAD) throw IOException(
@@ -438,53 +441,25 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
     val ver = read.i()
 
-    val cardsLen = read.i()
-    for (i in 0 until cardsLen) {
-      val card: Card = Card.read(read, ver)
-      addCard(card)
-      card.build()
-      card.mul = read.i()
-      if (ver >= 1) card.effScale = read.f()
-      card.setBounds(read.f(), read.f(), read.f(), read.f())
-
-      val inputs = read.i()
-      val outputs = read.i()
-
-      for (l in 0 until inputs) {
-        val linker = readLinker(read, ver)
-        linkerMap.put(linker.id, linker)
-        card.addIn(linker)
-      }
-
-      for (l in 0 until outputs) {
-        val linker = readLinker(read, ver)
-        linkerMap.put(linker.id, linker)
-        card.addOut(linker)
-
-        val n = read.i()
-        val linkTo = Seq<Pair<Long, Float>>()
-        links.put(linker, linkTo)
-        for (i1 in 0 until n) {
-          linkTo.add(Pair(read.l(), read.f()))
-        }
-      }
+    if (ver >= 2) {
+      panX = read.f()
+      panY = read.f()
+      zoom.scaleX = read.f()
+      zoom.scaleY = zoom.scaleX
+    }
+    else {
+      panX = 0f
+      panY = 0f
+      zoom.scaleX = 1f
+      zoom.scaleY = 1f
     }
 
-    for (link in links) {
-      for (pair in link.value) {
-        val target = linkerMap[pair.first]
-        link.key.linkTo(target)
-        link.key.setPresent(target, pair.second)
-      }
-    }
+    this.readCards(read, ver)
 
     newSet = null
   }
 
-  fun write(write: Writes) {
-    write.i(SchematicDesignerDialog.FI_HEAD)
-    write.i(1)
-
+  fun writeCards(write: Writes) {
     write.i(cards.size)
     for (card in cards) {
       card!!.write(write)
@@ -515,6 +490,86 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
   }
 
+  fun readCards(
+    read: Reads,
+    ver: Int = SHD_REV
+  ) {
+    val linkerMap = LongMap<ItemLinker>()
+    val links = ObjectMap<ItemLinker, Seq<Pair<Long, Float>>>()
+
+    val cardsLen = read.i()
+    for (i in 0 until cardsLen) {
+      val card = Card.read(read, ver)
+      addCard(card)
+      card.build()
+      card.mul = read.i()
+      if (ver >= 1) card.effScale = read.f()
+      card.setBounds(read.f(), read.f(), read.f(), read.f())
+
+      val inputs = read.i()
+      val outputs = read.i()
+
+      for (l in 0 until inputs) {
+        val linker = readLinker(read, card, ver)
+        linkerMap.put(linker.id, linker)
+        card.addIn(linker)
+      }
+
+      for (l in 0 until outputs) {
+        val linker = readLinker(read, card, ver)
+        linkerMap.put(linker.id, linker)
+        card.addOut(linker)
+
+        val n = read.i()
+        val linkTo = Seq<Pair<Long, Float>>()
+        links.put(linker, linkTo)
+        for (i1 in 0 until n) {
+          linkTo.add(Pair(read.l(), read.f()))
+        }
+      }
+    }
+
+    for (link in links) {
+      for (pair in link.value) {
+        val target = linkerMap[pair.first] ?: continue
+        link.key.linkTo(target)
+        link.key.setPresent(target, pair.second)
+      }
+    }
+
+    // clean
+    for (card in cards) {
+      card.linkerIns.select { it.links.isEmpty }.forEach { it.remove() }
+    }
+  }
+
+  private fun writeLinker(write: Writes, linker: ItemLinker?) {
+    write.l(linker!!.id)
+    write.str(linker.item.name())
+    write.bool(linker.isInput)
+    write.i(linker.dir)
+    write.f(linker.expectAmount)
+
+    write.f(linker.x)
+    write.f(linker.y)
+    write.f(linker.width)
+    write.f(linker.height)
+  }
+
+  private fun readLinker(read: Reads, card: Card, ver: Int): ItemLinker {
+    val id = read.l()
+    val res = ItemLinker(
+      card,
+      TooManyItems.itemsManager.getByName<Any>(read.str()),
+      read.bool(),
+      id
+    )
+    res.dir = read.i()
+    res.expectAmount = read.f()
+    res.setBounds(read.f(), read.f(), read.f(), read.f())
+    return res
+  }
+
   override fun draw() {
     super.draw()
     if (isSelecting) {
@@ -524,56 +579,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
         selectEnd.x - selectBegin.x, selectEnd.y - selectBegin.y
       )
     }
-  }
-
-  private fun buildItems(items: Table, list: Seq<RecipeItem<*>>, callBack: Cons<RecipeItem<*>>) {
-    var i = 0
-    var reverse = false
-    var search = ""
-    var rebuild = {}
-
-    items.table { top ->
-      top.image(Icon.zoom).size(32f)
-      top.field("") { str ->
-        search = str
-        rebuild()
-      }.growX()
-
-      top.button(Icon.none, Styles.clearNonei, 36f) {
-        i = (i + 1)%TooManyItems.recipesDialog.sortings.size
-        rebuild()
-      }.margin(2f).update { b -> b.style.imageUp = TooManyItems.recipesDialog.sortings[i].icon }
-      top.button(Icon.none, Styles.clearNonei, 36f) {
-        reverse = !reverse
-        rebuild()
-      }.margin(2f).update { b -> b.style.imageUp = if (reverse) Icon.up else Icon.down }
-    }.growX()
-    items.row()
-
-    items.pane(Styles.smallPane) { cont ->
-      rebuild = {
-        cont.clearChildren()
-        var ind = 0
-
-        val sorting = TooManyItems.recipesDialog.sortings[i].sort
-        val ls: Seq<RecipeItem<*>> = list.copy()
-          .removeAll { e: RecipeItem<*> -> !e.name().contains(search) && !e.localizedName().contains(search) }
-          .sort(if (reverse) java.util.Comparator { a: RecipeItem<*>?, b: RecipeItem<*>? -> sorting.compare(b, a) } else sorting)
-
-        ls.forEach { item ->
-          if (item.locked() || (item.item is Item && Vars.state.rules.hiddenBuildItems.contains(item.item)) || item.hidden()) return@forEach
-
-          cont.button(TextureRegionDrawable(item.icon()), Styles.clearNonei, 32f) {
-            callBack[item]
-          }.margin(4f).tooltip(item.localizedName()).get()
-
-          if (ind++%8 == 7) {
-            cont.row()
-          }
-        }
-      }
-      rebuild()
-    }.padTop(6f).padBottom(4f).height(400f).fillX()
   }
 
   private fun setAreaSelectListener() {
@@ -592,7 +597,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
           var hitted = hitCard(x, y, true) != null
           if (!hitted) eachCard(x, y, false) { card ->
             if (hitted) return@eachCard
-            val v = card!!.stageToLocalCoordinates(vec1.set(x, y))
+            val v = localToDescendantCoordinates(card, vec1.set(x, y))
             hitted = hitted or (card.hitLinker(v.x, v.y) != null)
           }
 
@@ -631,13 +636,9 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
             panned = true
           }
 
-          selectEnd[x] = y
-          vec1.set(selectBegin)
-          localToStageCoordinates(vec1)
-          rect.setPosition(vec1.x, vec1.y)
-          vec1.set(selectEnd)
-          localToStageCoordinates(vec1)
-          rect.setSize(vec1.x - rect.x, vec1.y - rect.y)
+          selectEnd.set(x, y)
+          rect.setPosition(selectBegin.x, selectBegin.y)
+          rect.setSize(selectEnd.x - selectBegin.x, selectEnd.y - selectBegin.y)
 
           if (rect.width < 0) {
             rect[rect.x + rect.width, rect.y, -rect.width] = rect.height
@@ -699,13 +700,9 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       val begin: Vec2 = Vec2()
 
       override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode): Boolean {
-        if (shown) {
-          parentDialog.hideMenu()
-          shown = false
-        }
         if (!((pointer == 0 && (button == KeyCode.mouseRight || !SchematicDesignerDialog.useKeyboard())).also {
-            enabled = it
-          })) return false
+          enabled = it
+        })) return false
         timer = Time.globalTime
         begin[x] = y
         return true
@@ -716,6 +713,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
         if (enabled) {
           val selecting = hitCard(x, y, true)
           if (selecting != null) {
+            selects.clear()
             selects.add(selecting)
           }
 
@@ -727,7 +725,10 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
       override fun touchDragged(event: InputEvent, x: Float, y: Float, pointer: Int) {
         if (pointer != 0) return
-        if (Mathf.dst(x - begin.x, y - begin.y) > 12) enabled = false
+        if (Mathf.dst(x - begin.x, y - begin.y) > 12) {
+          enabled = false
+          parentDialog.hideMenu()
+        }
       }
     })
   }
@@ -773,9 +774,9 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
         other = null
 
         if (selecting != null) {
-          eachCard(x, y, false) { c: Card? ->
+          eachCard(x, y, false) { c ->
             if (other != null) return@eachCard
-            val v = c!!.stageToLocalCoordinates(vec1.set(x, y))
+            val v = localToDescendantCoordinates(c, vec1.set(x, y))
             other = c.hitLinker(v.x, v.y)
             if (other == selecting) {
             }
@@ -785,10 +786,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
           }
         }
 
-        shown = false
         isSelecting = false
         moveLock(false)
-        parentDialog.hideMenu()
       }
 
       override fun isOver(element: Element, x: Float, y: Float): Boolean {
@@ -797,157 +796,56 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     })
   }
 
-  private fun buildMenu(x: Float, y: Float) {
-    shown = true
-    val selecting = hitCard(x, y, true)
-    parentDialog.showMenu(this, Align.bottomLeft, Align.bottomLeft, false) { tab ->
-      tab.table(Consts.darkGrayUIAlpha) { menu ->
-        menu.defaults().growX().fillY().minWidth(300f)
-        if (!selects.isEmpty) {
-          menu.button(Core.bundle["misc.remove"], Icon.trash, Styles.cleart, 22f) {
-            parentDialog.hideMenu()
-            pushHandle(RemoveCardHandle(this, selects.toList()))
-            selects.clear()
-          }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-          menu.row()
+  fun buildMenu(x: Float, y: Float) {
+    menuPos.setBounds(x, y, 0f, 0f)
 
-          menu.button(Core.bundle["misc.copy"], Icon.copy, Styles.cleart, 22f) {
-            parentDialog.hideMenu()
-            parentDialog.setClipboard(*selects.map { it.copy() }.toTypedArray())
-          }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-          menu.row()
-
-          menu.button(Core.bundle["misc.paste"], Icon.paste, Styles.cleart, 22f) {
-            parentDialog.hideMenu()
-            parentDialog.getClipboard().forEach {
-              vec1.set(it.x + it.width/2 + 40, it.y + it.height/2 - 40)
-              container.localToStageCoordinates(vec1)
-              addCard(it)
-              buildCard(it, vec1.x, vec1.y)
-            }
-          }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-          menu.row()
-
-          var any = false
-          for (card in selects) {
-            if (card!!.isSizeAlign) {
-              any = true
-              break
-            }
-          }
-          val fa = any
-          menu.button(
-            Core.bundle[if (any) "dialog.calculator.unAlignSize" else "dialog.calculator.sizeAlign"],
-            if (any) Icon.diagonal else Icon.resize,
-            Styles.cleart, 22f
-          ) {
-            parentDialog.hideMenu()
-            for (card in selects) {
-              card!!.adjustSize(!fa)
-            }
-          }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-          menu.row()
-
-          menu.image().height(4f).pad(4f).padLeft(0f).padRight(0f).growX().color(Color.lightGray)
-          menu.row()
-        }
-
-        if (selecting == null) {
-          val hit = AtomicBoolean(false)
-          eachCard(x, y, false) { c: Card? ->
-            if (hit.get()) return@eachCard
-            Tmp.v1[x] = y
-            c!!.stageToLocalCoordinates(Tmp.v1)
-            val linker = c.hitLinker(Tmp.v1.x, Tmp.v1.y) ?: return@eachCard
-
-            if (linker.isInput) {
-              menu.button(Core.bundle["dialog.calculator.removeLinker"], Icon.trash, Styles.cleart, 22f) {
-                for (link in linker.links.orderedKeys()) {
-                  link!!.deLink(linker)
-                }
-                linker.remove()
-                parentDialog.hideMenu()
-              }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-              menu.row()
-              menu.button(Core.bundle["dialog.calculator.addInputAs"], Icon.download, Styles.cleart, 22f) {
-                IOCard(this, linker.item, true).also {
-                  pushHandle(AddCardHandle(this, it))
-                  buildCard(it, x, y)
-                  newSet = it
-                }
-                parentDialog.hideMenu()
-              }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-              menu.row()
-            }
-            else {
-              menu.button(Core.bundle["dialog.calculator.addOutputAs"], Icon.upload, Styles.cleart, 22f) {
-                IOCard(this, linker.item, false).also {
-                  pushHandle(AddCardHandle(this, it))
-                  buildCard(it, x, y)
-                  newSet = it
-                }
-                parentDialog.hideMenu()
-              }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-              menu.row()
-            }
-
-            menu.image().height(4f).pad(4f).padLeft(0f).padRight(0f).growX().color(Color.lightGray)
-            menu.row()
-          }
-        }
-
-        menu.button(Core.bundle["dialog.calculator.addRecipe"], Icon.book, Styles.cleart, 22f) {
-          TooManyItems.recipesDialog.toggle = Cons { r ->
-            TooManyItems.recipesDialog.hide()
-            addRecipe(r)
-
-            vec1[x] = y
-            container.stageToLocalCoordinates(vec1)
-            newSet!!.setPosition(vec1.x, vec1.y, Align.center)
-            newSet!!.gridAlign(cardAlign)
-          }
-          TooManyItems.recipesDialog.show()
-          parentDialog.hideMenu()
-        }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-        menu.row()
-
-        menu.button(Core.bundle["dialog.calculator.addInput"], Icon.download, Styles.cleart, 22f) {
-          //addCard(new IOCard(linker.item, true), x, y, true);
-          parentDialog.showMenu(this, Align.bottomLeft, Align.bottomLeft, false) { list ->
-            list.table(Consts.darkGrayUIAlpha) { items ->
-              val l = TooManyItems.itemsManager.list.removeAll { e -> !TooManyItems.recipesManager.anyMaterial(e) || e.item is Block }
-              buildItems(items, l) { item ->
-                IOCard(this, item, true).also {
-                  pushHandle(AddCardHandle(this, it))
-                  buildCard(it, x, y)
-                  newSet = it
-                }
-                parentDialog.hideMenu()
-              }
-            }.update { t -> align(x, y, list, t) }.margin(8f)
-          }
-        }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-        menu.row()
-        menu.button(Core.bundle["dialog.calculator.addOutput"], Icon.upload, Styles.cleart, 22f) {
-          //addCard(new IOCard(linker.item, false), x, y, true);
-          parentDialog.showMenu(this, Align.bottomLeft, Align.bottomLeft, false) { list ->
-            list.table(Consts.darkGrayUIAlpha) { items ->
-              val l = TooManyItems.itemsManager.list.removeAll { e -> !TooManyItems.recipesManager.anyProduction(e) || e.item is Block }
-              buildItems(items, l) { item ->
-                IOCard(this, item, false).also {
-                  pushHandle(AddCardHandle(this, it))
-                  buildCard(it, x, y)
-                  newSet = it
-                }
-                parentDialog.hideMenu()
-              }
-            }.update { t -> align(x, y, list, t) }.margin(8f)
-          }
-        }.margin(12f).get().labelCell.padLeft(6f).get().setAlignment(Align.left)
-        menu.row()
-      }.update { t -> align(x, y, tab, t) }
-      tab.setSize(width, height)
+    var linker: ItemLinker? = null
+    eachCard(x, y, false) { c ->
+      if (linker != null) return@eachCard
+      vec1.set(x, y)
+      localToDescendantCoordinates(c, vec1)
+      linker = c.hitLinker(vec1.x, vec1.y)
     }
+    val selecting = linker?:hitCard(x, y, true)
+
+    parentDialog.showMenu(menuPos, Align.topLeft, Align.topLeft, true) { menu ->
+      menu.table(Consts.padDarkGrayUIAlpha) { m ->
+        m.defaults().growX().fillY().minWidth(300f)
+
+        val map = linkedMapOf<String, Seq<ViewTab>>()
+        parentDialog.viewMenuTabs.select {
+          it.filter.run { parentDialog.accept(x, y, this@DesignerView, selecting) }
+        }.forEach { map.computeIfAbsent(it.group){ Seq<ViewTab>() }.add(it) }
+
+        var first = true
+        map.values.forEach { group ->
+          if (!first) m.image().height(2f).pad(4f).padLeft(0f).padRight(0f).growX().color(Color.lightGray).row()
+          first = false
+
+          group.forEach { tab ->
+            m.button(tab.title, tab.icon, Styles.cleart, 14f) {
+              tab.clicked.run { parentDialog.accept(x, y, this@DesignerView, selecting) }
+            }.margin(8f).get().apply {
+              labelCell.padLeft(6f).get().setAlignment(Align.left)
+              if (!tab.valid.run { parentDialog.accept(x, y, this@DesignerView, selecting) }) {
+                isDisabled = true
+                fill { x, y, w, h ->
+                  Consts.grayUIAlpha.draw(x, y, w, h)
+                }
+              }
+            }
+            m.row()
+          }
+        }
+      }
+    }
+  }
+
+  fun resetView() {
+    panX = 0f
+    panY = 0f
+    zoom.scaleX = 1f
+    zoom.scaleY = 1f
   }
 
   private fun clamp() {
@@ -973,42 +871,16 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   private fun checkNorm(inner: Boolean, card: Card): Pair<Vec2, Vec2> {
     if (inner) vec2.set(card.child.x, card.child.y).add(card.x, card.y)
     else vec2[card.x] = card.y
-    card.parent.localToStageCoordinates(vec2)
 
     if (inner) vec3.set(card.child.x + card.child.width, card.child.y + card.child.height).add(
       card.x, card.y
     )
     else vec3[card.x + card.width] = card.y + card.height
-    card.parent.localToStageCoordinates(vec3)
+
+    card.parent.localToAscendantCoordinates(this, vec2)
+    card.parent.localToAscendantCoordinates(this, vec3)
 
     return vec2 to vec3
-  }
-
-  private fun writeLinker(write: Writes, linker: ItemLinker?) {
-    write.l(linker!!.id)
-    write.str(linker.item.name())
-    write.bool(linker.isInput)
-    write.i(linker.dir)
-    write.f(linker.expectAmount)
-
-    write.f(linker.x)
-    write.f(linker.y)
-    write.f(linker.width)
-    write.f(linker.height)
-  }
-
-  private fun readLinker(read: Reads, ver: Int): ItemLinker {
-    val id = read.l()
-    val res = ItemLinker(
-      this,
-      TooManyItems.itemsManager.getByName<Any>(read.str()),
-      read.bool(),
-      id
-    )
-    res.dir = read.i()
-    res.expectAmount = read.f()
-    res.setBounds(read.f(), read.f(), read.f(), read.f())
-    return res
   }
 
   private fun normBound(): Pair<Vec2, Vec2> {
@@ -1023,13 +895,28 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
     return Pair(v1, v2)
   }
+}
 
-  private fun align(x: Float, y: Float, tab: Table, t: Table) {
-    var align = if (x + t.width > tab.width) Align.right else Align.left
+data class ViewTab(
+  val title: String,
+  val icon: Drawable,
+  val clicked: ViewAcceptor<Unit>,
+  val filter: ViewAcceptor<Boolean> = ViewAcceptor { _, _, _, _ -> true },
+  val valid: ViewAcceptor<Boolean> = ViewAcceptor { _, _, _, _ -> true },
+  val group: String = "normal",
+)
 
-    align = if (y - t.height < 0) align or Align.bottom
-    else align or Align.top
+fun interface ViewAcceptor<R>{
+  fun SchematicDesignerDialog.accept(
+    x: Float, y: Float,
+    view: DesignerView,
+    hitTarget: Any?
+  ): R
 
-    t.setPosition(x, y, align)
-  }
+  operator fun invoke(
+    dialog: SchematicDesignerDialog,
+    x: Float, y: Float,
+    view: DesignerView,
+    hitTarget: Any?
+  ): R = dialog.accept(x, y, view, hitTarget)
 }

@@ -14,12 +14,14 @@ class ReconstructorParser : ConsumerParser<Reconstructor>() {
   override fun parse(content: Reconstructor): Seq<Recipe> {
     val res = Seq<Recipe>()
     for (upgrade in content.upgrades) {
-      val recipe = Recipe(RecipeType.factory)
-        .setBlock(getWrap(content))
-        .setTime(content.constructTime)
+      val recipe = Recipe(
+        recipeType = RecipeType.factory,
+        ownerBlock = getWrap(content),
+        craftTime = content.constructTime,
+      )
 
-      recipe.addMaterial(getWrap(upgrade[0]), 1).setAltPersecFormat()
-      recipe.addProduction(getWrap(upgrade[1]), 1).setAltPersecFormat()
+      recipe.addMaterialInteger(getWrap(upgrade[0]), 1)
+      recipe.addProductionInteger(getWrap(upgrade[1]), 1)
 
       registerCons(recipe, *content.consumers)
 

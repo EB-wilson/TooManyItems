@@ -15,14 +15,16 @@ class UnitFactoryParser : ConsumerParser<UnitFactory>() {
     val res = Seq<Recipe>()
 
     for (plan in content.plans) {
-      val recipe = Recipe(RecipeType.factory)
-        .setBlock(getWrap(content))
-        .setTime(plan.time)
+      val recipe = Recipe(
+        recipeType = RecipeType.factory,
+        ownerBlock = getWrap(content),
+        craftTime = plan.time
+      )
 
-      recipe.addProduction(getWrap(plan.unit), 1).setAltPersecFormat()
+      recipe.addProductionInteger(getWrap(plan.unit), 1)
 
       for (stack in plan.requirements) {
-        recipe.addMaterial(getWrap(stack.item), stack.amount).setAltPersecFormat()
+        recipe.addMaterialInteger(getWrap(stack.item), stack.amount)
       }
 
       registerCons(recipe, *content.consumers)

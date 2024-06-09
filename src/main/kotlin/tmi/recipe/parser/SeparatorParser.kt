@@ -7,8 +7,6 @@ import mindustry.world.Block
 import mindustry.world.blocks.production.*
 import mindustry.world.meta.StatUnit
 import tmi.recipe.Recipe
-import tmi.recipe.RecipeItemStack
-import tmi.recipe.RecipeItemStack.AmountFormatter
 import tmi.recipe.RecipeType
 
 class SeparatorParser : ConsumerParser<Separator>() {
@@ -17,9 +15,11 @@ class SeparatorParser : ConsumerParser<Separator>() {
   }
 
   override fun parse(content: Separator): Seq<Recipe> {
-    val res = Recipe(RecipeType.factory)
-      .setBlock(getWrap(content))
-      .setTime(content.craftTime)
+    val res = Recipe(
+      recipeType = RecipeType.factory,
+      ownerBlock = getWrap(content),
+      craftTime = content.craftTime
+    )
 
     registerCons(res, *content.consumers)
 
@@ -28,9 +28,9 @@ class SeparatorParser : ConsumerParser<Separator>() {
       n += stack.amount.toFloat()
     }
     for (item in content.results) {
-      res.addProduction(getWrap(item.item), item.amount/n)
+      res.addProduction(getWrap(item.item), (item.amount/n/content.craftTime) as Number)
         .setFormat { f -> Mathf.round(f*100*res.craftTime).toString() + "%" }
-        .alternativeFormat = AmountFormatter{ f -> Strings.autoFixed(f*60, 1) + StatUnit.perSecond.localized() }
+        .setAltFormat { f -> Strings.autoFixed(f*60, 1) + StatUnit.perSecond.localized() }
     }
 
     return Seq.with(res)

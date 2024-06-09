@@ -17,27 +17,30 @@ class HeatCrafterParser : ConsumerParser<HeatCrafter>() {
   }
 
   override fun parse(content: HeatCrafter): Seq<Recipe> {
-    val res = Recipe(RecipeType.factory)
-      .setBlock(getWrap(content))
-      .setTime(content.craftTime)
+    val res = Recipe(
+      recipeType = RecipeType.factory,
+      ownerBlock = getWrap(content),
+      craftTime = content.craftTime,
+    )
 
-    res.addMaterialRaw(HeatMark, content.heatRequirement).setFloatFormat()
+    res.addMaterial(HeatMark, content.heatRequirement as Number).floatFormat()
 
     registerCons(res, *content.consumers)
 
     if (content.outputItems == null) {
-      if (content.outputItem != null) res.addProduction(getWrap(content.outputItem.item), content.outputItem.amount).setAltPersecFormat()
+      if (content.outputItem != null) res.addProductionInteger(
+        getWrap(content.outputItem.item), content.outputItem.amount
+      )
     }
     else {
       for (item in content.outputItems) {
-        res.addProduction(getWrap(item.item), item.amount).setAltPersecFormat()
+        res.addProductionInteger(getWrap(item.item), item.amount)
       }
     }
 
     if (content.outputLiquids == null) {
       if (content.outputLiquid != null) res.addProductionPersec(
-        getWrap(content.outputLiquid.liquid),
-        content.outputLiquid.amount
+        getWrap(content.outputLiquid.liquid), content.outputLiquid.amount
       )
     }
     else {

@@ -5,16 +5,25 @@ import arc.math.Mathf
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectFloatMap
 import arc.struct.OrderedMap
-import sun.misc.Unsafe
+import mindustry.world.Block
+import tmi.invoke
 import tmi.recipe.types.RecipeItem
 import tmi.set
 import java.util.*
 import kotlin.math.max
 
-/**配方信息的存储类，该类的每一个实例都表示为一个单独的配方，用于显示配方或者计算生产数据 */
-class Recipe(
+/**配方信息的存储类，该类的每一个实例都表示为一个单独的配方，用于显示配方或者计算生产数据
+ *
+ * @param recipeType [Recipe.recipeType]
+ * @param ownerBlock [Recipe.ownerBlock]
+ * @param craftTime [Recipe.craftTime]*/
+class Recipe @JvmOverloads constructor(
   /**该配方的类型，请参阅[RecipeType] */
-  val recipeType: RecipeType
+  val recipeType: RecipeType,
+  /**该配方从属的方块（可以是执行者/建造目标），具体含义取决于配方的类型*/
+  val ownerBlock: RecipeItem<*>? = null,
+  /**配方的标准耗时，具体来说即该配方在100%的工作效率下执行一次生产的耗时，任意小于0的数字都被认为生产过程是连续的*/ //meta
+  val craftTime: Float = -1f,
 ) {
   companion object {
     /**@see Recipe.getDefaultEff
@@ -98,10 +107,6 @@ class Recipe(
     }
   }
 
-  /**配方的标准耗时，具体来说即该配方在100%的工作效率下执行一次生产的耗时，任意小于0的数字都被认为生产过程是连续的 */ //meta
-  var craftTime = -1f
-    private set
-
   val productions = OrderedMap<RecipeItem<*>, RecipeItemStack>()
   val materials = OrderedMap<RecipeItem<*>, RecipeItemStack>()
 
@@ -109,11 +114,9 @@ class Recipe(
   /**配方的效率计算函数，用于给定一个输入环境参数和配方数据，计算出该配方在这个输入环境下的工作效率 */
   var efficiencyFunc = oneEff
     private set
-  var ownerBlock: RecipeItem<*>? = null
-    private set
-
 
   var subInfoBuilder: Cons<Table>? = null
+    private set
 
   /**用配方当前使用的效率计算器计算该配方在给定的环境参数下的运行效率 */
   @JvmOverloads
@@ -125,97 +128,101 @@ class Recipe(
     return efficiencyFunc.calculateMultiple(this, parameter)
   }
 
+  @Deprecated("Block must be provided val in constructor", replaceWith = ReplaceWith("constructor parameter"))
+  fun setBlock(block: RecipeItem<*>?): Recipe = this
+  @Deprecated("Time must be provided val in constructor", replaceWith = ReplaceWith("constructor parameter"))
+  fun setTime(time: Float): Recipe = this
+
+  fun setEff(func: EffFunc) = this.also { efficiencyFunc = func }
+  fun setSubInfo(builder: Cons<Table>) = this.also { subInfoBuilder = builder }
+  fun prependSubInfo(appendBuilder: Cons<Table>) = this.also {
+    val last = subInfoBuilder
+    subInfoBuilder = Cons{
+      appendBuilder(it)
+      last?.get(it)
+    }
+  }
+  fun appendSubInfo(appendBuilder: Cons<Table>) = this.also {
+    val last = subInfoBuilder
+    subInfoBuilder = Cons{
+      last?.get(it)
+      appendBuilder(it)
+    }
+  }
+
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterialFloat(item, amount)"))
+  fun addMaterial(item: RecipeItem<*>, amount: Float) = addMaterialFloat(item, amount)
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterialInt(item, amount)"))
+  fun addMaterial(item: RecipeItem<*>, amount: Int) = addMaterialInteger(item, amount)
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterial(item, amount)"))
+  fun addMaterialRaw(item: RecipeItem<*>, amount: Float) = addMaterial(item, amount as Number)
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProductionFloat(item, amount)"))
+  fun addProduction(item: RecipeItem<*>, amount: Float) = addProductionFloat(item, amount)
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProductionInteger(item, amount)"))
+  fun addProduction(item: RecipeItem<*>, amount: Int) = addProductionInteger(item, amount)
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProduction(item, amount)"))
+  fun addProductionRaw(item: RecipeItem<*>, amount: Float) = addProduction(item, amount as Number)
+
+  fun addMaterial(item: RecipeItem<*>, amount: Number) =
+    RecipeItemStack(item, amount.toFloat()).also { materials.put(item, it) }
+  fun addProduction(item: RecipeItem<*>, amount: Number) =
+    RecipeItemStack(item, amount.toFloat()).also { productions.put(item, it) }
+
   //utils
-  fun addMaterial(item: RecipeItem<*>, amount: Int): RecipeItemStack {
-    val res = if (craftTime > 0) RecipeItemStack(item, amount/craftTime).setIntegerFormat(craftTime)
+  fun addMaterialInteger(item: RecipeItem<*>, amount: Int) =
+    (if (craftTime > 0) RecipeItemStack(item, amount/craftTime).integerFormat(craftTime)
     else RecipeItemStack(
       item,
       amount.toFloat()
-    ).setIntegerFormat()
+    ).integerFormat()).also {
+      it.setAltFormat(AmountFormatter.persecFormatter())
+      materials.put(item, it)
+    }
 
-    materials.put(item, res)
-    return res
-  }
-
-  fun addMaterial(item: RecipeItem<*>, amount: Float): RecipeItemStack {
-    val res = if (craftTime > 0) RecipeItemStack(item, amount/craftTime).setFloatFormat(craftTime)
+  fun addMaterialFloat(item: RecipeItem<*>, amount: Float) =
+    (if (craftTime > 0) RecipeItemStack(item, amount/craftTime).floatFormat(craftTime)
     else RecipeItemStack(
       item,
       amount
-    ).setFloatFormat()
+    ).floatFormat()).also {
+      it.setAltFormat(AmountFormatter.persecFormatter())
+      materials.put(item, it)
+    }
 
-    materials.put(item, res)
-    return res
-  }
+  fun addMaterialPersec(item: RecipeItem<*>, persec: Float) =
+    RecipeItemStack(item, persec).persecFormat().also {
+      if (craftTime > 0) it.setAltFormat(AmountFormatter.floatFormatter(craftTime))
+      materials.put(item, it)
+    }
 
-  fun addMaterialPersec(item: RecipeItem<*>, persec: Float): RecipeItemStack {
-    val res = RecipeItemStack(item, persec).setPersecFormat()
-    materials.put(item, res)
-    return res
-  }
-
-  fun addMaterialRaw(item: RecipeItem<*>, amount: Float): RecipeItemStack {
-    val res = RecipeItemStack(item, amount)
-    materials.put(item, res)
-    return res
-  }
-
-  fun addProduction(item: RecipeItem<*>, amount: Int): RecipeItemStack {
-    val res = if (craftTime > 0) RecipeItemStack(item, amount/craftTime).setIntegerFormat(craftTime)
+  fun addProductionInteger(item: RecipeItem<*>, amount: Int) =
+    (if (craftTime > 0) RecipeItemStack(item, amount/craftTime).integerFormat(craftTime)
     else RecipeItemStack(
       item,
       amount.toFloat()
-    ).setIntegerFormat()
+    ).integerFormat()).also {
+      it.setAltFormat(AmountFormatter.persecFormatter())
+      productions.put(item, it)
+    }
 
-    productions.put(item, res)
-    return res
-  }
-
-  fun addProduction(item: RecipeItem<*>, amount: Float): RecipeItemStack {
-    val res = if (craftTime > 0) RecipeItemStack(item, amount/craftTime).setFloatFormat(craftTime)
+  fun addProductionFloat(item: RecipeItem<*>, amount: Float) =
+    (if (craftTime > 0) RecipeItemStack(item, amount/craftTime).floatFormat(craftTime)
     else RecipeItemStack(
       item,
       amount
-    ).setFloatFormat()
+    ).floatFormat()).also {
+      it.setAltFormat(AmountFormatter.persecFormatter())
+      productions.put(item, it)
+    }
 
-    productions.put(item, res)
-    return res
-  }
+  fun addProductionPersec(item: RecipeItem<*>, perSec: Float) =
+    RecipeItemStack(item, perSec).persecFormat().also {
+      if (craftTime > 0) it.setAltFormat(AmountFormatter.floatFormatter(craftTime))
+      productions.put(item, it)
+    }
 
-  fun addProductionPersec(item: RecipeItem<*>, preSeq: Float): RecipeItemStack {
-    val res = RecipeItemStack(item, preSeq).setPersecFormat()
-    productions.put(item, res)
-    return res
-  }
-
-  fun addProductionRaw(item: RecipeItem<*>, amount: Float): RecipeItemStack {
-    val res = RecipeItemStack(item, amount)
-    productions.put(item, res)
-    return res
-  }
-
-  fun setBlock(block: RecipeItem<*>?): Recipe {
-    this.ownerBlock = block
-    return this
-  }
-
-  fun setTime(time: Float): Recipe {
-    this.craftTime = time
-    return this
-  }
-
-  fun setEff(func: EffFunc): Recipe {
-    efficiencyFunc = func
-    return this
-  }
-
-  fun containsProduction(production: RecipeItem<*>): Boolean {
-    return productions.containsKey(production)
-  }
-
-  fun containsMaterial(material: RecipeItem<*>?): Boolean {
-    return materials.containsKey(material)
-  }
+  fun containsProduction(production: RecipeItem<*>) = productions.containsKey(production)
+  fun containsMaterial(material: RecipeItem<*>?) = materials.containsKey(material)
 
   override fun equals(other: Any?): Boolean {
     if (this === other) return true

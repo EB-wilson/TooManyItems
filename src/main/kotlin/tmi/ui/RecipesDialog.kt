@@ -109,12 +109,27 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     }
   )
 
-  var recipesTable: Table? = null
-  var contentsTable: Table? = null
-  var sortingTab: Table? = null
-  var modeTab: Table? = null
-  var currZoom: Table? = null
-  var currView: RecipeView? = null
+  var recipeMode: Mode?
+    get() = _currentMode
+    set(mode) {
+      run {
+        if (mode == _currentMode) return
+        val oldMode = _currentMode
+
+        _currentMode = mode
+        if (!buildRecipes()) {
+          _currentMode = oldMode
+        }
+      }
+    }
+  var toggle: Cons<Recipe>? = null
+
+  private var recipesTable: Table? = null
+  private var contentsTable: Table? = null
+  private var sortingTab: Table? = null
+  private var modeTab: Table? = null
+  private var currZoom: Table? = null
+  private var currView: RecipeView? = null
 
   private var _currentSelect: RecipeItem<*>? = null
   var currentSelect: RecipeItem<*>?
@@ -130,48 +145,33 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       }
     }
   private var _currentMode: Mode? = null
-  var recipeMode: Mode?
-    get() = _currentMode
-    set(mode) {
-      run {
-        if (mode == _currentMode) return
-        val oldMode = _currentMode
 
-        _currentMode = mode
-        if (!buildRecipes()) {
-          _currentMode = oldMode
-        }
-      }
-    }
+  private var sorting = sortings.first()
+  private val ucSeq = Seq<RecipeItem<*>>()
 
-  var sorting: Sorting = sortings.first()
+  private var locked = false
+  private var contentSearch = ""
+  private var reverse = false
+  private var total = 0
+  private var fold = 0
+  private var pageItems = 0
 
-  var locked = false
-  var contentSearch = ""
-  var reverse = false
-  var total = 0
-  var fold = 0
-  var recipeIndex = 0
-  var itemPages = 0
-  var pageItems = 0
-  var currPage = 0
+  private var recipeIndex = 0
+  private var itemPages = 0
+  private var currPage = 0
 
-  var lastZoom = -1f
+  private var lastZoom = -1f
 
-  val ucSeq = Seq<RecipeItem<*>>()
-
-  var contentsRebuild = {}
-  var refreshSeq = {}
-  var rebuildRecipe = {}
-
-  var toggle: Cons<Recipe>? = null
+  private var contentsRebuild = {}
+  private var refreshSeq = {}
+  private var rebuildRecipe = {}
 
   fun build(){
     addCloseButton()
 
     //TODO: not usable yet
     if (Core.settings.getBool("tmi_enable_preview")) buttons.button(Core.bundle["dialog.recipes.designer"], Icon.book) {
-      TooManyItems.schematicDesigner.show()
+      TmiUI.schematicDesigner.show()
       hide()
     }
 
@@ -299,7 +299,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     }.padBottom(12f).growX()
     contentsTable!!.row()
     contentsTable!!.table { t ->
-      refreshSeq = run@{
+      refreshSeq = {
         fold = 0
         total = 0
         ucSeq.clear()
@@ -310,67 +310,69 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
             if(!item.localizedName().lowercase(Locale.getDefault()).contains(contentSearch)
             && !item.name().lowercase(Locale.getDefault()).contains(contentSearch)) {
               fold++
-              return@run
+              return@forEach
             }
             ucSeq.add(item)
           }
         }
 
-        if (reverse) ucSeq.sort { a: RecipeItem<*>?, b: RecipeItem<*>? -> sorting.sort.compare(b, a) }
+        if (reverse) ucSeq.sort { a, b -> sorting.sort.compare(b, a) }
         else ucSeq.sort(sorting.sort)
         contentsRebuild()
       }
-      contentsRebuild = if (isScroll) {{
-        val width = t.width
-        val num = (width/Scl.scl(60f)).toInt()
-        t.clearChildren()
-        t.pane { pane ->
-          pane.left().top().defaults().size(60f, 90f)
-          for (i in 0 until ucSeq.size) {
-            val content = ucSeq[i]
-            buildItem(pane, content)
+      contentsRebuild = {
+        if (isScroll) {
+          val width = t.width
+          val num = (width/Scl.scl(60f)).toInt()
+          t.clearChildren()
+          t.pane { pane ->
+            pane.left().top().defaults().size(60f, 90f)
+            for (i in 0 until ucSeq.size) {
+              val content = ucSeq[i]
+              buildItem(pane, content)
 
-            if ((i + 1)%num == 0) {
-              pane.row()
+              if ((i + 1)%num == 0) {
+                pane.row()
+              }
+            }
+          }.grow()
+        }
+        else {
+          val width = t.width
+          val height = t.height
+          t.clearChildren()
+          t.left().top().defaults().size(60f, 90f)
+
+          val xn = (width/Scl.scl(60f)).toInt()
+          val yn = (height/Scl.scl(90f)).toInt()
+
+          pageItems = xn*yn
+          itemPages = Mathf.ceil(ucSeq.size.toFloat()/pageItems)
+
+          var curX = 0
+
+          if (currPage < 0) {
+            val index = ucSeq.indexOf(currentSelect)
+            currPage = index/pageItems
+          }
+
+          currPage = Mathf.clamp(currPage, 0, itemPages - 1)
+          val from = currPage*pageItems
+          val to = currPage*pageItems + pageItems
+          for (i in from until to) {
+            if (i >= ucSeq.size) break
+
+            val content = ucSeq[i]
+            buildItem(t, content)
+
+            curX++
+            if (curX >= xn) {
+              t.row()
+              curX = 0
             }
           }
-        }.grow()
-      }}
-      else {{
-        val width = t.width
-        val height = t.height
-        t.clearChildren()
-        t.left().top().defaults().size(60f, 90f)
-
-        val xn = (width/Scl.scl(60f)).toInt()
-        val yn = (height/Scl.scl(90f)).toInt()
-
-        pageItems = xn*yn
-        itemPages = Mathf.ceil(ucSeq.size.toFloat()/pageItems)
-
-        var curX = 0
-
-        if (currPage < 0) {
-          val index = ucSeq.indexOf(currentSelect)
-          currPage = index/pageItems
         }
-
-        currPage = Mathf.clamp(currPage, 0, itemPages - 1)
-        val from = currPage*pageItems
-        val to = currPage*pageItems + pageItems
-        for (i in from until to) {
-          if (i >= ucSeq.size) break
-
-          val content = ucSeq[i]
-          buildItem(t, content)
-
-          curX++
-          if (curX >= xn) {
-            t.row()
-            curX = 0
-          }
-        }
-      }}
+      }
     }.grow().pad(0f)
 
     if (!isScroll) {
@@ -779,7 +781,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
             touched = false
             if (Time.globalTime - time < 12) {
               if (!Vars.mobile || Core.settings.getBool("keyboard")) {
-                TooManyItems.recipesDialog.setCurrSelecting(
+                TmiUI.recipesDialog.setCurrSelecting(
                   content,
                   if (button == KeyCode.mouseRight)
                     if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) FACTORY
@@ -789,7 +791,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
               }
               else {
                 clicked++
-                TooManyItems.recipesDialog.setCurrSelecting(
+                TmiUI.recipesDialog.setCurrSelecting(
                   content,
                   if (clicked%2 == 0)
                     if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) FACTORY

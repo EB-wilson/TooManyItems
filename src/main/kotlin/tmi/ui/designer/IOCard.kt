@@ -17,17 +17,21 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.util.Consts
 
-class IOCard(ownerDesigner: DesignerView, item: RecipeItem<*>, val isInput: Boolean) : Card(ownerDesigner) {
-  val stack: RecipeItemStack = RecipeItemStack(item, 0f).setPersecFormat()
+class IOCard(
+  ownerDesigner: DesignerView,
+  item: RecipeItem<*>,
+  val isInput: Boolean
+) : Card(ownerDesigner) {
+  val stack: RecipeItemStack = RecipeItemStack(item, 0f).persecFormat()
 
   private var setIOHandle: SetIOHandle? = null
 
   private val itr = Iterable {
     object : Iterator<RecipeItemStack> {
-      var has: Boolean = false
+      var has: Boolean = true
 
       override fun hasNext(): Boolean {
-        return !has.also { has = it }
+        return has.also { has = !it }
       }
 
       override fun next(): RecipeItemStack {
@@ -116,7 +120,7 @@ class IOCard(ownerDesigner: DesignerView, item: RecipeItem<*>, val isInput: Bool
   override fun buildLinker() {
     if (!isInput) return
 
-    addOut(ItemLinker(ownerDesigner, stack.item, false))
+    addOut(ItemLinker(this, stack.item, false))
 
     Core.app.post {
       val linker = linkerOuts[0]!!
@@ -152,6 +156,10 @@ class IOCard(ownerDesigner: DesignerView, item: RecipeItem<*>, val isInput: Bool
         balanceAmount = -1
       }
     }
+  }
+
+  override fun checkLinking(linker: ItemLinker): Boolean {
+    return !isInput && linker.item == stack.item
   }
 
   override fun copy(): IOCard {

@@ -3,15 +3,24 @@ package tmi
 import arc.Core
 import arc.Events
 import arc.func.*
-import arc.struct.IntMap
-import arc.struct.ObjectFloatMap
-import arc.struct.ObjectIntMap
-import arc.struct.ObjectMap
+import arc.scene.event.ClickListener.clicked
+import arc.scene.style.TextureRegionDrawable
+import arc.scene.ui.layout.Table
+import arc.struct.*
+import arc.util.Align
 import arc.util.Time
 import mindustry.Vars
+import mindustry.content.Blocks.container
+import mindustry.content.Fx.v
 import mindustry.content.Items
 import mindustry.game.EventType.ClientLoadEvent
+import mindustry.gen.Icon
 import mindustry.mod.Mod
+import mindustry.type.Item
+import mindustry.ui.Fonts.icon
+import mindustry.ui.Styles
+import mindustry.world.Block
+import mindustry.world.meta.Env.any
 import rhino.ScriptRuntime
 import tmi.TooManyItems.Companion.api
 import tmi.TooManyItems.Companion.binds
@@ -20,12 +29,17 @@ import tmi.recipe.RecipeItemManager
 import tmi.recipe.RecipeType
 import tmi.recipe.RecipesManager
 import tmi.recipe.parser.*
-import tmi.ui.BatchBalanceDialog
+import tmi.recipe.types.RecipeItem
 import tmi.ui.Cursor
 import tmi.ui.EntryAssigner
 import tmi.ui.RecipesDialog
-import tmi.ui.designer.SchematicDesignerDialog
+import tmi.ui.TmiUI
+import tmi.ui.TmiUI.recipesDialog
+import tmi.ui.TmiUI.schematicDesigner
+import tmi.ui.designer.*
+import tmi.util.Consts
 import tmi.util.KeyBinds
+import tmi.util.vec1
 
 class TooManyItems : Mod() {
   companion object {
@@ -37,13 +51,6 @@ class TooManyItems : Mod() {
     var api: ModAPI = ModAPI()
     @JvmField
     val binds = KeyBinds()
-
-    @JvmStatic
-    val recipesDialog by lazy { RecipesDialog() }
-    @JvmStatic
-    val schematicDesigner by lazy { SchematicDesignerDialog() }
-    @JvmStatic
-    val batchBalance by lazy { BatchBalanceDialog() }
   }
 
   init {
@@ -92,8 +99,7 @@ class TooManyItems : Mod() {
 
     recipesManager.init()
 
-    recipesDialog.build()
-    schematicDesigner.build()
+    TmiUI.init()
   }
 }
 
