@@ -10,7 +10,7 @@ import tmi.recipe.Recipe
 import tmi.recipe.Recipe.Companion.getDefaultEff
 import tmi.recipe.RecipeType
 
-class FrackerParser : ConsumerParser<Fracker>() {
+open class FrackerParser : ConsumerParser<Fracker>() {
   init {
     excludes.add(PumpParser::class.java)
     excludes.add(SolidPumpParser::class.java)

@@ -4,5 +4,5 @@ import arc.graphics.g2d.TextureRegion
 import mindustry.gen.Icon
 
 object HeatMark: SingleItemMark("heat-mark") {
-  override fun icon(): TextureRegion = Icon.waves.region
+  override val icon: TextureRegion get() = Icon.waves.region
 }

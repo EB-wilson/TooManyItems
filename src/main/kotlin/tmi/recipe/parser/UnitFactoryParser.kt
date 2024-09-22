@@ -6,7 +6,7 @@ import mindustry.world.blocks.units.UnitFactory
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 
-class UnitFactoryParser : ConsumerParser<UnitFactory>() {
+open class UnitFactoryParser : ConsumerParser<UnitFactory>() {
   override fun isTarget(content: Block): Boolean {
     return content is UnitFactory
   }

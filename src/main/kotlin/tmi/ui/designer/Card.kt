@@ -10,54 +10,64 @@ import arc.math.Mathf
 import arc.math.geom.Vec2
 import arc.scene.Element
 import arc.scene.event.*
+import arc.scene.style.Drawable
+import arc.scene.ui.layout.Cell
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.IntMap
+import arc.struct.ObjectSet
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.graphics.Pal
 import tmi.TooManyItems
+import tmi.f
 import tmi.recipe.RecipeItemStack
+import tmi.recipe.types.RecipeItem
 import tmi.set
 import tmi.ui.TmiUI
 import tmi.util.Consts
+import tmi.util.vec1
 
 abstract class Card(val ownerDesigner: DesignerView) : Table() {
   companion object {
     private val tmp = Vec2()
 
     @JvmStatic
-    protected val provs: IntMap<Func<Reads, Card>> = IntMap()
+    protected val provs: IntMap<Func2<Reads, Int, Card>> = IntMap()
 
     init {
-      provs[IOCard.CLASS_ID] = Func<Reads, Card> { r ->
+      provs[IOCard.CLASS_ID] = Func2<Reads, Int, Card>{ r, rev ->
+        if (rev <= 2) r.str()
+
         val res = IOCard(
           TmiUI.schematicDesigner.currPage!!.view,
-          TooManyItems.itemsManager.getByName<Any>(r.str()), r.bool()
+          r.bool()
         )
 
-        res.stack.amount = r.f()
+        if (rev <= 2) r.f()
         res
       }
 
-      provs[RecipeCard.CLASS_ID] = Func<Reads, Card> { r ->
-        val id = r.i()
+      provs[RecipeCard.CLASS_ID] = Func2<Reads, Int, Card> { r, _ ->
         RecipeCard(
           TmiUI.schematicDesigner.currPage!!.view,
-          TooManyItems.recipesManager.getByID(id)
+          TooManyItems.recipesManager.getByID(r.i())
         )
       }
     }
 
-    fun read(read: Reads, ver: Int): Card {
+    fun read(read: Reads, rev: Int): Card {
       val id = read.i()
-      return provs[id][read]
+      val card = provs[id][read, rev]
+      if (rev >= 3) card.isFold = read.bool()
+      card.read(read, rev)
+      return card
     }
   }
 
-  val child: Table = object : Table(Consts.darkGrayUIAlpha) {
+  protected val pane: Table = object : Table(Consts.darkGrayUIAlpha) {
     override fun drawBackground(x: Float, y: Float) {
       if (ownerDesigner.newSet === this@Card) {
         Lines.stroke(Scl.scl(5f))
@@ -90,46 +100,67 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     }
   }.margin(12f)
 
-  val linkerOuts = Seq<ItemLinker>()
-  val linkerIns = Seq<ItemLinker>()
+  val linkerOuts = ObjectSet<ItemLinker>()
+  val linkerIns = ObjectSet<ItemLinker>()
 
   protected var observeUpdated = false
   protected var allUpdate = false
   protected var inStage = false
 
+  abstract val balanceValid: Boolean
+
   var removing = false
   var aligning = false
   var alignPos = Vec2()
-  var balanceValid = false
-  var balanceAmount = -1
+  var isFold = false
+    set(value){
+      field = value
 
-  var mul = -1
-  var effScale = 1f
+      linkerIns.forEach { it.updateLinks() }
+      linkerOuts.forEach { it.updateLinks() }
+    }
+
+  val panePos: Vec2
+    get() = Vec2(pane.x, pane.y)
+  val paneSize: Vec2
+    get() = Vec2(pane.width, pane.height)
+
+  var foldIcon: Drawable? = null
+  val foldColor: Color = Color.white.cpy()
+  val iconColor: Color = Color.white.cpy()
+  val backColor: Color = Pal.darkestGray.cpy()
+
   var isSizeAlign = false
     private set
 
   fun build() {
-    add(child).center().fill().pad(100f)
+    add(pane).center().fill().pad(100f)
     buildCard()
   }
 
   fun rise() {
-    ownerDesigner.cards.remove(this)
-    ownerDesigner.container.removeChild(this)
-
-    ownerDesigner.cards.add(this)
-    ownerDesigner.container.addChild(this)
+    if(isFold){
+      val pos = localToAscendantCoordinates(ownerDesigner, vec1.set(pane.x, pane.y))
+      ownerDesigner.removeCard(this, false)
+      ownerDesigner.addChild(this)
+      setPosition(pos.x, pos.y)
+    }
+    else {
+      ownerDesigner.removeCard(this, false)
+      ownerDesigner.cards.add(this)
+      ownerDesigner.container.addChild(this)
+    }
   }
 
-  fun addIn(linker: ItemLinker) {
-    linkerIns.add(linker)
+  open fun addIn(linker: ItemLinker) {
+    if (!linkerIns.add(linker)) return
     addChild(linker)
 
     observeUpdate()
   }
 
-  fun addOut(linker: ItemLinker) {
-    linkerOuts.add(linker)
+  open fun addOut(linker: ItemLinker) {
+    if (!linkerOuts.add(linker)) return
     addChild(linker)
 
     observeUpdate()
@@ -147,8 +178,17 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     return null
   }
 
+  override fun layout() {
+    super.layout()
+    linkerIns.forEach { it.adsorption(it.getX(Align.center), it.getY(Align.center), this) }
+    linkerOuts.forEach { it.adsorption(it.getX(Align.center), it.getY(Align.center), this) }
+  }
+
   override fun act(delta: Float) {
     super.act(delta)
+
+    linkerIns.forEach { it.visible = !isFold }
+    linkerOuts.forEach { it.visible = !isFold }
 
     inStage = ownerDesigner.checkCardClip(this)
 
@@ -175,7 +215,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
   override fun draw() {
     if (aligning) {
       Draw.reset()
-      Consts.darkGrayUIAlpha.draw(x + alignPos.x, y + alignPos.y, child.width, child.height)
+      Consts.darkGrayUIAlpha.draw(x + alignPos.x, y + alignPos.y, pane.width, pane.height)
     }
     Draw.mixcol(
       if (removing) Color.crimson else Pal.accent, if (removing || ownerDesigner.selects.contains(
@@ -193,15 +233,13 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     this.allUpdate = this.allUpdate or allUpdate
   }
 
-  abstract fun buildCard()
+  abstract fun accepts(): List<RecipeItemStack>
 
-  abstract fun buildLinker()
-
-  abstract fun accepts(): Iterable<RecipeItemStack>
-
-  abstract fun outputs(): Iterable<RecipeItemStack>
+  abstract fun outputs(): List<RecipeItemStack>
 
   abstract fun calculateBalance()
+
+  protected abstract fun buildCard()
 
   open fun onObserveUpdated(){
     linkerIns.forEach{l ->
@@ -241,28 +279,67 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
         ownerDesigner.moveLock(false)
 
         tmp.set(element.x, element.y)
-        element.parent.localToStageCoordinates(tmp)
+        element.parent.localToAscendantCoordinates(ownerDesigner, tmp)
 
-        if (ownerDesigner.removeMode && tmp.y < Core.scene.height*0.15f) {
-          ownerDesigner.pushHandle(RemoveCardHandle(
+        if (isFold) {
+          if (tmp.y < ownerDesigner.foldHeight){
+            val n = ownerDesigner.localToDescendantCoordinates(ownerDesigner.foldPane, vec1.set(this@Card.x, this@Card.y))
+            ownerDesigner.addCard(this@Card)
+            this@Card.setPosition(n.x, n.y)
+            if (moveHandle != null) {
+              moveHandle?.post()
+              ownerDesigner.pushHandle(moveHandle!!)
+            }
+            else ownerDesigner.alignFoldCard(this@Card)
+          }
+          else {
+            val v = ownerDesigner.localToDescendantCoordinates(
+              ownerDesigner.container,
+              localToAscendantCoordinates(ownerDesigner, vec1.set(pane.getX(Align.center), pane.getY(Align.center)))
+            )
+            setPosition(v.x, v.y, Align.center)
+            ownerDesigner.pushHandle(FoldCardHandle(
+              ownerDesigner,
+              this@Card,
+              Vec2(v.x - width/2, v.y - height/2),
+              false
+            ))
+          }
+        }
+        else if (ownerDesigner.removeMode && tmp.y < ownerDesigner.height*0.15f) {
+          if (moveHandle != null) {
+            ownerDesigner.pushHandle(CombinedHandles(
+              ownerDesigner,
+              moveHandle!!,
+              RemoveCardHandle(
+                ownerDesigner,
+                ownerDesigner.selects.run { if (contains(this@Card)) toList() else listOf(this@Card) }
+              )
+            ))
+          }
+          else ownerDesigner.pushHandle(RemoveCardHandle(
             ownerDesigner,
             ownerDesigner.selects.run { if (contains(this@Card)) toList() else listOf(this@Card) }
           ))
         }
-        else if (moveHandle != null && align != -1) {
-          if (ownerDesigner.selects.contains(this@Card)) {
-            ownerDesigner.selects.each {
-              it.aligning = false
-              it.gridAlign(align)
+        else if (moveHandle != null) {
+          if (align != -1) {
+            if (ownerDesigner.selects.contains(this@Card)) {
+              ownerDesigner.selects.each {
+                it.aligning = false
+                it.gridAlign(align)
+              }
+            }
+            else {
+              aligning = false
+              gridAlign(align)
             }
           }
-          else {
-            aligning = false
-            gridAlign(align)
-          }
+
+          moveHandle?.post()
+          ownerDesigner.pushHandle(moveHandle!!)
         }
 
-        moveHandle?.computeAlign()
         moveHandle = null
       }
 
@@ -274,13 +351,14 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
             moveHandle = MoveCardHandle(
               ownerDesigner,
               cards,
-              cards.map { Vec2(it.x, it.y) }
-            ).also { ownerDesigner.pushHandle(it) }
+            )
           }
-        moveHandle!!.moveX += deltaX
-        moveHandle!!.moveY += deltaY
+        moveHandle!!.moveX += deltaX*scaleX
+        moveHandle!!.moveY += deltaY*scaleY
 
-        moveHandle!!.handle()
+        moveHandle!!.sync()
+
+        if (isFold) return
 
         val align = ownerDesigner.cardAlign
         if (ownerDesigner.selects.contains(this@Card)) {
@@ -288,7 +366,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
             e.aligning = align != -1
             if (e.aligning) {
               e.alignPos(align, e.alignPos)
-              e.parentToLocalCoordinates(e.alignPos.add(e.child.x, e.child.y))
+              e.parentToLocalCoordinates(e.alignPos.add(e.pane.x, e.pane.y))
             }
           }
         }
@@ -296,7 +374,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
           aligning = align != -1
           if (aligning) {
             alignPos(align, alignPos)
-            parentToLocalCoordinates(alignPos.add(child.x, child.y))
+            parentToLocalCoordinates(alignPos.add(pane.x, pane.y))
           }
         }
 
@@ -317,13 +395,13 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
       validate()
     }
     else {
-      child.pack()
+      pane.pack()
     }
     pack()
 
     gridAlign(ownerDesigner.cardAlign)
 
-    for (linker in Seq(linkerIns).addAll(linkerOuts)) {
+    for (linker in linkerIns.toSeq().addAll(linkerOuts)) {
       linker!!.adsorption(linker.x + linker.width/2, linker.y + linker.height/2, this)
     }
   }
@@ -337,17 +415,17 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   fun alignPos(align: Int, out: Vec2): Vec2 {
     val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
-    var ex = this@Card.x + child.getX(align)
-    var ey = this@Card.y + child.getY(align)
+    var ex = this@Card.x + pane.getX(align)
+    var ey = this@Card.y + pane.getY(align)
 
     ex = Mathf.round(ex/gridSize)*gridSize
     ey = Mathf.round(ey/gridSize)*gridSize
 
-    if ((align and Align.left) != 0) ex -= child.x
-    else if ((align and Align.right) != 0) ex += getWidth() - child.x - child.width
+    if ((align and Align.left) != 0) ex -= pane.x
+    else if ((align and Align.right) != 0) ex += getWidth() - pane.x - pane.width
 
-    if ((align and Align.bottom) != 0) ey -= child.y
-    else if ((align and Align.top) != 0) ey += getHeight() - child.y - child.height
+    if ((align and Align.bottom) != 0) ey -= pane.y
+    else if ((align and Align.top) != 0) ey += getHeight() - pane.y - pane.height
 
     if ((align and Align.right) != 0) ex -= width
     else if ((align and Align.left) == 0) ex -= width/2
@@ -361,5 +439,74 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
   abstract fun checkLinking(linker: ItemLinker): Boolean
   abstract fun copy(): Card
 
-  abstract fun write(write: Writes)
+  open fun write(write: Writes){
+    write.i(foldIcon?.let { Consts.foldCardIcons.indexOf(foldIcon) }?:-1)
+    write.f(foldColor.toFloatBits())
+    write.f(iconColor.toFloatBits())
+    write.f(backColor.toFloatBits())
+  }
+  open fun read(read: Reads, ver: Int){
+    if (ver >= 5){
+      foldIcon = read.i().takeIf { it > -1 }?.let { Consts.foldCardIcons[it] }
+      foldColor.abgr8888(read.f())
+      iconColor.abgr8888(read.f())
+      backColor.abgr8888(read.f())
+    }
+  }
+
+  fun <T: Element> setNodeMoveLinkerListener(node: T, item: RecipeItem<*>, ownerView: DesignerView, beginMove: Cons<T>? = null) {
+    node.addListener(object : DragListener() {
+      var currLinker: ItemLinker? = null
+      var lastMoveHandle: MoveLinkerHandle? = null
+
+      override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode): Boolean {
+        return touchDown(event, x, y, pointer, button.ordinal)
+      }
+
+      override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
+        super.touchUp(event, x, y, pointer, button.ordinal)
+      }
+
+      override fun dragStart(event: InputEvent?, x: Float, y: Float, pointer: Int) {
+        val other = this@Card.linkerOuts.find { l -> l.item == item }
+        if (other == null) {
+          currLinker = ItemLinker(this@Card, item, false)
+          currLinker!!.pack()
+          ownerView.pushHandle(
+            AddOutputLinkerHandle(
+              ownerView,
+              currLinker!!,
+              this@Card
+            )
+          )
+        }
+        else {
+          currLinker = other
+          ownerView.pushHandle(MoveLinkerHandle(
+            ownerView,
+            currLinker!!
+          ).also { lastMoveHandle = it })
+        }
+
+        beginMove?.get(node)
+      }
+
+      override fun drag(event: InputEvent?, x: Float, y: Float, pointer: Int) {
+        vec1.set(x, y)
+        node.localToAscendantCoordinates(this@Card, vec1)
+        currLinker!!.adsorption(vec1.x, vec1.y, this@Card)
+
+        lastMoveHandle?.apply {
+          endX = currLinker!!.x
+          endY = currLinker!!.y
+          endDir = currLinker!!.dir
+        }
+      }
+
+      override fun dragStop(event: InputEvent?, x: Float, y: Float, pointer: Int) {
+        currLinker = null
+        lastMoveHandle = null
+      }
+    }.also { l -> l.button = KeyCode.mouseLeft.ordinal })
+  }
 }

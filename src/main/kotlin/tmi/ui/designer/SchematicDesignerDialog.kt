@@ -1,8 +1,12 @@
 package tmi.ui.designer
 
+import arc.ApplicationCore
+import arc.ApplicationListener
 import arc.Core
+import arc.Events
 import arc.files.Fi
 import arc.func.Boolf
+import arc.func.Boolp
 import arc.func.Cons
 import arc.func.Cons2
 import arc.func.Func
@@ -17,23 +21,33 @@ import arc.scene.event.InputListener
 import arc.scene.event.Touchable
 import arc.scene.style.Drawable
 import arc.scene.ui.Button
+import arc.scene.ui.TextField
 import arc.scene.ui.Tooltip
 import arc.scene.ui.layout.Table
+import arc.struct.ObjectMap
+import arc.struct.ObjectSet
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
+import arc.util.Reflect
 import arc.util.Scaling
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.Vars
+import mindustry.content.SectorPresets.origin
+import mindustry.core.Renderer
+import mindustry.core.UI
+import mindustry.game.EventType
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
+import mindustry.graphics.g3d.PlanetRenderer
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.invoke
 import tmi.ui.TmiUI
 import tmi.ui.addEventBlocker
+import tmi.ui.designer.SchematicDesignerDialog.Companion.modules
 import tmi.util.*
 import tmi.util.Consts.leftLine
 import java.io.ByteArrayInputStream
@@ -43,9 +57,12 @@ import java.io.DataOutputStream
 import kotlin.math.max
 import kotlin.math.min
 
-
 open class SchematicDesignerDialog : BaseDialog("") {
   companion object {
+    val modules: Array<ApplicationListener> by lazy {
+      Reflect.get(ApplicationCore::class.java, Core.app.listeners.find { it is ApplicationCore }, "modules")
+    }
+
     val seq: Seq<ItemLinker> = Seq()
     const val FI_HEAD: Int = -0x315240ff
 
@@ -72,8 +89,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
   private val pages = Seq<ViewPage>()
   private val keyBinds = CombineKeyTree<Runnable>()
 
-  private var bindsListener: CombineKeyListener<Runnable>? = null
-
   private var topTable: Table? = null
   private var viewTable: Table? = null
   private var sideTable: Table? = null
@@ -85,7 +100,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
     }
   }
   private val menuHiddens = Seq<Runnable>()
-  private val export by lazy { ExportDialog(this) }
+  //private val export by lazy { ExportDialog(this) }
   //private val balance by lazy { BalanceDialog(this) }
 
   fun build(){
@@ -99,9 +114,12 @@ open class SchematicDesignerDialog : BaseDialog("") {
       topTable = it.table(Consts.darkGrayUI).growX().height(42f).get()
       it.row()
       it.table{ under ->
-        sideTable = under.table(Consts.darkGrayUIAlpha).fillX().growY().get()
+        sideTable = under.table(Consts.midGrayUI).fillX().growY().get()
+        under.image().color(Pal.darkestGray).width(2f).growY().pad(0f)
         under.table{ right ->
-          pageTable = right.table(Consts.darkGrayUIAlpha).growX().fillY().minHeight(42f).get().left()
+          pageTable = right.table(Consts.midGrayUI).growX().fillY().minHeight(42f).get().left()
+          right.row()
+          right.image().color(Pal.darkestGray).height(2f).growX().pad(0f)
           right.row()
           viewTable = right.table().grow().get().apply { clip = true }
         }.grow()
@@ -110,7 +128,40 @@ open class SchematicDesignerDialog : BaseDialog("") {
 
     addChild(menuTable)
 
+    var wrappedRenderer: WrapAppListener? = null
+    val hiddenElem = ObjectMap<Element, Boolp>()
+
+    shown {
+      val n = modules.indexOf(Vars.renderer)
+
+      if (n != -1) {
+        WrapAppListener(Vars.renderer) { modules[n] = it }.also {
+          wrappedRenderer = it
+          modules[n] = it
+        }
+
+        hiddenElem.clear()
+      }
+
+      Core.scene.elements.forEach { e ->
+        if (e != this && (e.visible || e.visibility != null)){
+          hiddenElem.put(e, e.visibility)
+          e.visible = false
+          e.visibility = null
+        }
+        else return@shown
+      }
+    }
     hidden {
+      wrappedRenderer?.reset()
+      hiddenElem.forEach { e ->
+        e.key.visible = true
+        e.key.visibility = e.value
+      }
+
+      wrappedRenderer = null
+      hiddenElem.clear()
+
       removeArea!!.height = 0f
       removeArea!!.color.a = 0f
       pages.forEach{
@@ -122,6 +173,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
       }
       hideMenu()
     }
+
     fill { t ->
       t.bottom().table(Consts.darkGrayUI) { area ->
         removeArea = area
@@ -139,7 +191,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
 
     buildView()
     buildTopBar()
-    buildSideBar()
     buildSideBar()
     buildPageBar()
 
@@ -236,50 +287,48 @@ open class SchematicDesignerDialog : BaseDialog("") {
     pane: Table,
     page: ViewPage,
   ): Button {
-    return pane.button(
-      { b ->
-        arrayOf(
-          b.table().growY().fillX().get().image(Icon.map).size(20f).scaling(Scaling.fit).padLeft(4f),
-          b.add(page.title).padLeft(12f),
-          b.add("*").padLeft(2f).padRight(4f).visible { page.shouldSave() },
-        ).forEach {
-          it.update { i -> i.setColor(Color.white.takeIf { page.hovered || page == currPage } ?: Color.lightGray) }
-        }
+    return pane.button({ b ->
+      arrayOf(
+        b.table().growY().fillX().get().image(Icon.map).size(20f).scaling(Scaling.fit).padLeft(4f),
+        b.add(page.title).padLeft(12f),
+        b.add("*").padLeft(2f).padRight(4f).visible { page.shouldSave() },
+      ).forEach {
+        it.update { i -> i.setColor(Color.white.takeIf { page.hovered || page == currPage } ?: Color.lightGray) }
+      }
 
-        b.add().grow()
+      b.add().grow()
 
-        b.button(Icon.cancelSmall, Styles.clearNonei, 20f) {
-          if (page.shouldSave()) {
-            TmiUI.showChoiceIcons(
-              Core.bundle["misc.unsaved"],
-              Core.bundle["misc.ensureClose"],
-              true,
-              Core.bundle["misc.save"] to Icon.save to Runnable {
-                if (page.fi != null) {
-                  save(page.view, page.fi!!)
+      b.button(Icon.cancelSmall, Styles.clearNonei, 20f) {
+        if (page.shouldSave()) {
+          TmiUI.showChoiceIcons(
+            Core.bundle["misc.unsaved"],
+            Core.bundle["misc.ensureClose"],
+            true,
+            Core.bundle["misc.save"] to Icon.save to Runnable {
+              if (page.fi != null) {
+                save(page.view, page.fi!!)
+                deletePage(page)
+              }
+              else {
+                Vars.platform.showFileChooser(false, "shd") { file ->
+                  save(page.view, file)
                   deletePage(page)
                 }
-                else {
-                  Vars.platform.showFileChooser(false, "shd") { file ->
-                    save(page.view, file)
-                    deletePage(page)
-                  }
-                }
-                hideMenu()
-              },
-              Core.bundle["misc.close"] to Icon.cancel to Runnable {
-                deletePage(page)
-                hideMenu()
-              },
-            )
-          }
-          else {
-            deletePage(page)
-            hideMenu()
-          }
-        }.margin(5f).visible { page.hovered || page == currPage }
-      }
-    ) {
+              }
+              hideMenu()
+            },
+            Core.bundle["misc.close"] to Icon.cancel to Runnable {
+              deletePage(page)
+              hideMenu()
+            },
+          )
+        }
+        else {
+          deletePage(page)
+          hideMenu()
+        }
+      }.margin(5f).visible { page.hovered || page == currPage }
+    }) {
       currPage = page
       buildView()
     }.grow().margin(4f).marginLeft(10f).marginRight(10f)
@@ -361,8 +410,8 @@ open class SchematicDesignerDialog : BaseDialog("") {
         }
       }
 
-      topTable!!.add(button).marginLeft(20f).marginRight(20f).growY()
-        .get().apply {
+      topTable!!.add(button).marginLeft(20f).marginRight(20f).growY().get()
+        .apply {
           val show = show@{
             if (currHover == this) return@show
             currHover = this
@@ -515,7 +564,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
     }
   }
 
-  fun buildView(){
+  private fun buildView(){
     viewTable!!.clear()
     if (currPage != null){
       val viewPage = currPage!!

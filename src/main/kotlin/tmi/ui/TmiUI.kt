@@ -4,12 +4,14 @@ import arc.Core
 import arc.files.Fi
 import arc.func.Boolf
 import arc.func.Cons
+import arc.func.Cons2
 import arc.input.KeyCode
 import arc.scene.Element
 import arc.scene.actions.Actions
 import arc.scene.event.SceneEvent
 import arc.scene.style.Drawable
 import arc.scene.style.TextureRegionDrawable
+import arc.scene.ui.Button
 import arc.scene.ui.Tooltip
 import arc.scene.ui.layout.Table
 import arc.struct.Seq
@@ -21,12 +23,10 @@ import mindustry.gen.Tex
 import mindustry.type.Item
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
-import mindustry.world.Block
-import tmi.TooManyItems
+import tmi.invoke
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
 import tmi.ui.designer.*
-import tmi.util.Consts
 import tmi.util.CombinedKeys
 import tmi.util.vec1
 
@@ -235,13 +235,7 @@ object TmiUI {
             hideMenu()
 
             val view = currPage!!.view
-            showIOSelector(view, view, true,
-              { TooManyItems.recipesManager.anyMaterial(it) }
-            ){
-              view.pushHandle(AddCardHandle(view, it))
-              view.buildCard(it)
-              view.newSet = it
-            }
+            view.addCard(IOCard(view, true))
           },
           MenuTab(
             Core.bundle["misc.addOutputCard"], "edit", Icon.uploadSmall,
@@ -250,13 +244,7 @@ object TmiUI {
             hideMenu()
 
             val view = currPage!!.view
-            showIOSelector(view, view, false,
-              { TooManyItems.recipesManager.anyProduction(it) }
-            ){
-              view.pushHandle(AddCardHandle(view, it))
-              view.buildCard(it)
-              view.newSet = it
-            }
+            view.addCard(IOCard(view, false))
           },
         )
       ),
@@ -517,6 +505,16 @@ object TmiUI {
         filter = { _, _, v, s -> s is Card || !v.selects.isEmpty },
       ),
       ViewTab(
+        title = Core.bundle["misc.fold"],
+        icon = Icon.trashSmall,
+        clicked = { _, _, v, s ->
+          hideMenu()
+          v.foldCard(s as Card)
+        },
+        group = "edit",
+        filter = { _, _, _, s -> s is Card },
+      ),
+      ViewTab(
         title = Core.bundle["misc.copy"],
         icon = Icon.copySmall,
         clicked = { _, _, v, _ ->
@@ -565,49 +563,14 @@ object TmiUI {
       ViewTab(
         title = Core.bundle["dialog.calculator.removeLinker"],
         icon = Icon.trashSmall,
-        clicked = { _, _, _, linker ->
+        clicked = { _, _, v, linker ->
           hideMenu()
           if (linker !is ItemLinker) return@ViewTab
 
-          for (link in linker.links.orderedKeys()) {
-            link.deLink(linker)
-          }
-          linker.remove()
+          v.pushHandle(RemoveLinkerHandle(v, linker))
         },
         group = "linkers",
-        filter = { _, _, _, l -> l is ItemLinker && l.isInput }
-      ),
-      ViewTab(
-        title = Core.bundle["dialog.calculator.addInputAs"],
-        icon = Icon.downloadSmall,
-        clicked = { x, y, v, linker ->
-          hideMenu()
-          if (linker !is ItemLinker) return@ViewTab
-
-          IOCard(v, linker.item, true).also {
-            v.pushHandle(AddCardHandle(v, it))
-            v.buildCard(it, x, y)
-            v.newSet = it
-          }
-        },
-        group = "linkers",
-        filter = { _, _, _, l -> l is ItemLinker && l.isInput }
-      ),
-      ViewTab(
-        title = Core.bundle["dialog.calculator.addOutputAs"],
-        icon = Icon.uploadSmall,
-        clicked = { x, y, v, linker ->
-          hideMenu()
-          if (linker !is ItemLinker) return@ViewTab
-
-          IOCard(v, linker.item, false).also {
-            v.pushHandle(AddCardHandle(v, it))
-            v.buildCard(it, x, y)
-            v.newSet = it
-          }
-        },
-        group = "linkers",
-        filter = { _, _, _, l -> l is ItemLinker && !l.isInput }
+        filter = { _, _, _, l -> l is ItemLinker }
       ),
       ViewTab(
         title = Core.bundle["dialog.calculator.addRecipe"],
@@ -616,12 +579,9 @@ object TmiUI {
           hideMenu()
           recipesDialog.toggle = Cons { r ->
             recipesDialog.hide()
-            v.addRecipe(r)
-
             vec1.set(x, y)
             v.container.stageToLocalCoordinates(vec1)
-            v.newSet!!.setPosition(vec1.x, vec1.y, Align.center)
-            v.newSet!!.gridAlign(v.cardAlign)
+            v.alignCard(v.addRecipe(r), vec1.x, vec1.y, v.cardAlign)
           }
           recipesDialog.show()
         }
@@ -629,50 +589,36 @@ object TmiUI {
       ViewTab(
         title = Core.bundle["dialog.calculator.addInput"],
         icon = Icon.downloadSmall,
-        clicked = { x, y, v, _ -> showIOSelector(v, v.menuPos, true,
-          { TooManyItems.recipesManager.anyMaterial(it) }
-        ){
-          v.pushHandle(AddCardHandle(v, it))
-          v.buildCard(it, x, y)
-          v.newSet = it
-        } }
+        clicked = { x, y, v, _ ->
+          hideMenu()
+          val c = IOCard(v, true)
+          v.addIO(c)
+          vec1.set(x, y)
+          v.container.stageToLocalCoordinates(vec1)
+          v.alignCard(c, vec1.x, vec1.y, v.cardAlign)
+        }
       ),
       ViewTab(
         title = Core.bundle["dialog.calculator.addOutput"],
         icon = Icon.uploadSmall,
-        clicked = { x, y, v, _ -> showIOSelector(v, v.menuPos, false,
-          { TooManyItems.recipesManager.anyProduction(it) }
-        ){
-          v.pushHandle(AddCardHandle(v, it))
-          v.buildCard(it, x, y)
-          v.newSet = it
-        } }
+        clicked = { x, y, v, _ ->
+          hideMenu()
+          val c = IOCard(v, false)
+          v.addIO(c)
+          vec1.set(x, y)
+          v.container.stageToLocalCoordinates(vec1)
+          v.alignCard(c, vec1.x, vec1.y, v.cardAlign)
+        }
       ),
     )
   }
 
-  private fun SchematicDesignerDialog.showIOSelector(
-    view: DesignerView,
-    anchor: Element,
-    isInput: Boolean,
-    filter: (RecipeItem<*>) -> Boolean,
-    callback: (IOCard) -> Unit
+  fun buildItems(
+    items: Table,
+    list: Seq<RecipeItem<*>>,
+    buttonAction: Cons2<RecipeItem<*>, Button>? = null,
+    callBack: Cons<RecipeItem<*>>
   ) {
-    showMenu(anchor, Align.topLeft, Align.topLeft) { list ->
-      list.table(Consts.darkGrayUIAlpha) { items ->
-        val l = TooManyItems.itemsManager.list
-          .removeAll { e -> !filter(e) || e.item is Block }
-        buildItems(items, l) { item ->
-          IOCard(view, item, isInput).also {
-            callback(it)
-          }
-          hideMenu()
-        }
-      }.margin(8f)
-    }
-  }
-
-  private fun buildItems(items: Table, list: Seq<RecipeItem<*>>, callBack: Cons<RecipeItem<*>>) {
     var i = 0
     var reverse = false
     var search = ""
@@ -701,33 +647,36 @@ object TmiUI {
     }.growX()
     items.row()
 
-    items.pane(Styles.smallPane) { cont ->
-      rebuild = {
-        cont.clearChildren()
-        var ind = 0
+    items.table{ pane ->
+      pane.left().top().pane(Styles.smallPane) { cont ->
+        rebuild = {
+          cont.clearChildren()
+          var ind = 0
 
-        val sorting = recipesDialog.sortings[i].sort
-        val ls: List<RecipeItem<*>> = list.toList()
-          .filter { e -> !RecipeType.generator.isPower(e) && (e.name().contains(search) || e.localizedName().contains(search)) }
-          .sortedWith(
-            if (reverse) java.util.Comparator { a, b -> sorting.compare(b, a) }
-            else sorting
-          )
+          val sorting = recipesDialog.sortings[i].sort
+          val ls: List<RecipeItem<*>> = list.toList()
+            .filter { e -> !RecipeType.generator.isPower(e) && (e.name.contains(search) || e.localizedName.contains(search)) }
+            .sortedWith(
+              if (reverse) java.util.Comparator { a, b -> sorting.compare(b, a) }
+              else sorting
+            )
 
-        ls.forEach { item ->
-          if (item.locked() || (item.item is Item && Vars.state.rules.hiddenBuildItems.contains(item.item)) || item.hidden()) return@forEach
+          ls.forEach { item ->
+            if (item.locked || (item.item is Item && Vars.state.rules.hiddenBuildItems.contains(item.item)) || item.hidden) return@forEach
 
-          cont.button(TextureRegionDrawable(item.icon()), Styles.clearNonei, 32f) {
-            callBack[item]
-          }.margin(4f).tooltip(item.localizedName()).get()
+            val b = cont.button(TextureRegionDrawable(item.icon), Styles.clearNonei, 32f) {
+              callBack[item]
+            }.margin(4f).tooltip(item.localizedName).get()
+            buttonAction?.invoke(item, b)
 
-          if (ind++%8 == 7) {
-            cont.row()
+            if (ind++%8 == 7) {
+              cont.row()
+            }
           }
         }
-      }
-      rebuild()
-    }.padTop(6f).padBottom(4f).height(400f).fillX()
+        rebuild()
+      }.padTop(6f).padBottom(4f).fill()
+    }.height(400f).growX()
   }
 
   @JvmStatic

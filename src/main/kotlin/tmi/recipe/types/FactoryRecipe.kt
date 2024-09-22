@@ -91,13 +91,13 @@ open class FactoryRecipe : RecipeType() {
     optPos.setZero()
     blockPos.setZero()
 
-    val mats: Seq<RecipeItemStack> =
-      recipe.materials.values().toSeq().select { e -> !e.optionalCons }
-    val opts: Seq<RecipeItemStack> =
-      recipe.materials.values().toSeq().select { e -> e.optionalCons }
+    val mats: List<RecipeItemStack> =
+      recipe.materials.values.filter { e -> !e.optionalCons }
+    val opts: List<RecipeItemStack> =
+      recipe.materials.values.filter { e -> e.optionalCons }
     val materialNum = mats.size
     val productionNum = recipe.productions.size
-    hasOptionals = opts.size > 0
+    hasOptionals = opts.isNotEmpty()
     doubleInput = materialNum > DOUBLE_LIMIT
     doubleOutput = productionNum > DOUBLE_LIMIT
 
@@ -141,7 +141,7 @@ open class FactoryRecipe : RecipeType() {
     offY += NODE_SIZE
     if (productionNum > 0) {
       offY += ROW_PAD
-      val seq: Seq<RecipeItemStack> = recipe.productions.values().toSeq()
+      val seq: List<RecipeItemStack> = recipe.productions.values.toList()
       handleNode(seq, prodPos, offProdX, offY, doubleOutput, true)
     }
 
@@ -149,7 +149,7 @@ open class FactoryRecipe : RecipeType() {
   }
 
   protected fun handleNode(
-    seq: Seq<RecipeItemStack>,
+    seq: List<RecipeItemStack>,
     pos: ObjectMap<RecipeItem<*>, Vec2>,
     offX: Float,
     offY: Float,
@@ -159,7 +159,7 @@ open class FactoryRecipe : RecipeType() {
     var yOff = offY
     var dx = NODE_SIZE/2
     if (isDouble) {
-      for (i in 0 until seq.size) {
+      for (i in seq.indices) {
         if (turn) {
           if (i%2 == 0) pos[seq[i].item] = Vec2(offX + dx, yOff + NODE_SIZE + ITEM_PAD)
           else pos[seq[i].item] = Vec2(offX + dx, yOff)
@@ -207,16 +207,18 @@ open class FactoryRecipe : RecipeType() {
   }
 
   override fun layout(recipeNode: RecipeNode) {
-    if (recipeNode.type == NodeType.MATERIAL) {
-      val pos = consPos[recipeNode.stack.item]
-      recipeNode.setPosition(pos.x, pos.y, Align.center)
-    }
-    else if (recipeNode.type == NodeType.PRODUCTION) {
-      val pos = prodPos[recipeNode.stack.item]
-      recipeNode.setPosition(pos.x, pos.y, Align.center)
-    }
-    else if (recipeNode.type == NodeType.BLOCK) {
-      recipeNode.setPosition(blockPos.x, blockPos.y, Align.center)
+    when (recipeNode.type) {
+      NodeType.MATERIAL -> {
+        val pos = consPos[recipeNode.stack.item]
+        recipeNode.setPosition(pos.x, pos.y, Align.center)
+      }
+      NodeType.PRODUCTION -> {
+        val pos = prodPos[recipeNode.stack.item]
+        recipeNode.setPosition(pos.x, pos.y, Align.center)
+      }
+      NodeType.BLOCK -> {
+        recipeNode.setPosition(blockPos.x, blockPos.y, Align.center)
+      }
     }
   }
 

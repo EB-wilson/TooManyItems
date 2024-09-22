@@ -3,62 +3,62 @@ package tmi.ui.designer
 import arc.Core
 import arc.Graphics
 import arc.func.Prov
-import arc.graphics.*
+import arc.graphics.Color
+import arc.scene.Element
 import arc.scene.event.Touchable
-import arc.scene.ui.*
+import arc.scene.ui.Button
+import arc.scene.ui.TextField
 import arc.scene.ui.layout.Table
 import arc.util.Align
 import arc.util.Scaling
+import arc.util.Strings
+import arc.util.io.Reads
 import arc.util.io.Writes
+import mindustry.core.UI
 import mindustry.gen.Icon
 import mindustry.ui.Styles
 import mindustry.world.meta.StatUnit
+import tmi.TooManyItems
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
+import tmi.ui.TmiUI
+import tmi.ui.designer.RecipeCard.Companion.CLASS_ID
 import tmi.util.Consts
 
 class IOCard(
   ownerDesigner: DesignerView,
-  item: RecipeItem<*>,
   val isInput: Boolean
 ) : Card(ownerDesigner) {
-  val stack: RecipeItemStack = RecipeItemStack(item, 0f).persecFormat()
+  private val items = sortedMapOf<RecipeItem<*>, RecipeItemStack>()
+  private val inner = Table()
 
-  private var setIOHandle: SetIOHandle? = null
-
-  private val itr = Iterable {
-    object : Iterator<RecipeItemStack> {
-      var has: Boolean = true
-
-      override fun hasNext(): Boolean {
-        return has.also { has = !it }
-      }
-
-      override fun next(): RecipeItemStack {
-        return stack
-      }
-    }
-  }
+  override val balanceValid: Boolean get() = true
 
   override fun act(delta: Float) {
     super.act(delta)
 
-    if (isInput && !linkerOuts.isEmpty) linkerOuts.first()!!.expectAmount = stack.amount
-    else {
-      for (linker in linkerIns) {
-        linker.expectAmount = stack.amount
-      }
+    for (linker in linkerIns) {
+      val stack = items[linker.item] ?: continue
+
+      linker.expectAmount = stack.amount
+    }
+
+    for (linker in linkerOuts) {
+      val stack = items[linker.item] ?: continue
+
+      linker.expectAmount = stack.amount
     }
   }
 
   override fun buildCard() {
-    child.table(Consts.grayUI) { t: Table ->
+    pane.table(Consts.grayUI) { t ->
       t.center()
+
       t.hovered {
-        if (ownerDesigner.newSet === this) ownerDesigner.newSet = null
+        if (ownerDesigner.newSet == this) ownerDesigner.newSet = null
       }
 
-      t.center().table(Consts.darkGrayUI) { top: Table ->
+      t.center().table(Consts.darkGrayUI) { top ->
         top.touchablility = Prov { if (ownerDesigner.editLock) Touchable.disabled else Touchable.enabled }
         top.add().size(24f).pad(4f)
 
@@ -67,105 +67,195 @@ class IOCard(
         top.addCaptureListener(moveListener(top))
       }.fillY().growX().get()
       t.row()
-      t.table { m: Table ->
+      t.table { m ->
         m.image(if (isInput) Icon.download else Icon.upload).scaling(Scaling.fit).size(26f).padRight(6f)
         m.add(Core.bundle[if (isInput) "dialog.calculator.input" else "dialog.calculator.output"]).growX()
           .labelAlign(Align.left).pad(12f)
       }
       t.row()
-      t.table { inner: Table ->
-        inner.image(stack.item.icon()).scaling(Scaling.fit).size(48f)
-        inner.row()
-        inner.add(stack.item.localizedName()).pad(8f).color(Color.lightGray)
-        inner.row()
-        inner.table { ta: Table ->
-          val edit = arrayOfNulls<Runnable>(1)
-          val build = arrayOfNulls<Runnable>(1)
+      t.add(inner).center().fill().pad(24f).padTop(24f)
 
-          ownerDesigner.setMoveLocker(ta)
-
-          build[0] = Runnable {
-            ta.clearChildren()
-            ta.add(
-              Core.bundle.format(
-                "misc.amount",
-                if (stack.amount > 0) stack.getAmount() else Core.bundle["misc.unset"]
-              )
-            ).minWidth(120f)
-            ta.button(Icon.pencil, Styles.clearNonei, 32f) {
-              edit[0]!!
-                .run()
-            }.margin(4f)
+      if (isInput) {
+        t.row()
+        t.button(Core.bundle["dialog.calculator.addItem"], Icon.addSmall, Styles.cleart, 24f) {
+          ownerDesigner.parentDialog.showMenu(inner, Align.bottom, Align.top) { list ->
+            list.table(Consts.darkGrayUIAlpha) { items ->
+              val l = TooManyItems.itemsManager.list
+                .removeAll { e -> !TooManyItems.recipesManager.anyMaterial(e) }
+              TmiUI.buildItems(items, l, { i, b -> b.setDisabled { this.items.containsKey(i) } }) { item ->
+                ownerDesigner.pushHandle(IOCardItemHandle(ownerDesigner, this, item, false))
+                ownerDesigner.parentDialog.hideMenu()
+              }
+            }.margin(8f)
           }
-          edit[0] = Runnable {
-            ta.clearChildren()
-            ta.field((stack.amount*60).toString(), TextField.TextFieldFilter.floatsOnly) { s: String ->
-              try {
-                val handle = checkHandle()
-                handle.setTo = s.toFloat()/60
-                handle.handle()
-              } catch (ignored: Throwable) {}
-            }.width(100f)
-            ta.add(StatUnit.perSecond.localized())
-            ta.button(Icon.ok, Styles.clearNonei, 32f) {
-              build[0]!!.run()
-            }.margin(4f)
-          }
-          build[0]!!.run()
-        }
-      }.center().grow().pad(36f).padTop(24f)
+        }.growX().fillY().margin(8f).marginTop(10f).marginBottom(10f)
+      }
     }.grow()
+
+    buildInner()
   }
 
-  override fun buildLinker() {
-    if (!isInput) return
+  private fun buildInner() {
+    inner.clearChildren()
 
-    addOut(ItemLinker(this, stack.item, false))
-
-    Core.app.post {
-      val linker = linkerOuts[0]!!
-      linker.pack()
-      val offY = child.height/2 + linker.height/1.5f
-      val offX = child.width/2
-
-      linker.setPosition(child.x + offX, child.y + child.height/2 + offY, Align.center)
-      linker.dir = 1
-    }
-  }
-
-  override fun accepts(): Iterable<RecipeItemStack> {
-    return itr
-  }
-
-  override fun outputs(): Iterable<RecipeItemStack> {
-    return itr
-  }
-
-  override fun calculateBalance() {
-    if (isInput) {
-      balanceValid = true
-      balanceAmount = 1
+    var tab: Table? = null
+    if (items.isEmpty()){
+      inner.add(Core.bundle["dialog.calculator.noItems"]).pad(24f).padTop(32f).padBottom(32f)
     }
     else {
-      if (stack.amount > 0 && linkerIns.any() && linkerIns.first().isNormalized){
-        balanceValid = true
-        balanceAmount = 1
+      items.values.forEachIndexed { i, item ->
+        if (i%5 == 0) {
+          tab = inner.table().growY().fillX().left().pad(5f).get().top()
+        }
+
+        val button = Button(Styles.cleart).also { t ->
+          if (isInput) {
+            t.button(Icon.cancelSmall, Styles.clearNonei, 18f) {
+              ownerDesigner.pushHandle(
+                linkerOuts.find { it.item == item.item }?.let {
+                  CombinedHandles(ownerDesigner,
+                    RemoveLinkerHandle(ownerDesigner, it),
+                    IOCardItemHandle(ownerDesigner, this, item.item, true),
+                  )
+                }?: IOCardItemHandle(ownerDesigner, this, item.item, true)
+              )
+            }.margin(4f)
+          }
+          t.image(item.item.icon).scaling(Scaling.fit).size(42f).pad(4f)
+          t.add(item.item.localizedName).growX().left().pad(5f)
+          t.add("").left().update {
+            val f = item.amount
+            it.setText(
+              (if (f <= 0) "--"
+              else if (f*60 > 1000) UI.formatAmount((f*60).toLong())
+              else Strings.autoFixed(f*60, 2))
+              + "/" + StatUnit.seconds.localized()
+            )
+          }.color(Color.lightGray).pad(5f)
+        }
+
+        if (isInput) {
+          setNodeMoveLinkerListener(button, item.item, ownerDesigner)
+        }
+        else {
+          button.clicked{
+            ownerDesigner.parentDialog.showMenu(button, Align.bottomLeft, Align.topLeft) { pane ->
+              pane.table(Consts.darkGrayUIAlpha){
+                it.add(Core.bundle["dialog.calculator.setAmount"])
+                it.row()
+                it.table{ t ->
+                  t.field(Strings.autoFixed(item.amount*60, 2), TextField.TextFieldFilter.floatsOnly){ str ->
+                    try {
+                      item.amount = str.toFloat()/60f
+                      observeUpdate()
+                    } catch (ignored: NumberFormatException){}
+                  }
+                  t.add("/" + StatUnit.seconds.localized()).left().padLeft(4f).color(Color.lightGray)
+                }
+              }.margin(6f)
+            }
+          }
+        }
+
+        tab!!.table(Consts.darkGrayUIAlpha){ it.add(button).left().growX() }.height(60f).growX().left().margin(6f)
+        tab!!.row()
       }
-      else {
-        balanceValid = false
-        balanceAmount = -1
+    }
+
+    pack()
+  }
+
+  override fun addIn(linker: ItemLinker) {
+    super.addIn(linker)
+    if (!isInput) {
+      addItem(linker.item)
+    }
+  }
+
+  override fun addOut(linker: ItemLinker) {
+    super.addOut(linker)
+    if (isInput && !items.containsKey(linker.item)) {
+      addItem(linker.item)
+    }
+  }
+
+  fun addItem(item: RecipeItem<*>): RecipeItemStack {
+    var stack = items[item]
+    if (stack != null) return stack
+
+    stack = RecipeItemStack(item, 0f)
+    this.items[item] = stack
+    buildInner()
+
+    return stack
+  }
+
+  fun removeItem(item: RecipeItem<*>) {
+    items.remove(item)
+    buildInner()
+  }
+
+  override fun removeChild(element: Element, unfocus: Boolean): Boolean {
+    val b = super.removeChild(element, unfocus)
+    if (b && !isInput && element is ItemLinker) {
+      removeItem(element.item)
+      return true
+    }
+
+    return false
+  }
+
+  override fun accepts() = if (isInput) items.values.toList() else emptyList()
+
+  override fun outputs() = if (!isInput) items.values.toList() else emptyList()
+
+  override fun calculateBalance() {
+    if (!isInput) return
+
+    items.forEach { entry ->
+      val linker = linkerOuts.find { it.item == entry.key }
+
+      if (linker != null) {
+        if (linker.links.size == 1) {
+          val other = linker.links.orderedKeys().first()
+          if (!other!!.isNormalized || !(other.parent as Card).balanceValid) {
+            entry.value.amount = 0f
+            return@forEach
+          }
+
+          entry.value.amount = other.expectAmount
+        }
+        else if (!linker.links.isEmpty) {
+          var anyUnset = false
+
+          var amo = 0f
+          for (other in linker.links.keys()) {
+            var rate = other!!.links[linker]?.rate?:-1f
+
+            if (!other.isNormalized) {
+              anyUnset = true
+              break
+            }
+            else if (rate < 0) rate = 1f
+
+            amo += rate*other.expectAmount
+          }
+
+          if (!anyUnset) {
+            entry.value.amount = amo
+          }
+          else entry.value.amount = 0f
+        }
       }
     }
   }
 
   override fun checkLinking(linker: ItemLinker): Boolean {
-    return !isInput && linker.item == stack.item
+    return !isInput
   }
 
   override fun copy(): IOCard {
-    val res = IOCard(ownerDesigner, stack.item, isInput)
-    res.stack.amount = stack.amount
-
+    val res = IOCard(ownerDesigner, isInput)
     res.setBounds(x, y, width, height)
 
     return res
@@ -173,21 +263,32 @@ class IOCard(
 
   override fun write(write: Writes) {
     write.i(CLASS_ID)
-    write.str(stack.item.name())
     write.bool(isInput)
-    write.f(stack.amount)
+    write.bool(isFold)
+
+    super.write(write)
+
+    write.i(items.size)
+    items.values.forEach {
+      write.str(it.item.name)
+      write.f(it.amount)
+    }
   }
 
-  private fun checkHandle(): SetIOHandle{
-    if (setIOHandle == null || setIOHandle!!.isExpired){
-      setIOHandle = SetIOHandle(ownerDesigner, this)
-        .also { ownerDesigner.pushHandle(it) }
+  override fun read(read: Reads, ver: Int) {
+    super.read(read, ver)
+
+    val n = read.i()
+    for (i in 0 until n) {
+      val item = TooManyItems.itemsManager.getByName<Any>(read.str())
+      val amount = read.f()
+      addItem(item).amount = amount
     }
-    setIOHandle!!.updateTimer()
-    return setIOHandle!!
+
+    observeUpdate()
   }
 
   companion object {
-    const val CLASS_ID = 1213124234
+    const val CLASS_ID = 2117128239
   }
 }

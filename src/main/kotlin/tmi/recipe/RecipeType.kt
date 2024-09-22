@@ -98,9 +98,7 @@ abstract class RecipeType {
     Draw.reset()
   }
 
-  override fun hashCode(): Int {
-    return id
-  }
+  final override fun hashCode() = id
 
   override fun equals(other: Any?): Boolean {
     if (this === other) return true

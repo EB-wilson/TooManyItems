@@ -15,7 +15,7 @@ import tmi.set
 import tmi.ui.NODE_SIZE
 import kotlin.math.max
 
-class CollectingRecipe : FactoryRecipe() {
+open class CollectingRecipe : FactoryRecipe() {
   override val id = 2
 
   override fun buildView(view: Group) {
@@ -37,11 +37,11 @@ class CollectingRecipe : FactoryRecipe() {
     optPos.setZero()
     blockPos.setZero()
 
-    val mats: Seq<RecipeItemStack> =
-      recipe.materials.values().toSeq().select { e -> !e.optionalCons }
-    val opts: Seq<RecipeItemStack> =
-      recipe.materials.values().toSeq().select { e -> e.optionalCons }
-    hasOptionals = opts.size > 0
+    val mats: List<RecipeItemStack> =
+      recipe.materials.values.filter { e -> !e.optionalCons }
+    val opts: List<RecipeItemStack> =
+      recipe.materials.values.filter { e -> e.optionalCons }
+    hasOptionals = opts.isNotEmpty()
     val materialNum = mats.size
     val productionNum = recipe.productions.size
 
@@ -85,7 +85,7 @@ class CollectingRecipe : FactoryRecipe() {
     offY += NODE_SIZE
     if (productionNum > 0) {
       offY += ROW_PAD
-      val seq: Seq<RecipeItemStack> = recipe.productions.values().toSeq()
+      val seq: List<RecipeItemStack> = recipe.productions.values.toList()
       handleNode(seq, prodPos, offProdX, offY)
     }
 
@@ -93,15 +93,15 @@ class CollectingRecipe : FactoryRecipe() {
   }
 
   protected fun handleNode(
-    seq: Seq<RecipeItemStack>,
+    seq: List<RecipeItemStack>,
     pos: ObjectMap<RecipeItem<*>, Vec2>,
     offX: Float,
     offY: Float
   ): Float {
     var yOff = offY
     var dx = NODE_SIZE/2
-    for (i in 0 until seq.size) {
-      pos[seq[i].item] = Vec2(offX + dx, yOff)
+    for (element in seq) {
+      pos[element.item] = Vec2(offX + dx, yOff)
       dx += NODE_SIZE + ITEM_PAD
     }
     yOff += NODE_SIZE

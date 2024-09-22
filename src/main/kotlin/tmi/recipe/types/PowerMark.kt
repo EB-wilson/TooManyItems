@@ -6,5 +6,5 @@ import mindustry.gen.Icon
 import tmi.TooManyItems
 
 object PowerMark: SingleItemMark("power-mark") {
-  override fun icon(): TextureRegion = Icon.power.region
+  override val icon: TextureRegion get() = Icon.power.region
 }

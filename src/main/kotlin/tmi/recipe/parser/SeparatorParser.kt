@@ -9,7 +9,7 @@ import mindustry.world.meta.StatUnit
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 
-class SeparatorParser : ConsumerParser<Separator>() {
+open class SeparatorParser : ConsumerParser<Separator>() {
   override fun isTarget(content: Block): Boolean {
     return content is Separator
   }

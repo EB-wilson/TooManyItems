@@ -6,7 +6,7 @@ import mindustry.world.blocks.units.Reconstructor
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 
-class ReconstructorParser : ConsumerParser<Reconstructor>() {
+open class ReconstructorParser : ConsumerParser<Reconstructor>() {
   override fun isTarget(content: Block): Boolean {
     return content is Reconstructor
   }

@@ -9,7 +9,7 @@ import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 import tmi.recipe.types.PowerMark
 
-class ThermalGeneratorParser : ConsumerParser<ThermalGenerator>() {
+open class ThermalGeneratorParser : ConsumerParser<ThermalGenerator>() {
   init {
     excludes.add(GeneratorParser::class.java)
   }

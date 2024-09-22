@@ -5,6 +5,7 @@ import arc.func.Cons
 import arc.func.Cons3
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
+import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
 import arc.input.KeyCode
 import arc.math.Mathf
@@ -20,11 +21,13 @@ import arc.util.Scaling
 import arc.util.Time
 import mindustry.Vars
 import mindustry.gen.Icon
+import mindustry.gen.Sounds.click
 import mindustry.gen.Tex
+import mindustry.graphics.Drawf
 import mindustry.ui.Styles
 import tmi.TooManyItems
-import tmi.invoke
 import tmi.recipe.RecipeItemStack
+import tmi.util.Shapes
 
 val NODE_SIZE: Float = Scl.scl(80f)
 
@@ -32,15 +35,14 @@ val NODE_SIZE: Float = Scl.scl(80f)
 class RecipeNode(
   val type: NodeType,
   val stack: RecipeItemStack,
-  private var click: Cons3<RecipeItemStack, NodeType, RecipesDialog.Mode>?
+  val clickListener: Cons3<RecipeItemStack, NodeType, RecipesDialog.Mode>? = null
 ) : Button() {
-
+  private var lastTouchedTime = 0f
   private var progress: Float = 0f
   private var alpha: Float = 0f
-  private var activity: Boolean = false
-  private var touched: Boolean = false
-  private var clicked: Int = 0
-  private var time: Float = 0f
+  private var clicked = 0
+  var activity: Boolean = false
+  var touched: Boolean = false
 
   init {
     background = Tex.button
@@ -50,13 +52,13 @@ class RecipeNode(
 
     setSize(NODE_SIZE)
 
-    addListener(object : Tooltip(Cons { t: Table -> t.add(stack.item.localizedName(), Styles.outlineLabel) }) {
+    addListener(object : Tooltip(Cons { t: Table -> t.add(stack.item.localizedName, Styles.outlineLabel) }) {
       init {
         allowMobile = true
       }
     })
 
-    addListener(object : InputListener(){
+    addListener(object : InputListener() {
       override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
         super.enter(event, x, y, pointer, fromActor)
         activity = true
@@ -69,19 +71,29 @@ class RecipeNode(
 
       override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
         if (pointer != 0 && button != KeyCode.mouseLeft && button != KeyCode.mouseRight) return false
-
+        lastTouchedTime = Time.globalTime
         touched = true
-        time = Time.globalTime
+        activity = true
         return true
       }
 
       override fun touchUp(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?) {
         if (pointer != 0 && button != KeyCode.mouseLeft && button != KeyCode.mouseRight) return
-        super.touchUp(event, x, y, pointer, button)
         touched = false
-        if (click != null && Time.globalTime - time < 12) {
+        activity = false
+
+        if (stack.item.hasDetails && (progress >= 0.95f || click == null)) {
+          stack.item.displayDetails()
+          progress = 0f
+
+          return
+        }
+
+        if (clickListener != null && Time.globalTime - lastTouchedTime < 12) {
           if (!Vars.mobile || Core.settings.getBool("keyboard")) {
-            click!!(stack, type,
+            clickListener.get(
+              stack,
+              type,
               if (button == KeyCode.mouseRight)
                 if (type == NodeType.BLOCK) RecipesDialog.Mode.FACTORY
                 else RecipesDialog.Mode.USAGE
@@ -91,21 +103,21 @@ class RecipeNode(
           else {
             clicked++
             if (clicked >= 2) {
-              click!!(stack, type, if (type == NodeType.BLOCK) RecipesDialog.Mode.FACTORY else RecipesDialog.Mode.USAGE)
+              clickListener.get(
+                stack,
+                type,
+                if (type == NodeType.BLOCK) RecipesDialog.Mode.FACTORY
+                else RecipesDialog.Mode.USAGE
+              )
               clicked = 0
             }
-          }
-        }
-        else {
-          if (stack.item.hasDetails() && (progress >= 0.95f || click == null)) {
-            stack.item.displayDetails()
           }
         }
       }
     })
 
     stack(
-      Table { it.image(stack.item.icon()).size(NODE_SIZE/Scl.scl()*0.62f).scaling(Scaling.fit) },
+      Table { it.image(stack.item.icon).size(NODE_SIZE/Scl.scl()*0.62f).scaling(Scaling.fit) },
 
       Table {
         var last = false
@@ -128,7 +140,7 @@ class RecipeNode(
       },
 
       Table {
-        if (!stack.item.locked()) return@Table
+        if (!stack.item.locked) return@Table
         it.right().bottom().defaults().right().bottom().pad(4f)
         it.image(Icon.lock).scaling(Scaling.fit).size(10f).color(Color.lightGray)
       }
@@ -137,21 +149,20 @@ class RecipeNode(
 
   override fun act(delta: Float) {
     super.act(delta)
-
     alpha = Mathf.lerpDelta(alpha, (if (touched || activity) 1 else 0).toFloat(), 0.08f)
-    progress =
-      Mathf.approachDelta(progress, if (stack.item.hasDetails() && click != null && touched) 1.01f else 0f, 1/60f)
-    if (click != null && Time.globalTime - time > 12 && clicked == 1) {
-      click!![stack, type, RecipesDialog.Mode.RECIPE]
+    progress = Mathf.approachDelta(progress, if (stack.item.hasDetails && click != null && touched) 1f else 0f, 1/60f)
+
+    if (clickListener != null && Time.globalTime - lastTouchedTime > 12 && clicked == 1) {
+      clickListener.get(stack, type, RecipesDialog.Mode.RECIPE)
       clicked = 0
     }
   }
 
   override fun drawBackground(x: Float, y: Float) {
     super.drawBackground(x, y)
-    Lines.stroke(Scl.scl(34f), Color.lightGray)
+    Draw.color(Color.lightGray)
     Draw.alpha(0.5f)
 
-    Lines.arc(x + width/2, y + height/2, Scl.scl(18f), progress, 90f)
+    Shapes.fan(x + width/2, y + height/2, Scl.scl(32f), -progress*360, 90f)
   }
 }

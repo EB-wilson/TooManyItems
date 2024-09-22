@@ -57,15 +57,15 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
                   )
                 p.add(Core.bundle["dialog.calculator.configured"]).labelAlign(Align.center).color(Color.lightGray)
                 p.row()
-                for (stack in currCard!!.recipe.materials.values()) {
+                for (stack in currCard!!.recipe.materials.values) {
                   if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(stack.item)) continue
 
                   p.table { left ->
                     left.left()
-                    left.image(stack.item.icon()).size(36f).scaling(Scaling.fit)
+                    left.image(stack.item.icon).size(36f).scaling(Scaling.fit)
                     left.table { num ->
                       num.left().defaults().fill().left()
-                      num.add(stack.item.localizedName())
+                      num.add(stack.item.localizedName)
                       num.row()
                       num.table { amo ->
                         amo.left().defaults().left()
@@ -99,7 +99,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
 
                   p.table { stat ->
                     stat.left().defaults().left()
-                    val input = currCard!!.linkerIns.find { e: ItemLinker -> e.item === stack.item }
+                    val input = currCard!!.linkerIns.find { e: ItemLinker -> e.item == stack.item }
                     if (!stack.isAttribute && input == null) {
                       stat.add(Core.bundle["misc.noInput"])
                     }
@@ -174,15 +174,15 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
 
                 balanceValid = false
                 balanceAmount = 0
-                for (stack in currCard!!.recipe.productions.values()) {
+                for (stack in currCard!!.recipe.productions.values) {
                   if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(stack.item)) continue
 
                   p.table { left ->
                     left.left()
-                    left.image(stack.item.icon()).size(36f).scaling(Scaling.fit)
+                    left.image(stack.item.icon).size(36f).scaling(Scaling.fit)
                     left.table { num ->
                       num.left().defaults().fill().left()
-                      num.add(stack.item.localizedName())
+                      num.add(stack.item.localizedName)
                       num.row()
                       num.table { amo ->
                         amo.left().defaults().left()
@@ -279,7 +279,7 @@ class BalanceDialog(ownerDesigner: SchematicDesignerDialog) : Dialog("", Consts.
 
                         var amo = 0f
                         for (other in linker.links.keys()) {
-                          var rate = other!!.links[linker]?:-1f
+                          var rate = other!!.links[linker]?.rate?:-1f
 
                           if (!other.isNormalized) {
                             anyUnset = true

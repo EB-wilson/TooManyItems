@@ -1,8 +1,12 @@
 package tmi.util
 
 import arc.Core
+import arc.func.Cons
+import arc.func.Cons4
 import arc.func.Prov
 import arc.graphics.Color
+import arc.graphics.g2d.Draw
+import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
 import arc.scene.style.BaseDrawable
 import arc.scene.style.Drawable
@@ -14,18 +18,25 @@ import arc.util.Tmp
 import mindustry.content.Blocks
 import mindustry.game.Team
 import mindustry.gen.Building
+import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Fonts
 import mindustry.world.Block
 import mindustry.world.Tile
 import mindustry.world.blocks.environment.Floor
+import tmi.invoke
 
 object Consts {
   private val emp: Seq<*> = Seq<Any>()
 
+  val foldCardIcons: List<Drawable> by lazy {
+    Icon.icons.map { it.key to it.value }.sortedBy { it.first }.filter { !it.first.contains("Small") }.map { it.second }
+  }
+
   val grayUI: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkerGray)) }
   val darkGrayUI: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkestGray)) }
+  val midGrayUI: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkerGray).lerp(Pal.darkestGray, 0.7f)) }
   val grayUIAlpha: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkerGray).a(0.7f)) }
   val darkGrayUIAlpha: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkestGray).a(0.7f)) }
   val padGrayUI: Drawable by lazy {
@@ -76,6 +87,7 @@ object Consts {
   } }
   val a_z: Drawable by lazy { Core.atlas.getDrawable("tmi-a_z") }
   val tmi: Drawable by lazy { Core.atlas.getDrawable("tmi-tmi") }
+  val panner: Drawable by lazy { Core.atlas.getDrawable("tmi-panner") }
   val transparent: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Color.clear) }
 
   val transparentBack: DialogStyle by lazy { object : DialogStyle() {

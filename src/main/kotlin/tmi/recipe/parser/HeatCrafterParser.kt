@@ -7,7 +7,7 @@ import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 import tmi.recipe.types.HeatMark
 
-class HeatCrafterParser : ConsumerParser<HeatCrafter>() {
+open class HeatCrafterParser : ConsumerParser<HeatCrafter>() {
   init {
     excludes.add(GenericCrafterParser::class.java)
   }

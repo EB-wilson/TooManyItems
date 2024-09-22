@@ -5,12 +5,18 @@ import arc.struct.IntMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
 import mindustry.Vars
+import mindustry.content.Items
 import mindustry.world.Block
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
 
+private val errorRecipe = Recipe(
+  recipeType = RecipeType.factory,
+  ownerBlock = TooManyItems.itemsManager.getByName<String>("error")
+)
+
 /**全局配方管理器，以单例模式运行，用于管理和查询所有已加载的配方和分组，同时[RecipeParser]也通过添加到该对象以生效 */
-class RecipesManager {
+open class RecipesManager {
   /**所有[配方分析工具][RecipeParser]的存储容器，已注册的分析工具将被存储在这里待加载配方时分析方块使用 */
   protected var parsers = Seq<RecipeParser<*>>(RecipeParser::class.java)
 
@@ -46,11 +52,11 @@ class RecipesManager {
     idMap.put(recipe.hashCode(), recipe)
 
     recipes.add(recipe)
-    for (stack in recipe.materials.values()) {
-      materials.add(stack!!.item)
+    for (stack in recipe.materials.values) {
+      materials.add(stack.item)
     }
-    for (stack in recipe.productions.values()) {
-      productions.add(stack!!.item)
+    for (stack in recipe.productions.values) {
+      productions.add(stack.item)
     }
     if (recipe.ownerBlock != null) blocks.add(recipe.ownerBlock)
   }
@@ -76,7 +82,7 @@ class RecipesManager {
   }
 
   fun getByID(id: Int): Recipe {
-    return idMap[id]?:throw IllegalArgumentException("No recipe with ID $id")
+    return idMap[id]?: errorRecipe
   }
 
   fun filterRecipe(filter: Boolf<Recipe>): Seq<Recipe>{
@@ -89,6 +95,13 @@ class RecipesManager {
     }
 
     parseRecipes()
+
+    val list = getRecipesByProduction(TooManyItems.itemsManager.getItem(Items.sand))
+      .select{ it.recipeType == RecipeType.collecting }
+
+    list.forEach {
+      println(it.hashCode())
+    }
   }
 
   /**从当前游戏内已装载的所有方块进行分析，搜索合适的[RecipeParser]解释方块以获取配方信息并添加到列表之中。

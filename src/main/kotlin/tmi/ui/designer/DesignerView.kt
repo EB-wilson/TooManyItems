@@ -1,7 +1,10 @@
 package tmi.ui.designer
 
 import arc.Core
+import arc.Graphics.Cursor
 import arc.func.Cons
+import arc.func.Floatf
+import arc.func.Prov
 import arc.graphics.*
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
@@ -11,15 +14,22 @@ import arc.graphics.gl.FrameBuffer
 import arc.input.KeyCode
 import arc.math.Interp
 import arc.math.Mathf
+import arc.math.geom.Bezier
+import arc.math.geom.Geometry
 import arc.math.geom.Rect
 import arc.math.geom.Vec2
 import arc.scene.Element
 import arc.scene.Group
 import arc.scene.actions.Actions
-import arc.scene.event.*
+import arc.scene.event.ElementGestureListener
+import arc.scene.event.InputEvent
+import arc.scene.event.InputListener
+import arc.scene.event.Touchable
 import arc.scene.style.Drawable
+import arc.scene.ui.ScrollPane
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
+import arc.scene.ui.layout.WidgetGroup
 import arc.struct.LongMap
 import arc.struct.ObjectMap
 import arc.struct.ObjectSet
@@ -30,14 +40,15 @@ import arc.util.Time
 import arc.util.Tmp
 import arc.util.io.Reads
 import arc.util.io.Writes
-import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.TooManyItems
+import tmi.f
 import tmi.invoke
 import tmi.recipe.Recipe
-import tmi.recipe.types.RecipeItem
+import tmi.set
+import tmi.ui.addEventBlocker
 import tmi.util.*
 import java.io.IOException
 import kotlin.math.max
@@ -46,7 +57,7 @@ import kotlin.math.min
 class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   companion object{
     private val seq: Seq<ItemLinker> = Seq()
-    private const val SHD_REV = 2
+    private const val SHD_REV = 6
   }
 
   var currAlignIcon: Drawable = Icon.none
@@ -61,7 +72,12 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   val menuPos: Element = Element()
 
   val cards = Seq<Card>()
+  val foldCards = Seq<Card>()
+
   val selects = ObjectSet<Card>()
+  val foldLinkers = ObjectMap<Card, FoldLink>()
+
+  private val shownCards = ObjectSet<Card>()
 
   private val history = Seq<DesignerHandle>()
   private var historyIndex = 0
@@ -79,7 +95,10 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   private var panX: Float = 0f
   private var panY: Float = 0f
 
-  private var zoomBar: Table? = null
+  private lateinit var zoomBar: Table
+  private lateinit var foldBottom: Table
+
+  private var foldShown = false
 
   val isUpdated
     get() = updatedIndex != historyIndex
@@ -126,6 +145,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     init {
       setFillParent(true)
       isTransform = true
+
+      Core.app.post { setOrigin(Align.center) } // after handle
     }
 
     override fun draw() {
@@ -133,6 +154,101 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       super.draw()
     }
   }
+
+  var showLines: FoldLink? = null
+
+  private var foldUpdate = false
+
+  private val foldLinkerPane = object: WidgetGroup(){
+    override fun act(delta: Float) {
+      super.act(delta)
+
+      if (foldUpdate) {
+        foldUpdate = false
+
+        clearChildren()
+        foldLinkers.clear()
+
+        foldCards.forEach { c ->
+          buildFoldLinker(c).also {
+            addChild(it)
+            foldLinkers.put(c, it)
+          }
+        }
+
+        validate()
+      }
+
+      foldLinkers.each { c, e ->
+        val v = c.localToAscendantCoordinates(foldBottom, c.panePos.add(c.paneSize.scl(0.5f)))
+        val pos = foldBottom.localToDescendantCoordinates(this, v)
+
+        e.setPosition(pos.x, height/2, Align.center)
+      }
+    }
+
+    override fun getPrefHeight() = Scl.scl(40f)
+  }
+  val foldPane: Table = object: Table(){
+    var inv = false
+
+    override fun validate() {
+      super.validate()
+      if (inv) {
+        invalidateHierarchy()
+        inv = false
+      }
+    }
+
+    override fun layout() {
+      super.layout()
+      foldCards.forEach { card ->
+        card.isTransform = true
+        card.pack()
+        val paneSize = card.paneSize
+        val panePos = card.panePos
+        val scl = height/paneSize.y
+
+        card.width -= 2*panePos.x
+        card.height -= 2*panePos.y
+        card.width *= scl
+        card.height *= scl
+
+        card.setOrigin(Align.center)
+        card.scaleX = scl
+        card.scaleY = scl
+
+        getCell(card)?.size(
+          paneSize.x*scl/Scl.scl(),
+          paneSize.y*scl/Scl.scl()
+        )?.padLeft(8f)?.padRight(8f)
+      }
+    }
+
+    override fun childrenChanged() {
+      super.childrenChanged()
+      inv = true
+      foldUpdate = true
+    }
+  }.left().apply { children.reverse() }
+  private val foldScrollPane = ScrollPane(foldPane, Styles.noBarPane)
+  private val foldTable = object: Table(Consts.midGrayUI){
+    override fun validate() {
+      val parent = parent
+      if (parent != null) {
+        val parentWidth = parent.width
+
+        if (width != parentWidth) {
+          setWidth(parentWidth)
+          invalidate()
+        }
+      }
+      super.validate()
+    }
+  }
+
+  val foldHeight: Float
+    get() = foldTable.height
 
   fun build() {
     addChild(menuPos)
@@ -150,6 +266,98 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       }.growX().top().get().also { it.color.a = 0f }
       t.row()
       t.add(Core.bundle["dialog.calculator.editLock"], Styles.outlineLabel).padTop(60f).visible { editLock }
+    }
+
+    foldTable.image().color(Pal.darkestGray).height(2f).growX().padBottom(-2f)
+    foldTable.row()
+    foldTable.add(Element()).growX().height(7f).get().apply {
+      hovered { Core.graphics.cursor(Cursor.SystemCursor.verticalResize) }
+      exited { Core.graphics.restoreCursor() }
+      addListener(object: ElementGestureListener(){
+        var off = 0f
+
+        override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?) {
+          localToAscendantCoordinates(this@DesignerView, vec1.set(x, y))
+          off = vec1.y - foldTable.height
+        }
+
+        override fun pan(event: InputEvent?, x: Float, y: Float, deltaX: Float, deltaY: Float) {
+          localToAscendantCoordinates(this@DesignerView, vec1.set(x, y))
+          foldTable.height = Mathf.clamp(vec1.y - off, Scl.scl(180f), this@DesignerView.height)
+        }
+      })
+      touchablility = Prov{ Touchable.enabled.takeIf { foldShown }?: Touchable.disabled }
+      addEventBlocker()
+    }
+    foldTable.row()
+    foldTable.table{
+      it.left().add("Folded Cards").padLeft(8f)
+      it.add().growX()
+      val but = it.button(Icon.upOpenSmall, Styles.clearNonei, 28f){}.get()
+      but.clicked { foldShown = !foldShown }
+      but.update {
+        foldTable.y = if (foldShown) 0f else -foldTable.getRowHeight(4)
+        but.style.imageUp = Icon.downOpenSmall.takeIf { foldShown }?: Icon.upOpenSmall
+      }
+    }.growX().fillY().left().margin(5f).marginTop(0f)
+    foldTable.row()
+    foldTable.image().color(Pal.darkestGray).height(2f).growX()
+    foldTable.row()
+
+    foldBottom = foldTable.table{
+      it.add(foldLinkerPane).growX().fillY().left().padTop(4f).padBottom(4f)
+      it.row()
+      it.left().add(foldScrollPane).left().fillX().growY().scrollY(false).scrollX(true)
+    }.grow().maxHeight(480f).pad(8f).get()
+    val p = foldScrollPane
+    foldBottom.touchable = Touchable.enabled
+    foldBottom.addEventBlocker{ e -> e !is InputEvent || e.keyCode != KeyCode.mouseRight }
+    foldBottom.addListener(object: InputListener(){
+      override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) { p.requestScroll() }
+
+      override fun scrolled(event: InputEvent, x: Float, y: Float, sx: Float, sy: Float): Boolean {
+        p.scrollX += min(p.scrollWidth, max((p.scrollWidth*0.9f), (p.maxX*0.1f))/4f)*sy
+        return true
+      }
+    })
+
+    addChild(foldTable)
+    foldTable.pack()
+    foldTable.height = Scl.scl(320f)
+    foldTable.validate()
+    foldTable.y = -foldTable.getRowHeight(4)
+
+    fill { _, _, _, _ ->
+      val showLines = showLines?:return@fill
+
+      val from = showLines.centerPos
+      val card = showLines.card
+
+      val interp = Time.globalTime%180f/180f
+      if (showLines.inFold) {
+        shownCards.clear()
+        seq.clear().addAll(card.linkerOuts).addAll(card.linkerIns).forEach { linker ->
+          linker.links.keys().forEach lns@{ other ->
+            val lerp = if (linker.isInput) 1 - interp else interp
+
+            if (other.parentCard.isFold){
+              val to = foldLinkers[other.parentCard]?.centerPos?: return@fill
+              drawFoldCurveLink(from, to, showLines.linesColor, !shownCards.contains(other.parentCard), lerp)
+              shownCards.add(other.parentCard)
+            }
+            else {
+              val to = other.linkFoldCtrl[linker]?.centerPos?: return@fill
+              drawFoldLineLink(from, to, showLines.linesColor, true, lerp)
+            }
+          }
+        }
+      }
+      else if (foldShown && showLines.linker != null){
+        val lerp = if (showLines.linker.isInput) interp else 1 - interp
+        val to = foldLinkers[card]?.centerPos?: return@fill
+
+        drawFoldLineLink(from, to, showLines.linesColor, true, lerp)
+      }
     }
 
     update {
@@ -179,6 +387,341 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     setAreaSelectListener()
   }
 
+  private fun drawFoldCurveLink(
+    from: Vec2,
+    to: Vec2,
+    color: Color,
+    linkLine: Boolean,
+    lerp: Float,
+  ) {
+    val step = 1f/80
+
+    Lines.stroke(
+      Scl.scl(2f + Mathf.absin(Time.globalTime, 6f, 1f)),
+      color
+    )
+    Draw.alpha(0.5f + Mathf.absin(Time.globalTime, 5f, 0.2f))
+
+    if (linkLine) {
+      Lines.beginLine()
+      for (i in 0..80) {
+        val p = Bezier.cubic(
+          vec1, step*i,
+          from, Tmp.v1.set(from).add(0f, Scl.scl(60f)),
+          Tmp.v2.set(to).add(0f, Scl.scl(60f)), to,
+          Tmp.v3
+        )
+
+        Lines.linePoint(p)
+      }
+      Lines.endLine()
+    }
+
+    val v = Bezier.cubic(
+      vec1, Mathf.clamp(lerp),
+      from, Tmp.v1.set(from).add(0f, Scl.scl(60f)),
+      Tmp.v2.set(to).add(0f, Scl.scl(60f)), to,
+      Tmp.v3
+    )
+    val d = Bezier.cubicDerivative(
+      vec2, Mathf.clamp(lerp),
+      from, Tmp.v1.set(from).add(0f, Scl.scl(60f)),
+      Tmp.v2.set(to).add(0f, Scl.scl(60f)), to,
+      Tmp.v3
+    ).nor().scl(Scl.scl(12f*Interp.pow5.apply(Interp.slope.apply(lerp))))
+
+    Shapes.line(
+      v.x, v.y, color,
+      v.x + d.x, v.y + d.y, Tmp.c1.set(color).a(0f)
+    )
+    Shapes.line(
+      v.x, v.y, color,
+      v.x - d.x, v.y - d.y, Tmp.c1.set(color).a(0f)
+    )
+  }
+
+  private fun drawFoldLineLink(
+    from: Vec2,
+    to: Vec2,
+    color: Color,
+    linkLine: Boolean,
+    lerp: Float,
+  ) {
+    Lines.stroke(
+      Scl.scl(2f + Mathf.absin(Time.globalTime, 6f, 1f)),
+      color
+    )
+    Draw.alpha(0.5f + Mathf.absin(Time.globalTime, 5f, 0.2f))
+
+    if (linkLine) {
+      Lines.line(
+        from.x, from.y,
+        to.x, to.y
+      )
+    }
+
+    val v = vec1.set(to).sub(from).scl(lerp)
+    val d = vec2.set(v).nor().scl(Scl.scl(12f*Interp.pow5.apply(Interp.slope.apply(lerp))))
+    v.add(from)
+
+    Shapes.line(
+      v.x, v.y, color,
+      v.x + d.x, v.y + d.y, Tmp.c1.set(color).a(0f)
+    )
+    Shapes.line(
+      v.x, v.y, color,
+      v.x - d.x, v.y - d.y, Tmp.c1.set(color).a(0f)
+    )
+  }
+
+  private fun buildFoldLinker(c: Card): FoldLink {
+    val hover = Vec2()
+    var isHovering = false
+    var linkValid = false
+
+    var hoveringCard: Card? = null
+
+    val linkerPairs = ObjectMap<ItemLinker, ItemLinker>()
+    val existedToLinkers = ObjectSet<ItemLinker>()
+    val tmpFromLinkers = ObjectSet<ItemLinker>()
+    val tmpToLinkers = ObjectSet<ItemLinker>()
+    val linkingFold = ObjectSet<FoldLink>()
+
+    val elem = object : FoldLink(c, null, true) {
+      override fun draw() {
+        super.draw()
+
+        val interp = Time.globalTime%180f/180f
+        if (isHovering && hoveringCard == null) {
+          drawFoldLineLink(centerPos, vec1.set(x, y).add(hover), Pal.accent, true, interp)
+        }
+        else linkingFold.forEach {
+          drawFoldLineLink(
+            centerPos,
+            it.centerPos,
+            if (!existedToLinkers.contains(it.linker)) Pal.accent else Color.crimson,
+            true,
+            interp
+          )
+        }
+      }
+
+      override fun act(delta: Float) {
+        super.act(delta)
+
+        linkerPairs.keys().forEach { if (it.parent == null) it.act(delta) }
+      }
+    }
+
+    val resetPan = fun() {
+      c.linkerOuts.removeAll { it.parent != it.parentCard }
+      linkerPairs.forEach e@{
+        if (tmpToLinkers.contains(it.value) || existedToLinkers.contains(it.key)) return@e
+        it.value.linkFoldCtrl.remove(it.key)
+      }
+      linkingFold.forEach e@{
+        if (existedToLinkers.contains(it.linker)) return@e
+        it.remove()
+      }
+      tmpFromLinkers.forEach { it.remove() }
+      tmpToLinkers.forEach { it.remove() }
+
+      linkerPairs.clear()
+      existedToLinkers.clear()
+      tmpFromLinkers.clear()
+      tmpToLinkers.clear()
+      linkingFold.clear()
+      hoveringCard = null
+      showLines = null
+      linkValid = false
+    }
+
+    val checkLinking = fun() {
+      val v = elem.localToAscendantCoordinates(this@DesignerView, vec1.set(hover))
+      val card = hitCard(v.x, v.y, inner = false, fold = false)
+
+      if (hoveringCard != null && hoveringCard != card) resetPan()
+
+      hoveringCard = card
+
+      if (card != null && card != c) {
+        val out = c.outputs().map { it.item }.toSet()
+        val accept = card.accepts().map { it.item }.toSet()
+
+        val validItems = out intersect accept
+
+        if (validItems.isEmpty()) return
+
+        validItems.forEach l@{ item ->
+          var from = c.linkerOuts.find { it.item == item }
+          var to = card.linkerIns.find { it.item == item }
+
+          if (from == null) {
+            from = ItemLinker(c, item, false)
+            tmpFromLinkers.add(from)
+            from.pack()
+            from.adsorption(c.width/2, c.height/2, c)
+            c.addOut(from)
+          }
+          if (to == null) {
+            to = ItemLinker(card, item, true)
+            tmpToLinkers.add(to)
+            to.pack()
+            card.addIn(to)
+          }
+
+          if (card.checkLinking(from)) {
+            if (linkerPairs.put(from, to) == null) {
+              val linking = to.linkFoldCtrl[from]
+              if (linking == null) {
+                object : FoldLink(c, to, false) {
+                  override fun draw() {
+                    super.draw()
+
+                    val offV = Geometry.d4(to.dir)
+
+                    val f = to.linkPos
+                    val t = vec1.set(getX(Align.center) - offV.x*width/2f, getY(Align.center) - offV.y*height/2)
+
+                    val orig = color1.set(Draw.getColor())
+                    Lines.stroke(Scl.scl(4f), card.foldColor)
+                    Lines.curve(
+                      f.x, f.y,
+                      f.x + offV.x*Scl.scl(20f), f.y + offV.y*Scl.scl(20f),
+                      t.x - offV.x*Scl.scl(20f), t.y - offV.y*Scl.scl(20f),
+                      t.x, t.y,
+                      100
+                    )
+                    Draw.color(orig)
+                  }
+                }.also {
+                  to.linkFoldCtrl[from] = it
+                  it.setSize(Scl.scl(50f))
+                  to.addChild(it)
+                  linkingFold.add(it)
+                }
+              }
+              else {
+                existedToLinkers.add(from)
+                linkingFold.add(linking)
+              }
+            }
+          }
+        }
+
+        this@DesignerView.localToDescendantCoordinates(card, v)
+
+        linkValid = !linkerPairs.isEmpty
+
+        val panePos = card.panePos
+        val paneSize = card.paneSize
+        val dir = Geom.angleToD4Integer(
+          v.x - panePos.x - paneSize.x/2,
+          v.y - panePos.y - paneSize.y/2,
+          card.width, card.height
+        )
+        val d = Geometry.d4(dir + 1)
+
+        val lenH = tmpToLinkers.size*Scl.scl(72f)
+        tmpToLinkers.forEachIndexed n@{ i, it ->
+          val off = -lenH/2f + (i + 0.5f)*Scl.scl(72f)
+          it.adsorption(v.x + d.x*off, v.y + d.y*off, card)
+        }
+      }
+      else {
+        resetPan()
+      }
+    }
+
+    elem.setSize(Scl.scl(40f))
+
+    elem.addEventBlocker()
+    elem.addListener(object : InputListener() {
+      override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
+        Core.graphics.cursor(Cursor.SystemCursor.hand)
+        showLines = elem
+      }
+
+      override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Element?) {
+        Core.graphics.restoreCursor()
+        showLines = null
+      }
+
+      override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?) = true
+
+      override fun touchUp(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?) {
+        isHovering = false
+
+        if (linkValid) {
+          val list = mutableListOf<DesignerHandle>()
+
+          tmpToLinkers.clear()
+          tmpFromLinkers.clear()
+          linkerPairs.forEach {
+            if (existedToLinkers.contains(it.key)) {
+              list.add(DoLinkHandle(this@DesignerView, it.key, it.value, true))
+            }
+            else {
+              list.add(DoLinkHandle(this@DesignerView, it.key, it.value, false))
+            }
+          }
+          pushHandle(CombinedHandles(this@DesignerView, *list.toTypedArray()))
+        }
+
+        resetPan()
+      }
+
+      override fun touchDragged(event: InputEvent?, x: Float, y: Float, pointer: Int) {
+        hover.set(x, y)
+        isHovering = true
+
+        checkLinking()
+      }
+    })
+    elem.clicked {
+      FoldIconCfgDialog(c).show()
+    }
+
+    return elem
+  }
+
+  fun foldCard(card: Card) {
+    card.adjustSize(false)
+
+    card.isFold = true
+
+    removeCard(card, false)
+
+    foldPane.add(card)
+    foldCards.add(card)
+  }
+
+  fun unfoldCard(card: Card) {
+    card.isTransform = false
+    card.isFold = false
+    card.scaleX = 1f
+    card.scaleY = 1f
+    card.pack()
+
+    removeCard(card, false)
+    
+    cards.add(card)
+    container.addChild(card)
+  }
+
+  fun showFoldPane(card: Card? = null) {
+    if (card?.isFold == false) return
+    if (!foldShown) foldShown = true
+
+    if (card == null) return
+
+    val x = card.getX(Align.center)
+    foldScrollPane.scrollX = Mathf.clamp(
+      x - foldScrollPane.width/2,
+      0f, foldScrollPane.maxX
+    )
+  }
+
   fun addRecipe(recipe: Recipe): RecipeCard {
     return RecipeCard(this, recipe).also {
       pushHandle(AddCardHandle(this, it))
@@ -189,12 +732,10 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
   }
 
-  fun addIO(item: RecipeItem<*>, isInput: Boolean): IOCard {
-    return IOCard(this, item, isInput).also {
-      pushHandle(AddCardHandle(this, it))
-      buildCard(it)
-      newSet = it
-    }
+  fun addIO(ioCard: IOCard) {
+    pushHandle(AddCardHandle(this, ioCard))
+    buildCard(ioCard)
+    newSet = ioCard
   }
 
   fun setMoveLocker(inner: Element) {
@@ -215,6 +756,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 
   fun checkCardClip(card: Card): Boolean {
+    if (card.isFold) return foldShown
+
     val v1 = container.localToAscendantCoordinates(this, vec2.set(card.x, card.y))
     val v2 = container.localToAscendantCoordinates(this, vec3.set(card.x, card.y).add(card.width, card.height))
 
@@ -223,8 +766,41 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 
   fun addCard(card: Card) {
-    cards.add(card)
-    container.addChild(card)
+    if (card.isFold){
+      foldCards.add(card)
+      foldPane.add(card)
+    }
+    else {
+      cards.add(card)
+      container.addChild(card)
+    }
+  }
+
+  fun alignCard(card: Card, x: Float, y: Float, align: Int){
+    card.setPosition(x, y, Align.center)
+    card.gridAlign(align)
+  }
+
+  fun alignFoldCard(card: Card) {
+    foldCards.clear()
+
+    val v = foldPane.stageToLocalCoordinates(
+      card.parent.localToStageCoordinates(
+        vec1.set(
+          card.getX(Align.center),
+          card.getY(Align.center)
+        )
+      )
+    )
+    val arr = foldPane.cells.select{ it.get() != card }.map { it.get() as Card to it.get().getX(Align.center) }
+    arr.add(card to v.x)
+    arr.sort(Floatf { it.second })
+
+    foldPane.clearChildren()
+    arr.forEach {
+      foldPane.add(it.first)
+      foldCards.add(it.first)
+    }
   }
 
   fun buildCard(card: Card, x: Float = width/2, y: Float = height/2) {
@@ -232,17 +808,22 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
     card.build()
     card.pack()
-    card.buildLinker()
-    card.draw()
     card.setPosition(vec1.x, vec1.y, Align.center)
 
     card.gridAlign(cardAlign)
   }
 
-  fun removeCard(card: Card) {
+  fun removeCard(card: Card, delete: Boolean = true) {
     cards.remove(card)
+    foldCards.remove(card)
+
     container.removeChild(card)
 
+    foldPane.clearChildren()
+    foldCards.forEach { foldPane.add(it) }
+    foldPane.validate()
+
+    if (!delete) return
     seq.clear().addAll(card.linkerIns).addAll(card.linkerOuts)
     for (linker in seq) {
       for (link in linker!!.links.keys().toSeq()) {
@@ -252,9 +833,10 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
   }
 
-  fun eachCard(range: Rect, cons: Cons<Card>, inner: Boolean) {
-    for (card in cards) {
-      val (v1, v2) = checkNorm(inner, card)
+  fun eachCard(range: Rect, inner: Boolean, fold: Boolean = true, cons: Cons<Card>) {
+    val list = if (fold) Seq.withArrays(cards, foldCards) else cards
+    for (card in list) {
+      val (v1, v2) = checkNorm(inner && !card.isFold, card)
       val ox = v1.x
       val oy = v1.y
       val wx = v2.x
@@ -265,16 +847,17 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
   }
 
-  fun eachCard(x: Float, y: Float, inner: Boolean, cons: Cons<Card>) {
+  fun eachCard(x: Float, y: Float, inner: Boolean, fold: Boolean = true, cons: Cons<Card>) {
     Tmp.r1.set(x, y, 0f, 0f)
-    eachCard(Tmp.r1, cons, inner)
+    eachCard(Tmp.r1, inner, fold, cons)
   }
 
-  fun hitCard(x: Float, y: Float, inner: Boolean): Card? {
-    for (s in cards.size - 1 downTo 0) {
-      val card = cards[s]
+  fun hitCard(x: Float, y: Float, inner: Boolean, fold: Boolean = true): Card? {
+    val list = if (fold) Seq.withArrays(cards, foldCards) else cards
+    for (s in list.size - 1 downTo 0) {
+      val card = list[s]
 
-      val (v1, v2) = checkNorm(inner, card)
+      val (v1, v2) = checkNorm(inner && !card.isFold, card)
 
       val ox = v1.x
       val oy = v1.y
@@ -290,19 +873,19 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 
   fun standardization() {
-    val (v1, v2) = normBound()
+    val bound = getBound()
 
-    v2.add(v1).scl(0.5f)
+    bound.getCenter(vec1)
 
-    val offX = -v2.x - container.width/2
-    val offY = -v2.y - container.height/2
+    val offX = -vec1.x - container.width/2
+    val offY = -vec1.y - container.height/2
 
     pushHandle(StandardizeHandle(this, offX, offY))
 
     resetView()
   }
 
-  fun pushHandle(handle: DesignerHandle){
+  fun pushHandle(handle: DesignerHandle, doAction: Boolean = true){
     if (history.size <= historyIndex) {
       history.add(handle)
       if (history.size > parentDialog.maximumHistories) history.remove(0)
@@ -313,7 +896,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       if (historyIndex < history.size - 1) history.removeRange(historyIndex + 1, history.size - 1)
       historyIndex++
     }
-    handle.handle()
+    if (doAction) handle.handle()
   }
 
   fun canRedo(): Boolean = historyIndex < history.size
@@ -356,13 +939,13 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 
   fun toBuffer(buff: FrameBuffer, boundX: Float, boundY: Float, scl: Float): FrameBuffer {
-    val (v1, v2) = normBound()
+    val bound = getBound()
 
-    val width = v2.x - v1.x + boundX*2
-    val height = v2.y - v1.y + boundY*2
+    val width = bound.width + boundX*2
+    val height = bound.height + boundY*2
 
-    val dx = v1.x - boundX
-    val dy = v1.y - boundY
+    val dx = bound.x - boundX
+    val dy = bound.y - boundY
 
     val camera = Camera()
     camera.width = width
@@ -459,15 +1042,13 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 
   fun writeCards(write: Writes) {
-    write.i(cards.size)
-    for (card in cards) {
-      card!!.write(write)
-      write.i(card.mul)
-      write.f(card.effScale)
-      write.f(card.x)
-      write.f(card.y)
-      write.f(card.width)
-      write.f(card.height)
+    val seq = Seq.withArrays<Card>(cards, foldCards)
+    write.i(seq.size)
+    for (card in seq) {
+      card.write(write)
+
+      write.f(card.x, card.y, card.width, card.height)
+      write.f(card.scaleX, card.scaleY)
 
       write.i(card.linkerIns.size)
       write.i(card.linkerOuts.size)
@@ -483,7 +1064,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
         for (entry in linker.links) {
           write.l(entry.key.id)
-          write.f(entry.value)
+          write.f(entry.value.rate)
         }
       }
     }
@@ -491,7 +1072,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
   fun readCards(
     read: Reads,
-    ver: Int = SHD_REV
+    ver: Int = SHD_REV,
   ) {
     val linkerMap = LongMap<ItemLinker>()
     val links = ObjectMap<ItemLinker, Seq<Pair<Long, Float>>>()
@@ -501,9 +1082,11 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       val card = Card.read(read, ver)
       addCard(card)
       card.build()
-      card.mul = read.i()
-      if (ver >= 1) card.effScale = read.f()
+
       card.setBounds(read.f(), read.f(), read.f(), read.f())
+
+      card.scaleX = read.f()
+      card.scaleY = read.f()
 
       val inputs = read.i()
       val outputs = read.i()
@@ -532,7 +1115,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       for (pair in link.value) {
         val target = linkerMap[pair.first] ?: continue
         link.key.linkTo(target)
-        link.key.setPresent(target, pair.second)
+        link.key.setProportion(target, pair.second)
       }
     }
 
@@ -542,17 +1125,14 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
   }
 
-  private fun writeLinker(write: Writes, linker: ItemLinker?) {
-    write.l(linker!!.id)
-    write.str(linker.item.name())
+  private fun writeLinker(write: Writes, linker: ItemLinker) {
+    write.l(linker.id)
+    write.str(linker.item.name)
     write.bool(linker.isInput)
     write.i(linker.dir)
     write.f(linker.expectAmount)
 
-    write.f(linker.x)
-    write.f(linker.y)
-    write.f(linker.width)
-    write.f(linker.height)
+    write.f(linker.x, linker.y, linker.width, linker.height)
   }
 
   private fun readLinker(read: Reads, card: Card, ver: Int): ItemLinker {
@@ -650,7 +1230,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
             for (card in selects) {
               if (!lastSelected.contains(card)) selects.remove(card)
             }
-            eachCard(rect, { key -> selects.add(key) }, true)
+            eachCard(rect, true){ key -> selects.add(key) }
           }
         }
       }
@@ -667,8 +1247,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
         }
 
         zoom.setScale(Mathf.clamp(distance/initialDistance*lastZoom, 0.25f, 1f))
-        zoom.setOrigin(Align.center)
-        zoom.isTransform = true
 
         clamp()
       }
@@ -736,10 +1314,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     addListener(object : InputListener() {
       override fun scrolled(event: InputEvent, x: Float, y: Float, amountX: Float, amountY: Float): Boolean {
         zoom.setScale(Mathf.clamp(zoom.scaleX - amountY/10f*zoom.scaleX, 0.25f, 1f).also { lastZoom = it })
-        zoom.setOrigin(Align.center)
-        zoom.isTransform = true
-        zoomBar!!.clearActions()
-        zoomBar!!.actions(
+        zoomBar.clearActions()
+        zoomBar.actions(
           Actions.alpha(1f),
           Actions.alpha(0f, 3f, Interp.pow5)
         )
@@ -812,29 +1388,15 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
   }
 
-  private fun checkNorm(c: IOCard, out: ItemLinker): Boolean {
-    var sum = 0f
-    for (linker in out.links.keys()) {
-      if (!linker!!.isNormalized) {
-        Vars.ui.showInfo(Core.bundle.format("misc.assignInvalid"))
-        return true
-      }
-
-      val rate = if (linker.links.size == 1) 1f else linker.links[out]?:-1f
-      sum += linker.expectAmount*rate
-    }
-    c.stack.amount = sum
-    return false
-  }
-
   private fun checkNorm(inner: Boolean, card: Card): Pair<Vec2, Vec2> {
-    if (inner) vec2.set(card.child.x, card.child.y).add(card.x, card.y)
-    else vec2[card.x] = card.y
+    val panePos = card.panePos
+    val paneSize = card.paneSize
 
-    if (inner) vec3.set(card.child.x + card.child.width, card.child.y + card.child.height).add(
-      card.x, card.y
-    )
-    else vec3[card.x + card.width] = card.y + card.height
+    if (inner) vec2.set(panePos.x, panePos.y).add(card.x, card.y)
+    else vec2.set(card.x, card.y)
+
+    if (inner) vec3.set(panePos.x + paneSize.x, panePos.y + paneSize.y).add(card.x, card.y)
+    else vec3.set(card.x + card.width, card.y + card.height)
 
     card.parent.localToAscendantCoordinates(this, vec2)
     card.parent.localToAscendantCoordinates(this, vec3)
@@ -842,7 +1404,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     return vec2 to vec3
   }
 
-  private fun normBound(): Pair<Vec2, Vec2> {
+  private fun getBound(): Rect {
     val v1 = Vec2(Float.MAX_VALUE, Float.MAX_VALUE)
     val v2 = v1.cpy().scl(-1f)
     for (card in cards) {
@@ -852,7 +1414,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       v2.x = max(v2.x.toDouble(), (card.x + card.width).toDouble()).toFloat()
       v2.y = max(v2.y.toDouble(), (card.y + card.height).toDouble()).toFloat()
     }
-    return Pair(v1, v2)
+    return Rect(v1.x, v1.y, v2.x - v1.x, v2.y - v1.y)
   }
 }
 
@@ -869,13 +1431,13 @@ fun interface ViewAcceptor<R>{
   fun SchematicDesignerDialog.accept(
     x: Float, y: Float,
     view: DesignerView,
-    hitTarget: Any?
+    hitTarget: Any?,
   ): R
 
   operator fun invoke(
     dialog: SchematicDesignerDialog,
     x: Float, y: Float,
     view: DesignerView,
-    hitTarget: Any?
+    hitTarget: Any?,
   ): R = dialog.accept(x, y, view, hitTarget)
 }

@@ -9,6 +9,7 @@ import arc.scene.ui.layout.Table
 import arc.struct.*
 import arc.util.Align
 import arc.util.Time
+import arc.util.io.Writes
 import mindustry.Vars
 import mindustry.content.Blocks.container
 import mindustry.content.Fx.v
@@ -62,7 +63,7 @@ class TooManyItems : Mod() {
         EntryAssigner.assign()
         Vars.ui.settings.game.checkPref("tmi_button", true)
         Vars.ui.settings.game.checkPref("tmi_items_pane", false)
-        Vars.ui.settings.graphics.sliderPref("tmi_gridSize", 150, 50, 300, 10) { i: Int -> i.toString() }
+        Vars.ui.settings.graphics.sliderPref("tmi_gridSize", 150, 50, 300, 10) { i -> i.toString() }
         api.afterInit()
       }
     }
@@ -113,8 +114,18 @@ operator fun <K, V> ObjectMap<K, V>.set(key: K, value: V): V = put(key, value)
 operator fun <P> Cons<P>.invoke(p: P) = get(p)
 operator fun <P1, P2> Cons2<P1, P2>.invoke(p1: P1, p2: P2) = get(p1, p2)
 operator fun <P1, P2, P3> Cons3<P1, P2, P3>.invoke(p1: P1, p2: P2, p3: P3) = get(p1, p2, p3)
+operator fun <P1, P2, P3, P4> Cons4<P1, P2, P3, P4>.invoke(p1: P1, p2: P2, p3: P3, p4: P4) = get(p1, p2, p3, p4)
 operator fun <P, R> Func<P, R>.invoke(p: P): R = get(p)
 operator fun <P1, P2, R> Func2<P1, P2, R>.invoke(p1: P1, p2: P2): R = get(p1, p2)
 operator fun <P1, P2, P3, R> Func3<P1, P2, P3, R>.invoke(p1: P1, p2: P2, p3: P3): R = get(p1, p2, p3)
 operator fun <R> Prov<R>.invoke(): R = get()
-fun <P, T: Throwable> ConsT<P, T>.invoke(p: P) = get(p)
+operator fun <P, T: Throwable> ConsT<P, T>.invoke(p: P) = get(p)
+
+fun Writes.b(vararg bytes: Int) = bytes.forEach { b(it) }
+fun Writes.s(vararg shorts: Int) = shorts.forEach { s(it) }
+fun Writes.i(vararg ints: Int) = ints.forEach { i(it) }
+fun Writes.l(vararg longs: Long) = longs.forEach { l(it) }
+fun Writes.f(vararg floats: Float) = floats.forEach { f(it) }
+fun Writes.d(vararg bytes: Double) = bytes.forEach { d(it) }
+fun Writes.str(vararg strings: String) = strings.forEach { str(it) }
+fun Writes.bool(vararg bools: Boolean) = bools.forEach { bool(it) }

@@ -14,7 +14,7 @@ import tmi.recipe.RecipeType
 import tmi.util.Consts.markerTile
 import java.lang.reflect.InvocationTargetException
 
-class PumpParser : ConsumerParser<Pump>() {
+open class PumpParser : ConsumerParser<Pump>() {
   private val floorDrops: ObjectSet<Floor> = ObjectSet()
 
   override fun init() {

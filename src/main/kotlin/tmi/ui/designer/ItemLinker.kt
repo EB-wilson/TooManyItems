@@ -4,6 +4,7 @@ import arc.Core
 import arc.Graphics
 import arc.func.Prov
 import arc.graphics.Color
+import arc.graphics.Texture
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
@@ -13,25 +14,33 @@ import arc.math.Mathf
 import arc.math.Rand
 import arc.math.geom.Geometry
 import arc.math.geom.Vec2
+import arc.scene.Element
 import arc.scene.actions.Actions
-import arc.scene.event.ClickListener
 import arc.scene.event.ElementGestureListener
 import arc.scene.event.InputEvent
+import arc.scene.event.InputListener
 import arc.scene.event.Touchable
+import arc.scene.style.Drawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
 import arc.struct.OrderedMap
-import arc.struct.Seq
 import arc.util.*
+import mindustry.Vars
 import mindustry.core.UI
+import mindustry.gen.Icon
 import mindustry.graphics.Pal
+import mindustry.ui.Fonts.icon
 import mindustry.ui.Styles
 import tmi.recipe.types.RecipeItem
 import tmi.set
 import tmi.ui.addEventBlocker
-import tmi.util.Consts
+import tmi.util.*
 import kotlin.math.abs
+
+data class LinkEntry(val link: ItemLinker){
+  var rate: Float = -1f
+}
 
 class ItemLinker @JvmOverloads internal constructor(
   val parentCard: Card,
@@ -42,30 +51,43 @@ class ItemLinker @JvmOverloads internal constructor(
   val ownerDesigner = parentCard.ownerDesigner
   var expectAmount = 0f
 
-  var links = OrderedMap<ItemLinker, Float>()
-  var lines = ObjectMap<ItemLinker, Seq<Any>>() //TODO: Lines
+  val links = OrderedMap<ItemLinker, LinkEntry>()
+  val linkFoldCtrl = ObjectMap<ItemLinker, FoldLink>()
+
   var dir = 0
 
-  private var linkPos = Vec2()
-  private var linking = false
-  private var moving = false
-  private var tim = false
+  var linking = false
+  var moving = false
+
+  var linkPos = Vec2()
+
+  private var timing = false
   private var time = 0f
   private var hovering = Vec2()
+  private var linksUpdated = false
+
+  private var temp: ItemLinker? = null
+  private var tempFold: FoldLink? = null
 
   var hover: ItemLinker? = null
 
-  var temp: ItemLinker? = null
 
   var hoverCard: Card? = null
   var hoverValid: Boolean = false
+
+  var lineColor: Color = Color.white
+    set(value) {
+      field = value
+      colorSetCount = 1
+    }
+  private var colorSetCount = 0
 
   init {
     touchablility = Prov { if (ownerDesigner.editLock) Touchable.disabled else Touchable.enabled }
 
     stack(
       Table { t ->
-        t.image(item.icon()).center().scaling(Scaling.fit).size(48f)
+        t.image(item.icon).center().scaling(Scaling.fit).size(48f)
       },
       Table { inc ->
         inc.add("", Styles.outlineLabel).padTop(20f).update { l ->
@@ -86,18 +108,18 @@ class ItemLinker @JvmOverloads internal constructor(
     exited { Core.graphics.restoreCursor() }
 
     update {
-      if (tim && Time.globalTime - time > 30) {
+      if (timing && Time.globalTime - time > 30) {
         moving = true
         hover = this@ItemLinker
         hovering.set(Core.input.mouse())
         clearActions()
         actions(Actions.scaleTo(1.1f, 1.1f, 0.3f))
-        tim = false
+        timing = false
       }
     }
 
     setHandleListener()
-    addEventBlocker{ e -> e !is InputEvent || e.keyCode != KeyCode.mouseRight  }
+    addEventBlocker { e -> e !is InputEvent || e.keyCode != KeyCode.mouseRight  }
   }
 
   val isNormalized: Boolean
@@ -105,9 +127,9 @@ class ItemLinker @JvmOverloads internal constructor(
       if (links.size == 1) return true
 
       var total = 0f
-      links.values().forEach { rate ->
-        if (rate < 0) return false
-        total += rate
+      links.values().forEach { ent ->
+        if (ent.rate < 0) return false
+        total += ent.rate
 
         if (total > 1 + Mathf.FLOAT_ROUNDING_ERROR) return false
       }
@@ -126,6 +148,7 @@ class ItemLinker @JvmOverloads internal constructor(
     hover = null
     val card = ownerDesigner.hitCard(hovering.x, hovering.y, false)
 
+    linkFoldCtrl.values().forEach { it.linesColor.set(Pal.accent) }
     if (card != null && card != parent) {
       ownerDesigner.localToDescendantCoordinates(card, hovering)
 
@@ -142,7 +165,13 @@ class ItemLinker @JvmOverloads internal constructor(
           hover = linker
           hoverCard = card
 
-          hovering[hover!!.x + hover!!.width/2] = hover!!.y + hover!!.height/2
+          val fold = linkFoldCtrl[linker]
+          if (fold != null && hover!!.links.containsKey(this)){
+            fold.linesColor.set(Color.crimson)
+            ownerDesigner.showLines = fold
+          }
+
+          hovering.set(hover!!.x + hover!!.width/2, hover!!.y + hover!!.height/2)
           card.localToAscendantCoordinates(ownerDesigner, hovering)
 
           return
@@ -152,8 +181,8 @@ class ItemLinker @JvmOverloads internal constructor(
       hoverCard = card
 
       if (hover == null) {
-        if (temp == null || temp!!.item != item) {
-          temp = ItemLinker(parentCard, item, true)
+        if (temp == null || temp!!.item != item || temp!!.parentCard != card) {
+          temp = ItemLinker(card, item, true)
           temp!!.draw()
           temp!!.pack()
         }
@@ -162,7 +191,9 @@ class ItemLinker @JvmOverloads internal constructor(
         hover!!.parent = card
       }
 
-      if (!hover!!.adsorption(hovering.x, hovering.y, card)) {
+      val hover = hover!!
+
+      if (!hover.adsorption(hovering.x, hovering.y, card)) {
         resetHov()
 
         card.localToAscendantCoordinates(ownerDesigner, hovering)
@@ -170,72 +201,108 @@ class ItemLinker @JvmOverloads internal constructor(
         return
       }
 
-      hovering[hover!!.x + hover!!.width/2] = hover!!.y + hover!!.height/2
+      hovering.set(hover.x + hover.width/2, hover.y + hover.height/2)
       card.localToAscendantCoordinates(ownerDesigner, hovering)
-      hover!!.parent = null
+      hover.parent = null
 
-      return
+      if (hoverValid && card.isFold){
+        if (tempFold != null) return
+
+        object: FoldLink(card, hover, false){
+          override fun draw() {
+            super.draw()
+
+            val offV = Geometry.d4(dir)
+
+            val from = linkPos
+            val to = vec1.set(getX(Align.center) - offV.x*width/2f, getY(Align.center) - offV.y*height/2)
+
+            val orig = color1.set(Draw.getColor())
+            Lines.stroke(Scl.scl(4f), card.foldColor)
+            Lines.curve(
+              from.x, from.y,
+              from.x + offV.x*Scl.scl(20f), from.y + offV.y*Scl.scl(20f),
+              to.x - offV.x*Scl.scl(20f), to.y - offV.y*Scl.scl(20f),
+              to.x, to.y,
+              100
+            )
+            Draw.color(orig)
+          }
+        }.also {
+          tempFold = it
+          linkFoldCtrl[hover] = it
+          it.setSize(Scl.scl(50f))
+          addChild(it)
+
+          ownerDesigner.showLines = it
+        }
+      }
     }
+    else resetHov()
 
-    resetHov()
+    if (card == null || !card.isFold || !hoverValid){
+      tempFold?.remove()
+      if (tempFold != null) linkFoldCtrl.remove(tempFold!!.linker)
+      tempFold = null
+      ownerDesigner.showLines = null
+    }
   }
 
-  fun adsorption(posX: Float, posY: Float, targetCard: Card?): Boolean {
-    if (((posX < targetCard!!.child.x || posX > targetCard.child.x + targetCard.child.width)
-          && (posY < targetCard.child.y || posY > targetCard.child.y + targetCard.child.height))
+  fun adsorption(posX: Float, posY: Float, targetCard: Card): Boolean {
+    val panePos = targetCard.panePos
+    val paneSize = targetCard.paneSize
+
+    if (((posX < panePos.x || posX > panePos.x + paneSize.x)
+      && (posY < panePos.y || posY > panePos.y + paneSize.y))
     ) return false
 
-    val angle = Angles.angle(
-      targetCard.child.x + targetCard.child.width/2,
-      targetCard.child.y + targetCard.child.height/2,
-      posX,
-      posY
+    dir = Geom.angleToD4Integer(
+      posX - panePos.x - paneSize.x/2,
+      posY - panePos.y - paneSize.y/2,
+      targetCard.width,
+      targetCard.height
     )
-    val check = Angles.angle(targetCard.width, targetCard.height)
 
-    if (angle > check && angle < 180 - check) {
-      dir = 1
-      val offY = targetCard.child.height/2 + getHeight()/1.5f
-      setPosition(posX, targetCard.child.y + targetCard.child.height/2 + offY, Align.center)
-    }
-    else if (angle > 180 - check && angle < 180 + check) {
-      dir = 2
-      val offX = -targetCard.child.width/2 - getWidth()/1.5f
-      setPosition(targetCard.child.x + targetCard.child.width/2 + offX, posY, Align.center)
-    }
-    else if (angle > 180 + check && angle < 360 - check) {
-      dir = 3
-      val offY = -targetCard.child.height/2 - getHeight()/1.5f
-      setPosition(posX, targetCard.child.y + targetCard.child.height/2 + offY, Align.center)
-    }
-    else {
-      dir = 0
-      val offX = targetCard.child.width/2 + getWidth()/1.5f
-      setPosition(targetCard.child.x + targetCard.child.width/2 + offX, posY, Align.center)
+    when(dir){
+      0 -> {
+        val offX = paneSize.x/2 + getWidth()/1.5f
+        setPosition(panePos.x + paneSize.x/2 + offX, posY, Align.center)
+      }
+      1 -> {
+        val offY = paneSize.y/2 + getHeight()/1.5f
+        setPosition(posX, panePos.y + paneSize.y/2 + offY, Align.center)
+      }
+      2 -> {
+        val offX = -paneSize.x/2 - getWidth()/1.5f
+        setPosition(panePos.x + paneSize.x/2 + offX, posY, Align.center)
+      }
+      3 -> {
+        val offY = -paneSize.y/2 - getHeight()/1.5f
+        setPosition(posX, panePos.y + paneSize.y/2 + offY, Align.center)
+      }
     }
 
     return true
   }
 
   fun linkTo(target: ItemLinker) {
-    check(!isInput) { "Only output can do link" }
-    check(target.isInput) { "Cannot link input to input" }
+    if (target.item.item != item.item) return
 
-    links.put(target, -1f)
-    target.links.put(this, -1f)
-    lines.put(target, null)
-    target.lines.put(this, null)
+    target.linksUpdated = true
+    linksUpdated = true
+
+    links.put(target, LinkEntry(target))
+    target.links.put(this, LinkEntry(this))
 
     (parent as Card).observeUpdate()
     (target.parent as Card).observeUpdate(true)
   }
 
-  fun setPresent(target: ItemLinker, pres: Float) {
-    check(!isInput) { "Only output can do link" }
-    check(target.isInput) { "Cannot link input to input" }
+  fun setProportion(target: ItemLinker, pres: Float) {
+    if (target.item.item != item.item) return
 
-    links[target] = pres
-    target.links[this] = pres
+    links[target].rate = pres
+    target.links[this].rate = pres
 
     (parent as Card).observeUpdate()
     (target.parent as Card).observeUpdate()
@@ -244,10 +311,11 @@ class ItemLinker @JvmOverloads internal constructor(
   fun deLink(target: ItemLinker) {
     if (target.item.item != item.item) return
 
+    target.linksUpdated = true
+    linksUpdated = true
+
     links.remove(target)
     target.links.remove(this)
-    lines.remove(target)
-    target.lines.remove(this)
 
     (parent as Card).observeUpdate()
     (target.parent as Card).observeUpdate(true)
@@ -281,12 +349,11 @@ class ItemLinker @JvmOverloads internal constructor(
         ownerDesigner.moveLock(true)
 
         setOrigin(Align.center)
-        isTransform = true
 
         beginX = x
         beginY = y
 
-        tim = true
+        timing = true
         time = Time.globalTime
         linking = false
         moving = false
@@ -294,13 +361,11 @@ class ItemLinker @JvmOverloads internal constructor(
         panned = false
 
         if (isInput) {
-          tim = false
+          timing = false
           moving = true
           hover = this@ItemLinker
           hovering.set(Core.input.mouse())
-          clearActions()
-          actions(Actions.scaleTo(1.1f, 1.1f, 0.3f))
-          tim = false
+          timing = false
         }
       }
 
@@ -334,17 +399,20 @@ class ItemLinker @JvmOverloads internal constructor(
           ownerDesigner.selecting = this@ItemLinker
         }
 
-        if (moving) {
-          clearActions()
-          actions(Actions.scaleTo(1f, 1f, 0.3f))
+        if (!panned && isInput) {
+          showProportionConfigure()
         }
 
         ownerDesigner.moveLock(false)
         resetHov()
         temp = null
-        tim = false
+        timing = false
         linking = false
         moving = false
+        tempFold?.remove()
+        if (tempFold != null) linkFoldCtrl.remove(tempFold!!.linker)
+        tempFold = null
+        ownerDesigner.showLines = null
       }
 
       override fun pan(event: InputEvent, x: Float, y: Float, deltaX: Float, deltaY: Float) {
@@ -358,9 +426,9 @@ class ItemLinker @JvmOverloads internal constructor(
 
         hovering.set(x, y)
         localToAscendantCoordinates(ownerDesigner, hovering)
-        if (tim && !isInput && Time.globalTime - time < 30) {
+        if (timing && !isInput && Time.globalTime - time < 30) {
           linking = true
-          tim = false
+          timing = false
         }
 
         if (linking) {
@@ -377,25 +445,144 @@ class ItemLinker @JvmOverloads internal constructor(
         }
       }
     })
+  }
 
-    clicked {
-      ownerDesigner.parentDialog.showMenu(this@ItemLinker, Align.bottom, Align.top) { frame ->
-        frame.table(Consts.padDarkGrayUIAlpha) {
-          //TODO
-        }
+  private fun showProportionConfigure() {
+    ownerDesigner.parentDialog.showMenu(this@ItemLinker, Align.bottom, Align.top) { frame ->
+      standardizeProportion()
+
+      val pie = PieChartSetter(
+        proportionEntries = links.map { it.key to it.value.rate },
+        callback = { l ->
+          ownerDesigner.pushHandle(
+            SetLinkPresentHandle(
+              ownerDesigner,
+              this@ItemLinker,
+              l.toMap()
+            )
+          )
+        },
+        colorSetter = { to, c -> to.lineColor = c }
+      )
+      frame.table(Consts.padDarkGrayUIAlpha) { table ->
+        table.table(Consts.grayUI) { main ->
+          main.add(Core.bundle["dialog.calculator.proportionAssign"]).pad(5f)
+          main.row()
+          main.add(pie).pad(12f)
+          main.row()
+          main.button(Core.bundle["misc.average"], Icon.rotateSmall, Styles.cleart, 24f) { pie.average() }
+            .fill().margin(4f).pad(4f)
+        }.pad(4f).fill().get()
       }
     }
   }
 
+  fun standardizeProportion() {
+    if (isNormalized) {
+      if (links.size == 1) setProportion(links.first().key, 1f)
+      return
+    }
+
+    val pros = links.associate { it.key to (it.value.rate.takeIf { f -> f >= 0 }?:(1f/links.size)) }
+
+    val total = pros.values.sum()
+    val set = links.associate { it.key to (pros[it.key] ?: (1f/links.size))/total }
+
+    ownerDesigner.pushHandle(SetLinkPresentHandle(ownerDesigner, this, set))
+  }
+
+  fun updateLinks() {
+    linksUpdated = true
+    links.keys().forEach { it.linksUpdated = true }
+  }
+
+  override fun act(delta: Float) {
+    super.act(delta)
+
+    if (linksUpdated && !parentCard.isFold){
+      linksUpdated = false
+
+      linkFoldCtrl.values().forEach { it.remove() }
+      linkFoldCtrl.clear()
+      links.keys().forEach { link ->
+        if (link.parentCard.isFold) {
+          val elem = object: FoldLink(link.parentCard, link, false){
+            override fun draw() {
+              super.draw()
+              if (!link.parentCard.isFold) return
+
+              val offV = Geometry.d4(dir)
+
+              val from = linkPos
+              val to = vec1.set(getX(Align.center) - offV.x*width/2f, getY(Align.center) - offV.y*height/2)
+
+              val orig = color1.set(Draw.getColor())
+              Lines.stroke(Scl.scl(4f), link.parentCard.foldColor)
+              Lines.curve(
+                from.x, from.y,
+                from.x + offV.x*Scl.scl(20f), from.y + offV.y*Scl.scl(20f),
+                to.x - offV.x*Scl.scl(20f), to.y - offV.y*Scl.scl(20f),
+                to.x, to.y,
+                100
+              )
+              Draw.color(orig)
+            }
+          }
+          addChild(elem)
+          elem.setSize(Scl.scl(50f))
+          elem.addEventBlocker()
+
+          elem.addListener(object: InputListener(){
+            override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?)
+              { ownerDesigner.showLines = elem }
+            override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Element?)
+              { if (toActor != elem) ownerDesigner.showLines = null }
+          })
+          elem.clicked(KeyCode.mouseLeft) { ownerDesigner.showFoldPane(link.parentCard) }
+
+          linkFoldCtrl.put(link, elem)
+        }
+      }
+    }
+
+    if (!parentCard.isFold){
+      val lenH = linkFoldCtrl.size*Scl.scl(72f)
+      val offV = Geometry.d4(dir)
+      val offH = Geometry.d4(dir - 1)
+      val from = vec1.set(offV.x.toFloat(), offV.y.toFloat())
+        .scl(width/2 + Scl.scl(24f), height/2 + Scl.scl(24f))
+        .add(width/2, height/2)
+
+      linkFoldCtrl.forEachIndexed { i, e ->
+        val linkCtrl = e.value
+        val offset = -lenH/2f + (i + 0.5f)*Scl.scl(72f)
+
+        val to = Vec2(from.x + offV.x*Scl.scl(70f) + offH.x*offset, from.y + offV.y*Scl.scl(70f) + offH.y*offset)
+
+        linkCtrl.setPosition(
+          to.x + offV.x*linkCtrl.width/2,
+          to.y + offV.y*linkCtrl.height/2,
+          Align.center
+        )
+      }
+    }
+
+    if (colorSetCount > 0){
+      colorSetCount--
+      return
+    }
+
+    lineColor = Color.white
+  }
+
   override fun draw() {
     super.draw()
-
     updateLinkPos()
 
     Lines.stroke(Scl.scl(4f))
     Draw.alpha(parentAlpha)
     for (link in links.keys()) {
-      if (!link!!.isInput) continue
+      if (!link.isInput || link.parentCard.isFold) continue
 
       drawLinkLine(link.linkPos, link.dir)
     }
@@ -404,8 +591,12 @@ class ItemLinker @JvmOverloads internal constructor(
       if (hoverCard == null || (hoverValid && !hover!!.links.containsKey(this)))
         Pal.accent
       else Color.crimson
-    else Color.white
+    else lineColor
+
+    Lines.stroke(Scl.scl(4f))
+    Draw.alpha(parentAlpha)
     Draw.color(c, parentAlpha)
+
     val pos = linkPos
 
     val angle = dir*90 + (if (isInput) 180 else 0)
@@ -420,50 +611,58 @@ class ItemLinker @JvmOverloads internal constructor(
     )
 
     if (linking) {
-      if (hover != null) {
-        if (hover!!.parent == null && hoverCard != null) {
-          Tmp.v1[hoverCard!!.x] = hoverCard!!.y
+      drawLinking(c, triangleRad)
+    }
+  }
 
-          val cx = hover!!.x
-          val cy = hover!!.y
+  private fun drawLinking(c: Color, triangleRad: Float) {
+    if (hover != null) {
+      if (hoverCard!!.isFold) return
 
-          Tmp.v2.set(hovering)
-          ownerDesigner.localToDescendantCoordinates(this, Tmp.v2)
-          hover!!.setPosition(x + Tmp.v2.x, y + Tmp.v2.y, Align.center)
-          Draw.mixcol(Color.crimson, if (hoverValid) 0f else 0.5f)
-          hover!!.draw()
-          Draw.mixcol()
-          Lines.stroke(Scl.scl(4f), c)
-          drawLinkLine(hover!!.linkPos, hover!!.dir)
-          hover!!.x = cx
-          hover!!.y = cy
-        }
-        else {
-          Lines.stroke(Scl.scl(4f), c)
-          drawLinkLine(hover!!.linkPos, hover!!.dir)
-        }
-      }
-      else {
-        val lin = linkPos
+      val hover = hover!!
+      if (hover.parent == null && hoverCard != null) {
+        Tmp.v1.set(hoverCard!!.x, hoverCard!!.y)
+
+        val cx = hover.x
+        val cy = hover.y
+
         Tmp.v2.set(hovering)
         ownerDesigner.localToDescendantCoordinates(this, Tmp.v2)
-
+        hover.setPosition(x + Tmp.v2.x, y + Tmp.v2.y, Align.center)
+        Draw.mixcol(Color.crimson, if (hoverValid) 0f else 0.5f)
+        hover.draw()
+        Draw.mixcol()
         Lines.stroke(Scl.scl(4f), c)
-        drawLinkLine(
-          lin.x, lin.y, dir,
-          x + Tmp.v2.x, y + Tmp.v2.y, dir - 2
-        )
-
-        val an = dir*90
-        Fill.tri(
-          x + Tmp.v2.x + Angles.trnsx(an.toFloat(), triangleRad),
-          y + Tmp.v2.y + Angles.trnsy(an.toFloat(), triangleRad),
-          x + Tmp.v2.x + Angles.trnsx((an + 120).toFloat(), triangleRad),
-          y + Tmp.v2.y + Angles.trnsy((an + 120).toFloat(), triangleRad),
-          x + Tmp.v2.x + Angles.trnsx((an - 120).toFloat(), triangleRad),
-          y + Tmp.v2.y + Angles.trnsy((an - 120).toFloat(), triangleRad)
-        )
+        drawLinkLine(hover.linkPos, hover.dir)
+        hover.x = cx
+        hover.y = cy
       }
+      else {
+        Lines.stroke(Scl.scl(4f), c)
+        drawLinkLine(hover.linkPos, hover.dir)
+      }
+    }
+    else {
+      val lin = linkPos
+      Tmp.v2.set(hovering)
+      ownerDesigner.localToDescendantCoordinates(this, Tmp.v2)
+
+          Vars.indexer
+      Lines.stroke(Scl.scl(4f), c)
+      drawLinkLine(
+        lin.x, lin.y, dir,
+        x + Tmp.v2.x, y + Tmp.v2.y, dir - 2
+      )
+
+      val an = dir*90
+      Fill.tri(
+        x + Tmp.v2.x + Angles.trnsx(an.toFloat(), triangleRad),
+        y + Tmp.v2.y + Angles.trnsy(an.toFloat(), triangleRad),
+        x + Tmp.v2.x + Angles.trnsx((an + 120).toFloat(), triangleRad),
+        y + Tmp.v2.y + Angles.trnsy((an + 120).toFloat(), triangleRad),
+        x + Tmp.v2.x + Angles.trnsx((an - 120).toFloat(), triangleRad),
+        y + Tmp.v2.y + Angles.trnsy((an - 120).toFloat(), triangleRad)
+      )
     }
   }
 

@@ -1,7 +1,6 @@
 package tmi
 
 import arc.Core
-import arc.func.Cons
 import arc.graphics.g2d.TextureRegion
 import arc.struct.ObjectMap
 import arc.struct.Seq
@@ -99,11 +98,11 @@ class ModAPI {
     val entryAnno = mod.main?.let { it::class.java.getAnnotation(RecipeEntryPoint::class.java) }
     if (!meta.has("recipeEntry") && entryAnno == null) return
 
+    if (mod.loader == null) mod.loader = Vars.platform.loadJar(mod.file, Vars.mods.mainLoader())
     val entryClass = entryAnno?.value?.java
       ?:mod.loader.loadClass(meta.getString("recipeEntry")) as Class<out RecipeEntry>
 
     try {
-      if (mod.loader == null) mod.loader = Vars.platform.loadJar(mod.file, Vars.mods.mainLoader())
       val entry = entryClass.getConstructor().newInstance()
       entries.add(entry)
 
@@ -190,55 +189,51 @@ class ModAPI {
     val recipeList = recipeInfos.get("recipeList")?.asArray()
 
     recipeItems?.forEach{
-      val ordinal = it.getInt("ordinal", -1)
-      val typeID = it.getInt("typeID", -1)
       val name = it.getString("name", "<error>")
-      val localizeNamePath = recipeInfos.getString("localizeNamePath", "name.$name")
-      val icon = recipeInfos.getString("icon", "error")
-      val hidden = recipeInfos.getBool("hidden", false)
 
-      TooManyItems.itemsManager.addItemWrap(name, object: RecipeItem<String>(name){
-        override fun ordinal(): Int = ordinal
-        override fun typeID(): Int = typeID
-        override fun name(): String = item
-        override fun localizedName(): String = Core.bundle[localizeNamePath]
-        override fun icon(): TextureRegion = Core.atlas.find(icon)
-        override fun hidden(): Boolean = hidden
+      TooManyItems.itemsManager.addItemWrap(name, object :
+        RecipeItem<String>(name) {
+        override val ordinal = it.getInt("ordinal", -1)
+        override val typeOrdinal = it.getInt("typeID", -1)
+        override val typeID = it.getInt("typeID", -1)
+        override val name = name
+        override val localizedName = Core.bundle[recipeInfos.getString(
+          "localizeNamePath",
+          "name.$name"
+        )]
+        override val icon = Core.atlas.find(recipeInfos.getString("icon", "error"))
+        override val hidden = recipeInfos.getBool("hidden", false)
       })
     }
 
     recipeList?.forEach{ recipeInfo ->
-      val type = recipeInfo.getString("type")
       val ownerBlock: String? = recipeInfo.getString("ownerBlock")
-      val craftTime = recipeInfos.getFloat("craftTime", 0f)
-      val effFunc = recipeInfo.getString("effFunc", "default:1.0f")
       val subInfo: String? = recipeInfo.getString("subInfo")
+
       val materials = recipeInfo.get("materials")?.asArray()
       val productions = recipeInfo.get("productions")?.asArray()
 
-      val rawEff = effFunc.split(":")
-      val isDefaultEff = rawEff[0] == "default"
-      val defBase = rawEff[1].toFloat()
+      val rawEff = recipeInfo.getString("effFunc", "default:1.0f").split(":")
 
       val recipe = Recipe(
-        recipeType = getRecipeType(type),
-        craftTime = craftTime,
-        ownerBlock = ownerBlock?.let { TooManyItems.itemsManager.getByName<Block>(ownerBlock) }
+        recipeType = getRecipeType(recipeInfo.getString("type")),
+        craftTime = recipeInfos.getFloat("craftTime", 0f),
+        ownerBlock = ownerBlock?.let { TooManyItems.itemsManager.getByName<Block>(it) }
       ).setEff(
-        if (isDefaultEff) Recipe.getDefaultEff(defBase)
+        if (rawEff[0] == "default") Recipe.getDefaultEff(rawEff[1].toFloat())
         else Recipe.oneEff
       )
 
-      if (subInfo != null){
+      if (subInfo != null) {
         recipe.setSubInfo { it.add(Core.bundle[subInfo]) }
       }
 
-      if (materials != null) recipe.materials.putAll(materials.map{
+      if (materials != null) recipe.materials.putAll(materials.map {
         val stack = parseStack(it)(recipe)
         return@map stack.item to stack
       })
 
-      if (productions != null) recipe.productions.putAll(productions.map{
+      if (productions != null) recipe.productions.putAll(productions.map {
         val stack = parseStack(it)(recipe)
         return@map stack.item to stack
       })
@@ -247,21 +242,14 @@ class ModAPI {
 
   private fun parseStack(comp: Jval): ((Recipe) -> RecipeItemStack) {
     val itemRaw = comp.getString("item", "<error>")
-    val amount = comp.getFloat("amount", -1f)
     val amountFormat = comp.getString("amountFormat", "none")
-    val efficiency = comp.getFloat("efficiency", 1f)
-    val isOptional = comp.getBool("isOptional", false)
-    val isAttribute = comp.getBool("isAttribute", false)
-    val isBooster = comp.getBool("isBooster", false)
-    val attributeGroup: String? = comp.getString("attributeGroup", null)
-    val maxAttribute = comp.getBool("maxAttribute", false)
 
     return {
       itemRaw.split(":")
         .let {
           val item = TooManyItems.itemsManager.getByName<Any>(it[0])
           if (it.size == 2) RecipeItemStack(item, it[1].toFloat())
-          else RecipeItemStack(item, amount)
+          else RecipeItemStack(item, comp.getFloat("amount", -1f))
         }
         .apply {
           when (amountFormat) {
@@ -272,26 +260,35 @@ class ModAPI {
             "rawFloat" -> floatFormat()
             else -> emptyFormat()
           }
-          setEff(efficiency)
-          setOptional(isOptional)
-          setAttribute(isAttribute)
-          setBooster(isBooster)
-          setAttribute(attributeGroup)
-          setMaxAttr(maxAttribute)
+          setEff(comp.getFloat("efficiency", 1f))
+          setOptional(comp.getBool("isOptional", false))
+          setAttribute(comp.getBool("isAttribute", false))
+          setBooster(comp.getBool("isBooster", false))
+          setAttribute(comp.getString("attributeGroup", null))
+          setMaxAttr(comp.getBool("maxAttribute", false))
         }
     }
   }
 
   fun afterInit() {
     for (entry in entries) {
-      entry.afterInit()
+      try {
+        entry.afterInit()
+      }catch (e: Exception){
+        Log.err("after initial error, stack trace: ", e)
+      }
     }
 
-    Vars.mods.scripts.context.evaluateString(
-      Vars.mods.scripts.scope,
-      afterInit,
-      "tmiAfter.js",
-      0
-    )
+    try {
+      Vars.mods.scripts.context.evaluateString(
+        Vars.mods.scripts.scope,
+        afterInit,
+        "tmiAfter.js",
+        0
+      )
+    }catch (e: Exception){
+      Log.err("after initial error, stack trace: ", e)
+    }
+
   }
 }

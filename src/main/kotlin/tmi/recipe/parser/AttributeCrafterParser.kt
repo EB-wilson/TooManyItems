@@ -11,7 +11,7 @@ import tmi.recipe.Recipe.Companion.getDefaultEff
 import tmi.recipe.RecipeType
 import kotlin.math.min
 
-class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
+open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
   init {
     excludes.add(GenericCrafterParser::class.java)
   }

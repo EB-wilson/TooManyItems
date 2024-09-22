@@ -10,6 +10,7 @@ import tmi.invoke
 import tmi.recipe.types.RecipeItem
 import tmi.set
 import java.util.*
+import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 
 /**配方信息的存储类，该类的每一个实例都表示为一个单独的配方，用于显示配方或者计算生产数据
@@ -45,8 +46,8 @@ class Recipe @JvmOverloads constructor(
 
           attrGroups.clear()
 
-          recipe.materials.values().forEach { stack ->
-            if (stack!!.isBooster || stack.isAttribute) return@forEach
+          recipe.materials.values.forEach { stack ->
+            if (stack.isBooster || stack.isAttribute) return@forEach
 
             if (stack.attributeGroup != null) {
               val e = attrGroups[stack.attributeGroup, 1f]*stack.efficiency*Mathf.clamp(env.getInputs(stack.item)/(stack.amount*mul))
@@ -74,8 +75,8 @@ class Recipe @JvmOverloads constructor(
           var attr = 0f
           var boost = 1f
 
-          recipe.materials.values().forEach { stack ->
-            if (!stack!!.isBooster && !stack.isAttribute) return@forEach
+          recipe.materials.values.forEach { stack ->
+            if (!stack.isBooster && !stack.isAttribute) return@forEach
 
             if (stack.isAttribute) {
               val a = stack.efficiency*Mathf.clamp(env.getAttribute(stack.item)/stack.amount)
@@ -107,8 +108,8 @@ class Recipe @JvmOverloads constructor(
     }
   }
 
-  val productions = OrderedMap<RecipeItem<*>, RecipeItemStack>()
-  val materials = OrderedMap<RecipeItem<*>, RecipeItemStack>()
+  val productions = sortedMapOf<RecipeItem<*>, RecipeItemStack>()
+  val materials = sortedMapOf<RecipeItem<*>, RecipeItemStack>()
 
   //infos
   /**配方的效率计算函数，用于给定一个输入环境参数和配方数据，计算出该配方在这个输入环境下的工作效率 */
@@ -164,9 +165,9 @@ class Recipe @JvmOverloads constructor(
   fun addProductionRaw(item: RecipeItem<*>, amount: Float) = addProduction(item, amount as Number)
 
   fun addMaterial(item: RecipeItem<*>, amount: Number) =
-    RecipeItemStack(item, amount.toFloat()).also { materials.put(item, it) }
+    RecipeItemStack(item, amount.toFloat()).also { materials[item] = it }
   fun addProduction(item: RecipeItem<*>, amount: Number) =
-    RecipeItemStack(item, amount.toFloat()).also { productions.put(item, it) }
+    RecipeItemStack(item, amount.toFloat()).also { productions[item] = it }
 
   //utils
   fun addMaterialInteger(item: RecipeItem<*>, amount: Int) =
@@ -176,7 +177,7 @@ class Recipe @JvmOverloads constructor(
       amount.toFloat()
     ).integerFormat()).also {
       it.setAltFormat(AmountFormatter.persecFormatter())
-      materials.put(item, it)
+      materials[item] = it
     }
 
   fun addMaterialFloat(item: RecipeItem<*>, amount: Float) =
@@ -186,13 +187,13 @@ class Recipe @JvmOverloads constructor(
       amount
     ).floatFormat()).also {
       it.setAltFormat(AmountFormatter.persecFormatter())
-      materials.put(item, it)
+      materials[item] = it
     }
 
   fun addMaterialPersec(item: RecipeItem<*>, persec: Float) =
     RecipeItemStack(item, persec).persecFormat().also {
       if (craftTime > 0) it.setAltFormat(AmountFormatter.floatFormatter(craftTime))
-      materials.put(item, it)
+      materials[item] = it
     }
 
   fun addProductionInteger(item: RecipeItem<*>, amount: Int) =
@@ -202,7 +203,7 @@ class Recipe @JvmOverloads constructor(
       amount.toFloat()
     ).integerFormat()).also {
       it.setAltFormat(AmountFormatter.persecFormatter())
-      productions.put(item, it)
+      productions[item] = it
     }
 
   fun addProductionFloat(item: RecipeItem<*>, amount: Float) =
@@ -212,13 +213,13 @@ class Recipe @JvmOverloads constructor(
       amount
     ).floatFormat()).also {
       it.setAltFormat(AmountFormatter.persecFormatter())
-      productions.put(item, it)
+      productions[item] = it
     }
 
   fun addProductionPersec(item: RecipeItem<*>, perSec: Float) =
     RecipeItemStack(item, perSec).persecFormat().also {
       if (craftTime > 0) it.setAltFormat(AmountFormatter.floatFormatter(craftTime))
-      productions.put(item, it)
+      productions[item] = it
     }
 
   fun containsProduction(production: RecipeItem<*>) = productions.containsKey(production)
@@ -235,7 +236,12 @@ class Recipe @JvmOverloads constructor(
   }
 
   override fun hashCode(): Int {
-    return Objects.hash(recipeType, productions.orderedKeys(), materials.orderedKeys(), ownerBlock)
+    return Objects.hash(
+      recipeType,
+      productions.keys.toList(),
+      materials.keys.toList(),
+      ownerBlock
+    )
   }
 
   interface EffFunc {

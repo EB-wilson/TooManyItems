@@ -46,18 +46,18 @@ class GeneratorRecipe : FactoryRecipe() {
     prodPos.clear()
     blockPos.setZero()
 
-    val mats = recipe.materials.values().toSeq().select { e -> !e.optionalCons }
-    val opts = recipe.materials.values().toSeq().select { e -> e.optionalCons }
-    val prod = Seq<RecipeItemStack>()
-    val powers = Seq<RecipeItemStack>()
-    for (item in recipe.productions.values().toSeq()) {
+    val mats = recipe.materials.values.filter { e -> !e.optionalCons }
+    val opts = recipe.materials.values.filter { e -> e.optionalCons }
+    val prod = arrayListOf<RecipeItemStack>()
+    val powers = arrayListOf<RecipeItemStack>()
+    for (item in recipe.productions.values) {
       if (isPower(item.item)) powers.add(item)
       else prod.add(item)
     }
 
     val materialNum = mats.size
     val productionNum = prod.size
-    hasOptionals = opts.size > 0
+    hasOptionals = opts.isNotEmpty()
     doubleInput = materialNum > DOUBLE_LIMIT
     doubleOutput = productionNum > DOUBLE_LIMIT
 
@@ -95,7 +95,7 @@ class GeneratorRecipe : FactoryRecipe() {
     var offY = NODE_SIZE/2
 
     if (hasOptionals) {
-      offY = handleNode(opts, consPos, offOptX, offY, false, false)
+      offY = handleNode(opts, consPos, offOptX, offY, isDouble = false, turn = false)
       optPos[bound.x/2] = offY
       offY += ROW_PAD
     }

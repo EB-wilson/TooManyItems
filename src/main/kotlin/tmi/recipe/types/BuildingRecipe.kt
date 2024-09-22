@@ -99,7 +99,7 @@ class BuildingRecipe : RecipeType() {
     blockPos.setZero()
     materialPos.clear()
 
-    val seq: Seq<RecipeItemStack> = recipe.materials.values().toSeq()
+    val seq: List<RecipeItemStack> = recipe.materials.values.toList()
     val radians = 2f*Mathf.pi/seq.size
     val radius = max(
       MIN_RAD.toDouble(),
@@ -111,7 +111,7 @@ class BuildingRecipe : RecipeType() {
 
     val r = Rand(build!!.id.toLong())
     val off = r.random(0f, 360f)
-    for (i in 0 until seq.size) {
+    for (i in seq.indices) {
       val angle = radians*i*Mathf.radDeg + off
       val rot = r.random(0f, RAND) + radius
 

@@ -23,7 +23,7 @@ class RecipeItemManager {
 
   fun <T, R : RecipeItem<T>> addItemWrap(item: T, recipeItem: R): R {
     recipeItems.put(item, recipeItem)
-    itemNameMap.put(recipeItem.name(), recipeItem)
+    itemNameMap.put(recipeItem.name, recipeItem)
 
     return recipeItem
   }
@@ -34,7 +34,7 @@ class RecipeItemManager {
       for (entry in wrapper) {
         if (entry.key[item]) {
           val res = (entry.value as Func<T, RecipeItem<T>>)(item)
-          itemNameMap.put(res.name(), res)
+          itemNameMap.put(res.name, res)
           return@get res
         }
       }
@@ -51,14 +51,16 @@ class RecipeItemManager {
     get() = recipeItems.values().toSeq().sort()
 
   private class RecipeUnlockableContent(item: UnlockableContent) : RecipeItem<UnlockableContent>(item) {
-    override fun ordinal() = item.id.toInt()
-    override fun typeID() = mirror[item.contentType, item.contentType.ordinal]
-    override fun name(): String = item.name
-    override fun localizedName(): String = item.localizedName
-    override fun icon(): TextureRegion = item.uiIcon
-    override fun hidden() = false
-    override fun locked() = !item.unlockedNow()
-    override fun hasDetails() = true
+    override val ordinal = item.id.toInt()
+    override val typeOrdinal = mirror[item.contentType, item.contentType.ordinal]
+    override val typeID: Int = item.contentType.ordinal
+    override val name: String = item.name
+    override val localizedName: String = item.localizedName
+    override val icon: TextureRegion = item.uiIcon
+    override val hidden = false
+    override val locked = !item.unlockedNow()
+    override val hasDetails = true
+
     override fun displayDetails() = Vars.ui.content.show(item)
 
     companion object {
@@ -75,13 +77,8 @@ class RecipeItemManager {
 
   companion object {
     private val ERROR = object : SingleItemMark("<error>") {
-      override fun icon(): TextureRegion {
-        return Core.atlas.find("error")
-      }
-
-      override fun hidden(): Boolean {
-        return true
-      }
+      override val icon = Core.atlas.find("error")
+      override val hidden = true
     }
 
     val wrapper = OrderedMap<Boolf<Any>, Func<*, RecipeItem<*>>>()

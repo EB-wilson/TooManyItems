@@ -7,7 +7,7 @@ import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 import tmi.recipe.types.PowerMark
 
-class GeneratorParser : ConsumerParser<PowerGenerator>() {
+open class GeneratorParser : ConsumerParser<PowerGenerator>() {
   override fun isTarget(content: Block): Boolean {
     return content is PowerGenerator
   }

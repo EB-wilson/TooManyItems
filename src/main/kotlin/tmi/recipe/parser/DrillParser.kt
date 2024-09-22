@@ -20,7 +20,7 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
 import tmi.util.Consts.markerTile
 
-class DrillParser : ConsumerParser<Drill>() {
+open class DrillParser : ConsumerParser<Drill>() {
   protected var itemDrops: ObjectSet<Floor> = ObjectSet()
 
   override fun init() {

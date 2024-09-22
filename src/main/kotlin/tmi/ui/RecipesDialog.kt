@@ -30,10 +30,9 @@ import arc.util.Scaling
 import arc.util.Time
 import arc.util.Tmp
 import mindustry.Vars
-import mindustry.core.Version.type
+import mindustry.core.GameState
 import mindustry.ctype.Content
 import mindustry.gen.Icon
-import mindustry.gen.Sounds.click
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Fonts
@@ -41,7 +40,6 @@ import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import mindustry.world.Block
 import tmi.TooManyItems
-import tmi.invoke
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
@@ -60,14 +58,12 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     Sorting(
       Core.bundle["misc.defaultSort"],
       Icon.menu
-    ){ a, b -> a.compareTo(b) },
+    ){ a, b -> a compareTo b },
     Sorting(
       Core.bundle["misc.nameSort"],
       a_z
     ){ a, b ->
-      nameComparator.compare(
-        a.localizedName(), b.localizedName()
-      )
+      nameComparator.compare(a.localizedName, b.localizedName)
     },
     Sorting(
       Core.bundle["misc.modSort"],
@@ -90,7 +86,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       Core.bundle["misc.typeSort"],
       Icon.file
     ){ a, b ->
-      val n = a!!.typeID().compareTo(b!!.typeID())
+      val n = a.typeOrdinal compareTo b.typeOrdinal
       if (n == 0) {
         if (a.item is Block && b.item is Block) {
           val ca = a.item
@@ -176,8 +172,13 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     }
 
     hidden { toggle = null }
-    shown { this.buildBase() }
-    resized { this.buildBase() }
+    shown {
+      buildBase()
+      if (!Vars.net.active() && Vars.state.isPlaying) {
+        Vars.state.set(GameState.State.paused)
+      }
+    }
+    resized { buildBase() }
 
     hidden {
       currentSelect = null
@@ -186,6 +187,10 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       lastZoom = -1f
       sorting = sortings.first()
       cont.clear()
+
+      if (!Vars.net.active() && Vars.state.isPaused) {
+        Vars.state.set(GameState.State.playing)
+      }
     }
   }
 
@@ -307,8 +312,8 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
         TooManyItems.itemsManager.list.forEach { item ->
           if (TooManyItems.recipesManager.anyRecipe(item)) {
             total++
-            if(!item.localizedName().lowercase(Locale.getDefault()).contains(contentSearch)
-            && !item.name().lowercase(Locale.getDefault()).contains(contentSearch)) {
+            if(!item.localizedName.lowercase(Locale.getDefault()).contains(contentSearch)
+            && !item.name.lowercase(Locale.getDefault()).contains(contentSearch)) {
               fold++
               return@forEach
             }
@@ -408,7 +413,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
   }
 
   protected open fun buildRecipes(): Boolean {
-    if (recipesTable == null) return false
+    val recipesTable = recipesTable?:return false
     val recipes: Seq<Recipe>?
 
     if (currentSelect != null && currentSelect!!.item !is Block && recipeMode == FACTORY) _currentMode = null
@@ -416,8 +421,8 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     if (currentSelect == null) {
       recipes = null
 
-      recipesTable!!.clearChildren()
-      recipesTable!!.table { top ->
+      recipesTable.clearChildren()
+      recipesTable.table { top ->
         top.table { t ->
           t.table(Tex.buttonTrans).size(90f)
           t.row()
@@ -429,38 +434,39 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
           infos.add(Core.bundle["dialog.recipes.unselected"]).color(Pal.accent)
         }.grow().padLeft(12f).padTop(8f)
       }.left().growX().fillY().pad(8f)
-      recipesTable!!.row()
-      recipesTable!!.add().grow()
+      recipesTable.row()
+      recipesTable.add().grow()
     }
     else {
+      val currentSelect = currentSelect!!
       if (recipeMode == null) {
         _currentMode = if (TooManyItems.recipesManager.anyMaterial(currentSelect)) USAGE
         else if (TooManyItems.recipesManager.anyProduction(currentSelect)) RECIPE
-        else if (currentSelect?.item is Block)
-          if (TooManyItems.recipesManager.getRecipesByFactory(currentSelect!!).any()) FACTORY
+        else if (currentSelect.item is Block)
+          if (TooManyItems.recipesManager.getRecipesByFactory(currentSelect).any()) FACTORY
           else RECIPE
         else null
       }
 
-      recipes = if (currentSelect == null || recipeMode == null) null else when (recipeMode!!) {
-        USAGE -> TooManyItems.recipesManager.getRecipesByMaterial(currentSelect!!)
-        RECIPE -> TooManyItems.recipesManager.getRecipesByProduction(currentSelect!!)
-        FACTORY -> TooManyItems.recipesManager.getRecipesByFactory(currentSelect!!)
+      recipes = if (recipeMode == null) null else when (recipeMode!!) {
+        USAGE -> TooManyItems.recipesManager.getRecipesByMaterial(currentSelect)
+        RECIPE -> TooManyItems.recipesManager.getRecipesByProduction(currentSelect)
+        FACTORY -> TooManyItems.recipesManager.getRecipesByFactory(currentSelect)
       }
     }
 
     val recipeViews = Seq<RecipeView>()
     if (recipes != null) {
       for (recipe in recipes) {
-        val view = RecipeView(recipe) { i, _, m -> setCurrSelecting(i.item, m) }
+        val view = RecipeView(recipe, { i, _, m -> setCurrSelecting(i.item, m) })
         recipeViews.add(view)
       }
     }
 
     if (recipes == null || recipeViews.isEmpty) return false
 
-    recipesTable!!.clearListeners()
-    recipesTable!!.addListener(object : InputListener() {
+    recipesTable.clearListeners()
+    recipesTable.addListener(object : InputListener() {
       override fun scrolled(event: InputEvent, x: Float, y: Float, amountX: Float, amountY: Float): Boolean {
         if (locked) {
           recipeIndex = Mathf.clamp(recipeIndex + (if (amountY > 0) 1 else -1), 0, recipeViews.size - 1)
@@ -477,12 +483,12 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       }
 
       override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Element?) {
-        recipesTable!!.requestScroll()
+        recipesTable.requestScroll()
         super.enter(event, x, y, pointer, fromActor)
       }
     })
 
-    recipesTable!!.addCaptureListener(object : ElementGestureListener() {
+    recipesTable.addCaptureListener(object : ElementGestureListener() {
       override fun zoom(event: InputEvent, initialDistance: Float, distance: Float) {
         if (lastZoom < 0) {
           lastZoom = currZoom!!.scaleX
@@ -506,7 +512,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       }
     })
 
-    recipesTable!!.touchable = Touchable.enabled
+    recipesTable.touchable = Touchable.enabled
 
     currZoom = Table { main ->
       recipeIndex = 0
@@ -579,49 +585,49 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       }
     }
 
-    recipesTable!!.clearChildren()
-    recipesTable!!.fill { t ->
+    recipesTable.clearChildren()
+    recipesTable.fill { t ->
       t.table { clip ->
         clip.clip = true
         clip.addChild(currZoom)
       }.grow().pad(8f)
     }
-    recipesTable!!.table { top ->
+    recipesTable.table { top ->
       top.table { t ->
-        t.table(Tex.buttonTrans).size(90f).get().image(currentSelect!!.icon()).size(60f).scaling(Scaling.fit)
+        t.table(Tex.buttonTrans).size(90f).get().image(currentSelect!!.icon).size(60f).scaling(Scaling.fit)
         t.row()
         t.add(Core.bundle["dialog.recipes.currSelected"]).growX().fillY().color(Color.lightGray).wrap().get()
           .setAlignment(Align.center)
       }
       top.table { infos ->
         infos.left().top().defaults().left()
-        infos.add(currentSelect!!.localizedName()).color(Pal.accent)
+        infos.add(currentSelect!!.localizedName).color(Pal.accent)
         infos.row()
-        infos.add(currentSelect!!.name()).color(Color.gray)
-        if (currentSelect!!.locked()) {
+        infos.add(currentSelect!!.name).color(Color.gray)
+        if (currentSelect!!.locked) {
           infos.row()
           infos.add(Core.bundle["dialog.recipes.locked"]).color(Color.gray)
         }
       }.grow().padLeft(12f).padTop(8f)
     }.left().growX().fillY().pad(8f)
-    recipesTable!!.row()
-    recipesTable!!.add().grow()
-    recipesTable!!.row()
-    recipesTable!!.table { bu ->
+    recipesTable.row()
+    recipesTable.add().grow()
+    recipesTable.row()
+    recipesTable.table { bu ->
       bu.button(Icon.add, Styles.clearNonei, 36f) {
         toggle!![recipes[recipeIndex]]
       }.margin(5f).disabled {
         val r = recipes[recipeIndex]
         if (r.recipeType === RecipeType.building) return@disabled true
         var ba = false
-        for (key in r.productions.keys()) {
+        for (key in r.productions.keys) {
           if (!RecipeType.generator.isPower(key)) ba = true
         }
         !ba
       }
     }.visible { toggle != null }
-    recipesTable!!.row()
-    recipesTable!!.table { butt ->
+    recipesTable.row()
+    recipesTable.table { butt ->
       buildPage(butt, { recipeIndex }, { page: Int ->
         recipeIndex = page
         rebuildRecipe()
@@ -801,7 +807,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
               }
             }
             else {
-              if (content.hasDetails() && progress >= 0.95f) {
+              if (content.hasDetails && progress >= 0.95f) {
                 content.displayDetails()
               }
             }
@@ -810,7 +816,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
 
         update {
           alpha = Mathf.lerpDelta(alpha, (if (currentSelect === content || touched || activity) 1 else 0).toFloat(), 0.08f)
-          progress = Mathf.approachDelta(progress, (if (content.hasDetails() && touched) 1 else 0).toFloat(), 1/60f)
+          progress = Mathf.approachDelta(progress, (if (content.hasDetails && touched) 1 else 0).toFloat(), 1/60f)
           if (clicked > 0 && Time.globalTime - time > 12) clicked = 0
         }
         add(object : Element() {
@@ -819,7 +825,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
 
           init {
             val layout = GlyphLayout.obtain()
-            layout.setText(Fonts.outline, content.localizedName())
+            layout.setText(Fonts.outline, content.localizedName)
 
             elemWidth = layout.width*Scl.scl()
             elemHeight = layout.height*Scl.scl()
@@ -836,7 +842,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
             Fill.rect(x + width/2, y + height/2, backWidth*progress, backHeight)
 
             Fonts.outline.draw(
-              content.localizedName(), x + width/2, y + backHeight/2 + elemHeight/2, Tmp.c1.set(
+              content.localizedName, x + width/2, y + backHeight/2 + elemHeight/2, Tmp.c1.set(
                 Color.white
               ).a(alpha), 1f, false, Align.center
             )
@@ -844,9 +850,9 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
         }).height(35f)
         row()
 
-        if (content.locked()) {
+        if (content.locked) {
           stack(
-            Image(content.icon()).setScaling(Scaling.fit),
+            Image(content.icon).setScaling(Scaling.fit),
             Table { t ->
               t.right().bottom().defaults().right().bottom().pad(4f)
               t.image(Icon.lock).scaling(Scaling.fit).size(10f).color(Color.lightGray)
@@ -854,7 +860,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
           ).grow().padBottom(10f)
         }
         else {
-          image(content.icon()).scaling(Scaling.fit).grow().padBottom(10f)
+          image(content.icon).scaling(Scaling.fit).grow().padBottom(10f)
         }
       }
 
@@ -896,10 +902,10 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     show()
   }
 
-  data class Sorting (
+  data class Sorting(
     val localized: String,
     val icon: Drawable,
-    val sort: Comparator<RecipeItem<*>>
+    val sort: Comparator<RecipeItem<*>>,
   )
 
   enum class Mode {

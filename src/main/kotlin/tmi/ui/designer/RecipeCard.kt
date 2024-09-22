@@ -4,17 +4,20 @@ import arc.Core
 import arc.Graphics
 import arc.func.Cons
 import arc.func.Prov
-import arc.graphics.*
+import arc.graphics.Color
 import arc.input.KeyCode
 import arc.math.Mathf
-import arc.scene.event.EventListener
-import arc.scene.event.SceneEvent
 import arc.scene.event.Touchable
-import arc.scene.ui.*
+import arc.scene.ui.CheckBox
+import arc.scene.ui.TextField
 import arc.scene.ui.layout.Table
 import arc.scene.utils.Elem
 import arc.struct.OrderedSet
-import arc.util.*
+import arc.util.Align
+import arc.util.Scaling
+import arc.util.Strings
+import arc.util.Time
+import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.core.UI
 import mindustry.gen.Icon
@@ -44,9 +47,15 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   val environments: EnvParameter = EnvParameter()
   val optionalSelected: OrderedSet<RecipeItem<*>> = OrderedSet()
 
+  override var balanceValid = false
+
+  var balanceAmount = -1
+  var mul = -1
+  var effScale = 1f
+
   var over: Table? = null
 
-  val recipeView: RecipeView = RecipeView(recipe) { i, t, m ->
+  val recipeView: RecipeView = RecipeView(recipe, { i, t, m ->
     Time.run(0f){ ownerView.parentDialog.hideMenu() }
 
     TmiUI.recipesDialog.toggle = Cons { recipe ->
@@ -89,6 +98,13 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
     }
     TmiUI.recipesDialog.show()
     TmiUI.recipesDialog.setCurrSelecting(i.item, m!!)
+  }){ node ->
+    if (node.type != NodeType.PRODUCTION) return@RecipeView
+
+    setNodeMoveLinkerListener(node, node.stack.item, ownerView){
+      it.activity = false
+      it.touched = false
+    }
   }
 
   var efficiency = 0f
@@ -134,7 +150,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   override fun buildCard() {
     setDefAttribute()
 
-    child.table(Consts.grayUI) { t ->
+    pane.table(Consts.grayUI) { t ->
       t.center()
       t.hovered {
         if (ownerDesigner.newSet == this) ownerDesigner.newSet = null
@@ -147,6 +163,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
         top.hovered { Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand) }
         top.exited { Core.graphics.restoreCursor() }
         top.addCaptureListener(moveListener(top))
+        top.addEventBlocker()
       }.fillY().growX().get()
       t.row()
       t.table { inner ->
@@ -226,8 +243,8 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
                       for (item in optionalSelected) {
                         mats.table { i ->
                           i.left().defaults().left()
-                          i.image(item!!.icon()).size(32f).scaling(Scaling.fit)
-                          i.add(item.localizedName()).padLeft(4f)
+                          i.image(item!!.icon).size(32f).scaling(Scaling.fit)
+                          i.add(item.localizedName).padLeft(4f)
                         }.growX().margin(6f)
                         mats.add("").growX().padLeft(4f).update { l ->
                           val stack = recipe.materials[item]!!
@@ -260,8 +277,8 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
                       environments.eachAttribute { item, f ->
                         attr.table { i ->
                           i.left().defaults().left()
-                          i.image(item!!.icon()).size(32f).scaling(Scaling.fit)
-                          i.add(item.localizedName()).padLeft(4f)
+                          i.image(item!!.icon).size(32f).scaling(Scaling.fit)
+                          i.add(item.localizedName).padLeft(4f)
                           i.add("x" + f!!.toInt(), Styles.outlineLabel).pad(6f).color(Color.lightGray)
                         }.fill().margin(6f)
                         attr.row()
@@ -280,8 +297,8 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   }
 
   private fun setDefAttribute() {
-    recipe.materials.firstOrNull { it.value.run { isAttribute && !optionalCons } }?.apply {
-      environments.add(this.key, this.value.amount, true)
+    recipe.materials.toList().firstOrNull { it.second.run { isAttribute && !optionalCons } }?.apply {
+      environments.add(this.first, this.second.amount, true)
     }
   }
 
@@ -292,7 +309,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
         i.add(Core.bundle["calculator.config.selectAttributes"]).color(Pal.accent)
           .pad(8f).padBottom(4f).growX().left()
         i.row()
-        if (!recipe.materials.values().toSeq().contains { e -> e.isAttribute }) {
+        if (!recipe.materials.any { e -> e.value.isAttribute }) {
           i.add(Core.bundle["calculator.config.noAttributes"]).color(Color.lightGray)
             .pad(8f).growX().left()
         }
@@ -301,7 +318,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
             .pad(8f).padTop(4f).growX().left()
           i.row()
           i.pane { p ->
-            for (stack in recipe.materials.values()) {
+            for (stack in recipe.materials.values) {
               if (!stack.isAttribute) continue
               p.table { item ->
                 item.buildIcon(stack)
@@ -346,15 +363,13 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
         i.add(Core.bundle["calculator.config.selectOptionals"]).color(Pal.accent).pad(8f).growX()
           .left()
         i.row()
-        if (!recipe.materials.values().toSeq()
-            .contains { e -> e.optionalCons && !e.isAttribute }
-        ) {
+        if (!recipe.materials.any { e -> e.value.optionalCons && !e.value.isAttribute }) {
           i.add(Core.bundle["calculator.config.noOptionals"]).color(Color.lightGray).pad(8f)
             .growX().left()
         }
         else {
           i.pane { p ->
-            for (stack in recipe.materials.values()) {
+            for (stack in recipe.materials.values) {
               if (!stack.optionalCons || stack.isAttribute) continue
               val item = Elem.newCheck("") { b ->
                 val setArgsHandle = checkHandle()
@@ -390,8 +405,8 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   }
 
   private fun Table.buildIcon(stack: RecipeItemStack) {
-    image(stack.item.icon()).size(36f).scaling(Scaling.fit)
-    add(stack.item.localizedName()).padLeft(5f).growX().left()
+    image(stack.item.icon).size(36f).scaling(Scaling.fit)
+    add(stack.item.localizedName).padLeft(5f).growX().left()
     table { am ->
       am.left().bottom()
       am.add(stack.getAmount(), Styles.outlineLabel)
@@ -402,7 +417,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   fun calculateEfficiency() {
     param.clear()
     for (entry in recipe.materials) {
-      if (entry!!.value.optionalCons && entry.value.isBooster && !entry.value.isAttribute && optionalSelected.contains(
+      if (entry.value.optionalCons && entry.value.isBooster && !entry.value.isAttribute && optionalSelected.contains(
           entry.key
         )
       ) param.add(entry.key, entry.value.amount, false)
@@ -414,42 +429,14 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
     efficiency = recipe.calculateEfficiency(param, multiplier)
   }
 
-  override fun buildLinker() {
-    for (item in outputs()) {
-      if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(item.item)) continue
+  override fun accepts() = recipe.materials.values.toList()
 
-      val linker = ItemLinker(this, item.item, false)
-      addOut(linker)
-    }
-
-    Core.app.post {
-      val outStep = child.width/linkerOuts.size
-      val baseOff = outStep/2
-      for (i in 0 until linkerOuts.size) {
-        val linker = linkerOuts[i]!!
-
-        linker.pack()
-        val offY = child.height/2 + linker.height/1.5f
-        val offX = baseOff + i*outStep
-
-        linker.setPosition(child.x + offX, child.y + child.height/2 + offY, Align.center)
-        linker.dir = 1
-      }
-    }
-  }
-
-  override fun accepts(): Iterable<RecipeItemStack> {
-    return recipe.materials.values()
-  }
-
-  override fun outputs(): Iterable<RecipeItemStack> {
-    return recipe.productions.values()
-  }
+  override fun outputs() = recipe.productions.values.toList()
 
   override fun calculateBalance() {
     balanceValid = false
     balanceAmount = -1
-    for (stack in recipe.productions.values()) {
+    for (stack in recipe.productions.values) {
       if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(stack.item)) continue
 
       val linker = linkerOuts.find { it.item === stack.item }
@@ -472,7 +459,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
 
           var amo = 0f
           for (other in linker.links.keys()) {
-            var rate = other!!.links[linker]?:-1f
+            var rate = other!!.links[linker]?.rate?:-1f
 
             if (!other.isNormalized) {
               anyUnset = true
@@ -522,6 +509,19 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   override fun write(write: Writes) {
     write.i(CLASS_ID)
     write.i(recipe.hashCode())
+    write.bool(isFold)
+
+    super.write(write)
+
+    write.i(mul)
+    write.f(effScale)
+  }
+
+  override fun read(read: Reads, ver: Int) {
+    super.read(read, ver)
+
+    mul = read.i()
+    effScale = read.f()
   }
 
   companion object {

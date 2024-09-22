@@ -7,7 +7,7 @@ import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 import tmi.recipe.types.PowerMark
 
-class ConsGeneratorParser : ConsumerParser<ConsumeGenerator>() {
+open class ConsGeneratorParser : ConsumerParser<ConsumeGenerator>() {
   init {
     excludes.add(GeneratorParser::class.java)
   }

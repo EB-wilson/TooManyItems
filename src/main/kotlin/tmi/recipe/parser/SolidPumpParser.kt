@@ -10,7 +10,7 @@ import tmi.recipe.Recipe
 import tmi.recipe.Recipe.Companion.getDefaultEff
 import tmi.recipe.RecipeType
 
-class SolidPumpParser : ConsumerParser<SolidPump>() {
+open class SolidPumpParser : ConsumerParser<SolidPump>() {
   init {
     excludes.add(PumpParser::class.java)
   }

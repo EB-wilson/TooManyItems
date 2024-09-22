@@ -6,7 +6,7 @@ import mindustry.world.blocks.production.GenericCrafter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 
-class GenericCrafterParser : ConsumerParser<GenericCrafter>() {
+open class GenericCrafterParser : ConsumerParser<GenericCrafter>() {
   override fun isTarget(content: Block): Boolean {
     return content is GenericCrafter
   }

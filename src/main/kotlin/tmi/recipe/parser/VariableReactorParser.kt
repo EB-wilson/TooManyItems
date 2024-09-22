@@ -8,7 +8,7 @@ import tmi.recipe.RecipeType
 import tmi.recipe.types.HeatMark
 import tmi.recipe.types.PowerMark
 
-class VariableReactorParser : ConsumerParser<VariableReactor>() {
+open class VariableReactorParser : ConsumerParser<VariableReactor>() {
   init {
     excludes.add(GeneratorParser::class.java)
   }

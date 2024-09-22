@@ -9,7 +9,7 @@ import mindustry.world.blocks.production.WallCrafter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 
-class WallCrafterParser : ConsumerParser<WallCrafter>() {
+open class WallCrafterParser : ConsumerParser<WallCrafter>() {
   override fun isTarget(content: Block): Boolean {
     return content is WallCrafter
   }
