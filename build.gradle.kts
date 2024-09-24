@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.io.StringReader
@@ -25,7 +23,7 @@ plugins {
 }
 
 group = "com.github.EB-wilson"
-version = "2.4"
+version = "2.4.1"
 
 run {
     "java SyncBundles.java $version".execute()
@@ -54,6 +52,8 @@ repositories {
 dependencies {
     compileOnly("com.github.Anuken.Arc:arc-core:$mindustryVersion")
     compileOnly("com.github.Anuken.Mindustry:core:$mindustryVersion")
+
+    implementation("com.github.EB-wilson.UniverseCore:markdown:2.1.1")
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version")
 }

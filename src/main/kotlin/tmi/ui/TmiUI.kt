@@ -506,13 +506,13 @@ object TmiUI {
       ),
       ViewTab(
         title = Core.bundle["misc.fold"],
-        icon = Icon.trashSmall,
+        icon = Icon.layersSmall,
         clicked = { _, _, v, s ->
           hideMenu()
           v.foldCard(s as Card)
         },
         group = "edit",
-        filter = { _, _, _, s -> s is Card },
+        filter = { _, _, _, s -> s is Card && !s.isFold },
       ),
       ViewTab(
         title = Core.bundle["misc.copy"],
