@@ -29,20 +29,20 @@ plugins {
 }
 
 group = "com.github.EB-wilson"
-version = "2.4.1"
+version = "2.5"
 
 run { "java SyncBundles.java $version".execute() }
 
 java {
-    this.sourceCompatibility = JavaVersion.VERSION_1_8
-    this.targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 kotlin {
     jvmToolchain(17)
 
     compilerOptions {
-        this.jvmTarget.set(JvmTarget.JVM_1_8)
+        jvmTarget.set(JvmTarget.JVM_1_8)
     }
 }
 

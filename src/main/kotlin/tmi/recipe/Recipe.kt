@@ -129,9 +129,9 @@ class Recipe @JvmOverloads constructor(
     return efficiencyFunc.calculateMultiple(this, parameter)
   }
 
-  @Deprecated("Block must be provided val in constructor", replaceWith = ReplaceWith("constructor parameter"))
+  @Deprecated("Block must be provided val in constructor", replaceWith = ReplaceWith("constructor parameter"), DeprecationLevel.ERROR)
   fun setBlock(block: RecipeItem<*>?): Recipe = this
-  @Deprecated("Time must be provided val in constructor", replaceWith = ReplaceWith("constructor parameter"))
+  @Deprecated("Time must be provided val in constructor", replaceWith = ReplaceWith("constructor parameter"), DeprecationLevel.ERROR)
   fun setTime(time: Float): Recipe = this
 
   fun setEff(func: EffFunc) = this.also { efficiencyFunc = func }
@@ -151,15 +151,15 @@ class Recipe @JvmOverloads constructor(
     }
   }
 
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterialFloat(item, amount)"))
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterialFloat(item, amount)"), DeprecationLevel.ERROR)
   fun addMaterial(item: RecipeItem<*>, amount: Float) = addMaterialFloat(item, amount)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterialInt(item, amount)"))
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterialInt(item, amount)"), DeprecationLevel.ERROR)
   fun addMaterial(item: RecipeItem<*>, amount: Int) = addMaterialInteger(item, amount)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterial(item, amount)"))
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterial(item, amount)"), DeprecationLevel.ERROR)
   fun addMaterialRaw(item: RecipeItem<*>, amount: Float) = addMaterial(item, amount as Number)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProductionFloat(item, amount)"))
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProductionFloat(item, amount)"), DeprecationLevel.ERROR)
   fun addProduction(item: RecipeItem<*>, amount: Float) = addProductionFloat(item, amount)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProductionInteger(item, amount)"))
+  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProductionInteger(item, amount)"), DeprecationLevel.ERROR)
   fun addProduction(item: RecipeItem<*>, amount: Int) = addProductionInteger(item, amount)
   @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProduction(item, amount)"))
   fun addProductionRaw(item: RecipeItem<*>, amount: Float) = addProduction(item, amount as Number)

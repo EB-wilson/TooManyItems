@@ -52,17 +52,17 @@ class RecipeItemStack(
   fun getAmount() = amountFormat.format(amount)
 
   //Deprecated
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("emptyFormat()"))
+  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("emptyFormat()"), level = DeprecationLevel.ERROR)
   fun setEmptyFormat() = emptyFormat()
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("floatFormat()"))
+  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("floatFormat()"), level = DeprecationLevel.ERROR)
   @JvmOverloads
   fun setFloatFormat(mul: Float = 1f) = floatFormat(mul)
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("integerFormat()"))
+  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("integerFormat()"), level = DeprecationLevel.ERROR)
   @JvmOverloads
   fun setIntegerFormat(mul: Float = 1f) = integerFormat(mul)
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("persecFormat()"))
+  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("persecFormat()"), level = DeprecationLevel.ERROR)
   fun setPersecFormat() = persecFormat()
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("setAltFormat(format)"))
+  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("setAltFormat(format)"), level = DeprecationLevel.ERROR)
   fun setAltPersecFormat() = setFormat(persecFormatter())
 
   //属性设置的工具方法
