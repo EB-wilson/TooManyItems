@@ -1,3 +1,6 @@
+import org.codehaus.groovy.control.CompilerConfiguration
+import org.codehaus.groovy.tools.javac.JavacCompilerFactory
+import org.codehaus.groovy.tools.javac.JavacJavaCompiler
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.io.StringReader
@@ -11,6 +14,7 @@ val mindustryVersion = "v146"
 val modOutputDir = properties["modOutputDir"] as? String
 
 val sdkRoot: String? = System.getenv("ANDROID_HOME")
+
 //version of SDK you will be using
 val minSdkAPI = 30
 
@@ -26,7 +30,12 @@ group = "com.github.EB-wilson"
 version = "2.4.1"
 
 run {
-    "java SyncBundles.java $version".execute()
+    "javac SyncBundles.java".execute()
+    "java SyncBundles $version".execute()
+
+    rootDir.listFiles()
+        ?.filter { it.extension == "class" && it.name.contains("SyncBundles") }
+        ?.forEach { it.delete() }
 }
 
 publishing {

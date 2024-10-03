@@ -19,6 +19,7 @@ import mindustry.gen.Icon
 import mindustry.ui.Styles
 import mindustry.world.meta.StatUnit
 import tmi.TooManyItems
+import tmi.forEach
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI
@@ -209,44 +210,22 @@ class IOCard(
 
   override fun outputs() = if (!isInput) items.values.toList() else emptyList()
 
+  override fun added() {}
+
   override fun calculateBalance() {
     if (!isInput) return
 
     items.forEach { entry ->
       val linker = linkerOuts.find { it.item == entry.key }
+      var amount = 0f
 
-      if (linker != null) {
-        if (linker.links.size == 1) {
-          val other = linker.links.orderedKeys().first()
-          if (!other!!.isNormalized || !(other.parent as Card).balanceValid) {
-            entry.value.amount = 0f
-            return@forEach
-          }
+      linker?.links?.forEach lns@{ other, ent ->
+        if (!other.isNormalized) return@lns
 
-          entry.value.amount = other.expectAmount
-        }
-        else if (!linker.links.isEmpty) {
-          var anyUnset = false
-
-          var amo = 0f
-          for (other in linker.links.keys()) {
-            var rate = other!!.links[linker]?.rate?:-1f
-
-            if (!other.isNormalized) {
-              anyUnset = true
-              break
-            }
-            else if (rate < 0) rate = 1f
-
-            amo += rate*other.expectAmount
-          }
-
-          if (!anyUnset) {
-            entry.value.amount = amo
-          }
-          else entry.value.amount = 0f
-        }
+        amount += (if (other.links.size == 1) 1f else ent.rate)*other.expectAmount
       }
+
+      entry.value.amount = amount
     }
   }
 

@@ -187,6 +187,7 @@ abstract class CardsHandle(
               ?:link.linker.also{ link.card.addIn(it) }
 
             linkTo(target)
+            target.averange()
           }
         }
 
@@ -195,6 +196,7 @@ abstract class CardsHandle(
           linkIn.value.forEach { link ->
             link.linker.linkTo(this)
           }
+          averange()
         }
     }
   }
@@ -334,6 +336,7 @@ class DoLinkHandle(
       targetPar.addIn(to)
     }
     from.linkTo(to)
+    to.averange()
   }
 
   private fun doDelink(){
@@ -341,6 +344,7 @@ class DoLinkHandle(
     if (to.links.isEmpty){
       to.parent.removeChild(to)
     }
+    else to.averange()
   }
 }
 
@@ -352,11 +356,17 @@ class SetLinkPresentHandle(
   private val origin = target.links.associate { it.key to it.value.rate }
 
   override fun handle() {
-    to.forEach { target.setProportion(it.key, it.value)  }
+    to.forEach {
+      target.setProportion(it.key, it.value)
+      target.parentCard.observeUpdate()
+    }
   }
 
   override fun quash() {
-    origin.forEach { target.setProportion(it.key, it.value) }
+    origin.forEach {
+      target.setProportion(it.key, it.value)
+      target.parentCard.observeUpdate()
+    }
   }
 }
 

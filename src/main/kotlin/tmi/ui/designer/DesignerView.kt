@@ -57,7 +57,7 @@ import kotlin.math.min
 class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   companion object{
     private val seq: Seq<ItemLinker> = Seq()
-    private const val SHD_REV = 6
+    private const val SHD_REV = 7
   }
 
   var currAlignIcon: Drawable = Icon.none
@@ -765,7 +765,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
         && v1.y < height && v2.y > y
   }
 
-  fun addCard(card: Card) {
+  fun addCard(card: Card, addAction: Boolean = true) {
     if (card.isFold){
       foldCards.add(card)
       foldPane.add(card)
@@ -774,6 +774,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       cards.add(card)
       container.addChild(card)
     }
+
+    if (addAction) card.added()
   }
 
   fun alignCard(card: Card, x: Float, y: Float, align: Int){
@@ -1080,8 +1082,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     val cardsLen = read.i()
     for (i in 0 until cardsLen) {
       val card = Card.read(read, ver)
-      addCard(card)
       card.build()
+      addCard(card, false)
 
       card.setBounds(read.f(), read.f(), read.f(), read.f())
 

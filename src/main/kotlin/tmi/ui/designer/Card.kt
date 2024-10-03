@@ -237,6 +237,8 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   abstract fun outputs(): List<RecipeItemStack>
 
+  abstract fun added()
+
   abstract fun calculateBalance()
 
   protected abstract fun buildCard()

@@ -2,6 +2,9 @@ package tmi.recipe
 
 import arc.func.Cons2
 import arc.struct.ObjectFloatMap
+import arc.util.io.Reads
+import arc.util.io.Writes
+import tmi.TooManyItems
 import tmi.recipe.types.HeatMark
 import tmi.recipe.types.PowerMark
 import tmi.recipe.types.RecipeItem
@@ -121,5 +124,33 @@ class EnvParameter {
     copy.inputs.putAll(inputs)
     copy.attributes.putAll(attributes)
     return copy
+  }
+
+  fun write(write: Writes) {
+    write.i(inputs.size)
+    write.i(attributes.size)
+
+    inputs.each {
+      write.str(it.key.name)
+      write.f(it.value)
+    }
+
+    attributes.each {
+      write.str(it.key.name)
+      write.f(it.value)
+    }
+  }
+
+  fun read(read: Reads){
+    val ins = read.i()
+    val attrs = read.i()
+
+    for (i in 0 until ins) {
+      inputs.put(TooManyItems.itemsManager.getByName<Any>(read.str()), read.f())
+    }
+
+    for (i in 0 until attrs) {
+      attributes.put(TooManyItems.itemsManager.getByName<Any>(read.str()), read.f())
+    }
   }
 }

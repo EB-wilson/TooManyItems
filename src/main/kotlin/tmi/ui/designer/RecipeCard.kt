@@ -24,6 +24,7 @@ import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.TooManyItems
+import tmi.forEach
 import tmi.recipe.EnvParameter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
@@ -37,6 +38,7 @@ import tmi.ui.addEventBlocker
 import tmi.ui.designer.IOCard.Companion.CLASS_ID
 import tmi.util.Consts
 import tmi.util.vec1
+import kotlin.math.ceil
 import kotlin.math.max
 
 class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) {
@@ -148,8 +150,6 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   }
 
   override fun buildCard() {
-    setDefAttribute()
-
     pane.table(Consts.grayUI) { t ->
       t.center()
       t.hovered {
@@ -432,51 +432,27 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   override fun accepts() = recipe.materials.values.toList()
 
   override fun outputs() = recipe.productions.values.toList()
+  override fun added() { setDefAttribute() }
 
   override fun calculateBalance() {
-    balanceValid = false
-    balanceAmount = -1
-    for (stack in recipe.productions.values) {
-      if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(stack.item)) continue
+    balanceValid = true
+    balanceAmount = 0
 
-      val linker = linkerOuts.find { it.item === stack.item }
-      if (linker != null) {
-        if (linker.links.size == 1) {
-          val other = linker.links.orderedKeys().first()
-          if (!other!!.isNormalized || !(other.parent as Card).balanceValid) {
-            balanceValid = false
-            balanceAmount = -1
-            break
-          }
+    recipe.productions.values.forEach { stack ->
+      if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(stack.item)) return@forEach
 
-          balanceValid = true
-          balanceAmount = Mathf.ceil(
-            max(other.expectAmount/(stack.amount*efficiency), balanceAmount.toFloat())
-          )
+      val linker = linkerOuts.find { it.item == stack.item }
+
+      linker?.links?.forEach { other, ent ->
+        if (!other.isNormalized) {
+          balanceValid = false
+          balanceAmount = -1
+          return
         }
-        else if (!linker.links.isEmpty) {
-          var anyUnset = false
 
-          var amo = 0f
-          for (other in linker.links.keys()) {
-            var rate = other!!.links[linker]?.rate?:-1f
-
-            if (!other.isNormalized) {
-              anyUnset = true
-              break
-            }
-            else if (rate < 0) rate = 1f
-
-            amo += rate*other.expectAmount
-          }
-
-          if (!anyUnset) {
-            balanceValid = true
-            balanceAmount = Mathf.ceil(
-              max(amo/(stack.amount*efficiency), balanceAmount.toFloat())
-            )
-          }
-        }
+        balanceAmount = balanceAmount.coerceAtLeast(
+          ceil(((if (other.links.size == 1) 1f else ent.rate)*other.expectAmount)/stack.amount).toInt()
+        )
       }
     }
   }
@@ -515,6 +491,11 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
 
     write.i(mul)
     write.f(effScale)
+
+    write.i(optionalSelected.size)
+    optionalSelected.forEach { write.str(it.name) }
+
+    environments.write(write)
   }
 
   override fun read(read: Reads, ver: Int) {
@@ -522,6 +503,18 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
 
     mul = read.i()
     effScale = read.f()
+
+    if (ver <= 6) return
+
+    optionalSelected.clear()
+    environments.clear()
+
+    val n = read.i()
+    for (i in 0 until n) {
+      optionalSelected.add(TooManyItems.itemsManager.getByName<Any>(read.str()))
+    }
+
+    environments.read(read)
   }
 
   companion object {

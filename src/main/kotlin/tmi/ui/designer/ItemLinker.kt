@@ -298,16 +298,6 @@ class ItemLinker @JvmOverloads internal constructor(
     (target.parent as Card).observeUpdate(true)
   }
 
-  fun setProportion(target: ItemLinker, pres: Float) {
-    if (target.item.item != item.item) return
-
-    links[target].rate = pres
-    target.links[this].rate = pres
-
-    (parent as Card).observeUpdate()
-    (target.parent as Card).observeUpdate()
-  }
-
   fun deLink(target: ItemLinker) {
     if (target.item.item != item.item) return
 
@@ -319,6 +309,24 @@ class ItemLinker @JvmOverloads internal constructor(
 
     (parent as Card).observeUpdate()
     (target.parent as Card).observeUpdate(true)
+  }
+
+  fun setProportion(target: ItemLinker, pres: Float) {
+    if (target.item.item != item.item) return
+
+    links[target].rate = pres
+    target.links[this].rate = pres
+
+    (parent as Card).observeUpdate()
+    (target.parent as Card).observeUpdate()
+  }
+
+  fun averange() {
+    if (!isInput) return
+    val pros = links.associate { it.key to (it.value.rate.takeIf { n -> n >= 0f }?: (1f/links.size)) }
+
+    val total = pros.values.sum()
+    links.forEach { it.value.rate = pros[it.key]!!/total }
   }
 
   private fun updateLinkPos() {
@@ -399,7 +407,7 @@ class ItemLinker @JvmOverloads internal constructor(
           ownerDesigner.selecting = this@ItemLinker
         }
 
-        if (!panned && isInput) {
+        if (!panned && isInput && links.size > 1) {
           showProportionConfigure()
         }
 
@@ -579,7 +587,8 @@ class ItemLinker @JvmOverloads internal constructor(
     super.draw()
     updateLinkPos()
 
-    Lines.stroke(Scl.scl(4f))
+    Draw.reset()
+    Lines.stroke(Scl.scl(4f), lineColor)
     Draw.alpha(parentAlpha)
     for (link in links.keys()) {
       if (!link.isInput || link.parentCard.isFold) continue

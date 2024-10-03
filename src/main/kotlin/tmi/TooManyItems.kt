@@ -129,3 +129,9 @@ fun Writes.f(vararg floats: Float) = floats.forEach { f(it) }
 fun Writes.d(vararg bytes: Double) = bytes.forEach { d(it) }
 fun Writes.str(vararg strings: String) = strings.forEach { str(it) }
 fun Writes.bool(vararg bools: Boolean) = bools.forEach { bool(it) }
+
+inline fun <K, V> ObjectMap<K, V>.forEach(block: (K, V) -> Unit){
+  for (e in this){
+    block(e.key, e.value)
+  }
+}
