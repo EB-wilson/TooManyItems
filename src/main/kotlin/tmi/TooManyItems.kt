@@ -1,46 +1,27 @@
 package tmi
 
-import arc.Core
 import arc.Events
 import arc.func.*
-import arc.scene.event.ClickListener.clicked
-import arc.scene.style.TextureRegionDrawable
-import arc.scene.ui.layout.Table
+import arc.graphics.Gl.lines
 import arc.struct.*
-import arc.util.Align
 import arc.util.Time
 import arc.util.io.Writes
 import mindustry.Vars
-import mindustry.content.Blocks.container
-import mindustry.content.Fx.v
-import mindustry.content.Items
 import mindustry.game.EventType.ClientLoadEvent
-import mindustry.gen.Icon
 import mindustry.mod.Mod
-import mindustry.type.Item
-import mindustry.ui.Fonts.icon
-import mindustry.ui.Styles
-import mindustry.world.Block
-import mindustry.world.meta.Env.any
-import rhino.ScriptRuntime
-import tmi.TooManyItems.Companion.api
-import tmi.TooManyItems.Companion.binds
-import tmi.TooManyItems.Companion.recipesManager
 import tmi.recipe.RecipeItemManager
-import tmi.recipe.RecipeType
 import tmi.recipe.RecipesManager
 import tmi.recipe.parser.*
-import tmi.recipe.types.RecipeItem
 import tmi.ui.Cursor
 import tmi.ui.EntryAssigner
-import tmi.ui.RecipesDialog
 import tmi.ui.TmiUI
-import tmi.ui.TmiUI.recipesDialog
-import tmi.ui.TmiUI.schematicDesigner
 import tmi.ui.designer.*
-import tmi.util.Consts
 import tmi.util.KeyBinds
-import tmi.util.vec1
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.OutputStreamWriter
+import java.nio.charset.StandardCharsets
 
 class TooManyItems : Mod() {
   companion object {

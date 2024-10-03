@@ -1,7 +1,9 @@
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.tools.javac.JavacCompilerFactory
 import org.codehaus.groovy.tools.javac.JavacJavaCompiler
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileOutputStream
+import java.io.FileWriter
 import java.io.InputStreamReader
 import java.io.StringReader
 import java.util.jar.JarEntry
@@ -29,13 +31,19 @@ plugins {
 group = "com.github.EB-wilson"
 version = "2.4.1"
 
-run {
-    "javac SyncBundles.java".execute()
-    "java SyncBundles $version".execute()
+run { "java SyncBundles.java $version".execute() }
 
-    rootDir.listFiles()
-        ?.filter { it.extension == "class" && it.name.contains("SyncBundles") }
-        ?.forEach { it.delete() }
+java {
+    this.sourceCompatibility = JavaVersion.VERSION_1_8
+    this.targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+kotlin {
+    jvmToolchain(17)
+
+    compilerOptions {
+        this.jvmTarget.set(JvmTarget.JVM_1_8)
+    }
 }
 
 publishing {
