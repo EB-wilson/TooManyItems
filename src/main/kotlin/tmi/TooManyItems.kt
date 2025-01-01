@@ -2,8 +2,10 @@ package tmi
 
 import arc.Events
 import arc.func.*
-import arc.graphics.Gl.lines
-import arc.struct.*
+import arc.struct.IntMap
+import arc.struct.ObjectFloatMap
+import arc.struct.ObjectIntMap
+import arc.struct.ObjectMap
 import arc.util.Time
 import arc.util.io.Writes
 import mindustry.Vars
@@ -15,13 +17,7 @@ import tmi.recipe.parser.*
 import tmi.ui.Cursor
 import tmi.ui.EntryAssigner
 import tmi.ui.TmiUI
-import tmi.ui.designer.*
 import tmi.util.KeyBinds
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.OutputStreamWriter
-import java.nio.charset.StandardCharsets
 
 class TooManyItems : Mod() {
   companion object {
@@ -37,7 +33,7 @@ class TooManyItems : Mod() {
 
   init {
     ConsumerParser.registerVanillaConsumeParser()
-    registerRecipeParser()
+    registerDefaultParser()
 
     Events.on(ClientLoadEvent::class.java) {
       Time.runTask(0f) {
@@ -50,7 +46,7 @@ class TooManyItems : Mod() {
     }
   }
 
-  private fun registerRecipeParser() {
+  private fun registerDefaultParser() {
     //几乎所有的原版游戏工厂方块的分析工具
     recipesManager.registerParser(GenericCrafterParser())
     recipesManager.registerParser(UnitFactoryParser())

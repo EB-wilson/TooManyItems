@@ -1,16 +1,11 @@
-import org.codehaus.groovy.control.CompilerConfiguration
-import org.codehaus.groovy.tools.javac.JavacCompilerFactory
-import org.codehaus.groovy.tools.javac.JavacJavaCompiler
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileOutputStream
-import java.io.FileWriter
 import java.io.InputStreamReader
 import java.io.StringReader
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
 val kotlin_version = "1.9.23"
-//the build number that this mod is made for
 val mindustryVersion = "v146"
 
 val modOutputDir = properties["modOutputDir"] as? String
@@ -29,7 +24,7 @@ plugins {
 }
 
 group = "com.github.EB-wilson"
-version = "2.5"
+version = "2.5.1"
 
 run { "java SyncBundles.java $version".execute() }
 
@@ -49,11 +44,11 @@ kotlin {
 publishing {
     publications {
         create<MavenPublication>("maven") {
+            from(components["java"])
+            
             groupId = "com.github.EB-wilson"
             artifactId = "TooManyItems"
             version = "${project.version}"
-
-            from(components["java"])
         }
     }
 }

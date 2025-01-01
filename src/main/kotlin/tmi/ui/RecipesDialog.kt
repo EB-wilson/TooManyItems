@@ -692,7 +692,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     }.disabled { currPage.get() >= maxPage.get() - 1 }.size(45f)
 
     table.row()
-    val slider = table.slider(0f, maxPage.get().toFloat(), 0.001f, 1f) { f: Float -> setPage[Mathf.round(f)] }
+    val slider = table.slider(0f, maxPage.get().toFloat(), 0.001f, 1f) { f -> setPage[Mathf.round(f)] }
       .grow().colspan(5)
       .update { s: Slider ->
         s.setRange(0f, Mathf.maxZero((maxPage.get() - 1).toFloat()))

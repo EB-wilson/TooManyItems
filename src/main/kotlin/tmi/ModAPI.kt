@@ -1,7 +1,6 @@
 package tmi
 
 import arc.Core
-import arc.graphics.g2d.TextureRegion
 import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Log
@@ -41,7 +40,7 @@ class ModAPI {
       importPackage(TMI.designer)
       importPackage(TMI.util)
       
-      const AmountFormatter = Packages.tmi.recipe.RecipeItemStack.AmountFormatter
+      const AmountFormatter = Packages.tmi.recipe.AmountFormatter
       """
 
     @Language("Nashorn JS")
@@ -70,7 +69,7 @@ class ModAPI {
   private val entries = Seq<RecipeEntry>()
 
   fun init() {
-    //declare tmi script APIs
+    //declare tmi java script APIs
     Vars.mods.scripts.context.evaluateString(
       Vars.mods.scripts.scope,
       initJS,
@@ -191,8 +190,7 @@ class ModAPI {
     recipeItems?.forEach{
       val name = it.getString("name", "<error>")
 
-      TooManyItems.itemsManager.addItemWrap(name, object :
-        RecipeItem<String>(name) {
+      TooManyItems.itemsManager.addItemWrap(name, object: RecipeItem<String>(name) {
         override val ordinal = it.getInt("ordinal", -1)
         override val typeOrdinal = it.getInt("typeID", -1)
         override val typeID = it.getInt("typeID", -1)
