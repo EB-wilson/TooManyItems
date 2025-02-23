@@ -7,6 +7,7 @@ import arc.struct.Seq
 import mindustry.Vars
 import mindustry.content.Items
 import mindustry.world.Block
+import mindustry.world.meta.Stat.buildTime
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
 
@@ -125,7 +126,7 @@ open class RecipesManager {
         val recipe = Recipe(
           RecipeType.building,
           TooManyItems.itemsManager.getItem(block),
-          block.buildCost
+          block.buildTime
         )
 
         for (stack in block.requirements) {

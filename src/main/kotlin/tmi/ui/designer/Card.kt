@@ -67,7 +67,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     }
   }
 
-  protected val pane: Table = object : Table(Consts.darkGrayUIAlpha) {
+  val pane: Table = object : Table(Consts.darkGrayUIAlpha) {
     override fun drawBackground(x: Float, y: Float) {
       if (ownerDesigner.newSet === this@Card) {
         Lines.stroke(Scl.scl(5f))
@@ -136,6 +136,10 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
   fun build() {
     add(pane).center().fill().pad(100f)
     buildCard()
+  }
+
+  fun singleRend(){
+    inStage = true
   }
 
   fun rise() {

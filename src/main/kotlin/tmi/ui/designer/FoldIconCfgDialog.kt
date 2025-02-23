@@ -1,18 +1,27 @@
 package tmi.ui.designer
 
 import arc.Core
+import arc.Events
 import arc.func.Cons
+import arc.func.Cons2
 import arc.func.Prov
 import arc.graphics.Color
 import arc.graphics.Pixmaps
 import arc.graphics.Texture.TextureFilter
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.TextureRegion
+import arc.input.KeyCode
 import arc.scene.Element
+import arc.scene.event.EventListener
+import arc.scene.event.InputEvent
+import arc.scene.event.InputListener
+import arc.scene.event.SceneEvent
+import arc.scene.style.Drawable
 import arc.scene.ui.*
 import arc.scene.ui.layout.Cell
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
+import arc.struct.Seq
 import arc.util.Tmp
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
@@ -21,13 +30,26 @@ import tmi.invoke
 import tmi.ui.addEventBlocker
 import tmi.util.Consts
 
-class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.transparentBack) {
+private val list by lazy {
+  val res = Seq<FoldIconCfgDialog>()
+
+  Events.on(UndoEvent::class.java) { e -> if (e.handle is SetFoldIconInfHandle) res.forEach { it.syncColor() } }
+  Events.on(RedoEvent::class.java) { e -> if (e.handle is SetFoldIconInfHandle) res.forEach { it.syncColor() } }
+
+  res
+}
+
+class FoldIconCfgDialog(
+  private val ownerView: DesignerView,
+  private val configuringCard: Card
+) : Dialog("", Consts.transparentBack) {
   private val current = Color()
   private var h = 1f
   private var s = 1f
   private var v = 1f
   private var a = 1f
-  private var callBack: Cons<Color>? = null
+
+  private var callBack: Cons2<SetFoldIconInfHandle, Color>? = null
   private val values = FloatArray(3)
 
   private lateinit var hexField: TextField
@@ -38,12 +60,42 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
 
   private lateinit var iconsTable: Table
 
-  private var currConf = "foldColor"
+  private var currConf: String? = null
 
   init {
+    shown { list.add(this) }
+    hidden { list.remove(this) }
+
     titleTable.clear()
 
     val cell = buildInner()
+
+    listOf(hSlider, sSlider, vSlider, aSlider).forEach {
+      it.addListener(object: InputListener(){
+        var handle: SetFoldIconInfHandle? = null
+
+        override fun touchDragged(event: InputEvent?, x: Float, y: Float, pointer: Int) {
+          callBack!!.get(handle, current)
+          handle?.sync()
+        }
+
+        override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
+          if (callBack == null) return false
+
+          handle = SetFoldIconInfHandle(ownerView, configuringCard).apply {
+            setIcon = false
+            callBack!!.get(this, current)
+          }
+          return true
+        }
+
+        override fun touchUp(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?) {
+          callBack!!.get(handle, current)
+          ownerView.pushHandle(handle!!)
+          handle = null
+        }
+      })
+    }
 
     resizedShown {
       cell.maxSize(Core.scene.width/Scl.scl(), Core.scene.height/Scl.scl())
@@ -55,12 +107,16 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
       Consts.foldCardIcons.forEachIndexed { i, icon ->
         if (i != 0 && i%n == 0) iconsTable.row()
         iconsTable.button(icon, Styles.clearNoneTogglei, 46f) {
-          configuringCard.foldIcon = if (icon == configuringCard.foldIcon) null else icon
+          ownerView.pushHandle(SetFoldIconInfHandle(
+            ownerView,
+            configuringCard
+          ).apply {
+            setIcon = true
+            foldIcon = icon
+          })
         }.size(64f).pad(8f).update { b -> b.isChecked = configuringCard.foldIcon == icon }
       }
     }
-
-    shown { setCurrConf(configuringCard.foldColor){ c -> configuringCard.foldColor.set(c) } }
   }
 
   private fun buildInner(): Cell<Table> {
@@ -84,7 +140,7 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
             ) {
               if (currConf != "foldColor") {
                 currConf = "foldColor"
-                setCurrConf(configuringCard.foldColor){ c -> configuringCard.foldColor.set(c) }
+                setCurrConf(configuringCard.foldColor){ h, c -> h.foldColor.set(c) }
               }
             }.fillY().growX().pad(6f).margin(6f).update { it.isChecked = currConf == "foldColor" }
             left.row()
@@ -94,7 +150,7 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
             ) {
               if (currConf != "foldIconColor") {
                 currConf = "foldIconColor"
-                setCurrConf(configuringCard.iconColor){ c -> configuringCard.iconColor.set(c) }
+                setCurrConf(configuringCard.iconColor){ h, c -> h.iconColor.set(c) }
               }
             }.fillY().growX().pad(6f).margin(6f).update { it.isChecked = currConf == "foldIconColor" }
             left.row()
@@ -104,7 +160,7 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
             ) {
               if (currConf != "foldBackColor") {
                 currConf = "foldBackColor"
-                setCurrConf(configuringCard.backColor){ c -> configuringCard.backColor.set(c) }
+                setCurrConf(configuringCard.backColor){ h, c -> h.backColor.set(c) }
               }
             }.fillY().growX().pad(6f).margin(6f).update { it.isChecked = currConf == "foldBackColor" }
           }.fillX().growY().top()
@@ -119,7 +175,7 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
                 over = this
               }
             ).grow()
-            right.update { over.visible = callBack == null }
+            right.update { over.visible = currConf == null }
           }.grow()
         }.fillX().growY().maxHeight(320f).left()
       }.grow().margin(12f)
@@ -144,8 +200,27 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
     }.fill().pad(6f)
   }
 
-  private fun setCurrConf(color: Color, callBack: Cons<Color>?){
+  private fun setCurrConf(color: Color, callBack: Cons2<SetFoldIconInfHandle, Color>?){
     this.callBack = callBack
+
+    setCurrColor(color)
+  }
+
+  fun syncColor() {
+    val col = when(currConf) {
+      "foldColor" -> configuringCard.foldColor
+      "foldIconColor" -> configuringCard.iconColor
+      "foldBackColor" -> configuringCard.backColor
+      else -> return
+    }
+
+    val callBackOld = callBack
+    callBack = null
+    setCurrColor(col)
+    callBack = callBackOld
+  }
+
+  private fun setCurrColor(color: Color) {
     current.set(color)
     current.toHsv(values)
 
@@ -162,20 +237,17 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
     hexField.text = current.toString()
   }
 
+  fun updateColor(updateField: Boolean){
+    current.fromHsv(h, s, v)
+    current.a = a
+
+    if (!updateField) return
+
+    hexField.text = current.toString()
+  }
+
   private fun buildColorPicker(table: Table) {
     val hueTex = Pixmaps.hueTexture(128, 1).apply { setFilter(TextureFilter.linear) }
-
-    val updateColor = fun(updateField: Boolean){
-      if (callBack == null) return
-
-      current.fromHsv(h, s, v)
-      current.a = a
-      callBack!!.get(current)
-
-      if (!updateField) return
-
-      hexField.text = current.toString()
-    }
 
     table.table(
       Tex.pane
@@ -284,9 +356,17 @@ class FoldIconCfgDialog(private val configuringCard: Card) : Dialog("", Consts.t
           aSlider.setValue(a)
 
           updateColor(false)
+
+          if (callBack != null) {
+            ownerView.pushHandle(SetFoldIconInfHandle(ownerView, configuringCard).apply {
+              setIcon = false
+              callBack!!.get(this, current)
+            })
+          }
         } catch (ignored: Exception) {
         }
       }.size(130f, 40f).valid { text ->
+        //复制自ColorPicker，有一说一，看到这个我真的笑了
         //garbage performance but who cares this runs only every key type anyway
         try {
           Color.valueOf(text)

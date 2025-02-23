@@ -1,6 +1,7 @@
 package tmi.ui.designer
 
 import arc.Core
+import arc.Events
 import arc.Graphics.Cursor
 import arc.func.Cons
 import arc.func.Floatf
@@ -9,7 +10,6 @@ import arc.graphics.*
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
-import arc.graphics.g2d.TextureRegion
 import arc.graphics.gl.FrameBuffer
 import arc.input.KeyCode
 import arc.math.Interp
@@ -35,7 +35,6 @@ import arc.struct.ObjectMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
 import arc.util.Align
-import arc.util.Buffers
 import arc.util.Time
 import arc.util.Tmp
 import arc.util.io.Reads
@@ -48,6 +47,7 @@ import tmi.f
 import tmi.invoke
 import tmi.recipe.Recipe
 import tmi.set
+import tmi.ui.Side
 import tmi.ui.addEventBlocker
 import tmi.util.*
 import java.io.IOException
@@ -679,7 +679,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       }
     })
     elem.clicked {
-      FoldIconCfgDialog(c).show()
+      FoldIconCfgDialog(this, c).show()
     }
 
     return elem
@@ -907,6 +907,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   fun redoHistory() {
     if (historyIndex < history.size) {
       history[historyIndex].handle()
+      Events.fire(RedoEvent(history[historyIndex]))
       historyIndex++
     }
   }
@@ -915,32 +916,172 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     if (historyIndex > 0) {
       historyIndex--
       history[historyIndex].quash()
+      Events.fire(UndoEvent(history[historyIndex]))
     }
   }
 
-  fun toImage(boundX: Float, boundY: Float, scl: Float): TextureRegion {
-    val buffer = toBuffer(FrameBuffer(), boundX, boundY, scl)
-    buffer.bind()
-    Gl.pixelStorei(Gl.packAlignment, 1)
-    val numBytes = buffer.width*buffer.height*4
-    val pixels = Buffers.newByteBuffer(numBytes)
-    Gl.readPixels(0, 0, buffer.width, buffer.height, Gl.rgba, Gl.unsignedByte, pixels)
+  fun drawFoldPane(buff: FrameBuffer, scl: Float, foldedSide: Side, cardScl: Float, padding: Float, targetWidth: Float, targetHeight: Float){
+    val pane = buildFoldedPane(foldedSide, padding, cardScl, targetWidth, targetHeight)
+    val size = Vec2(pane.width, pane.height)
 
-    val lines = ByteArray(numBytes)
+    buff.resize((size.x*scl).toInt(), (size.y*scl).toInt())
+    buff.begin(Pal.darkestGray)
+    val camera = Camera()
+    camera.width = size.x
+    camera.height = size.y
+    camera.position.x = size.x/2f
+    camera.position.y = size.y/2f
+    camera.update()
+    Draw.proj(camera)
 
-    val numBytesPerLine = buffer.width*4
-    for (i in 0 until buffer.height) {
-      pixels.position((buffer.height - i - 1)*numBytesPerLine)
-      pixels[lines, i*numBytesPerLine, numBytesPerLine]
-    }
+    pane.setPosition(0f, 0f)
+    pane.draw()
+    Lines.stroke(Scl.scl(2f), Color.black)
+    Lines.quad(
+      0f, 0f,
+      size.x, 0f,
+      size.x, size.y,
+      0f, size.y
+    )
 
-    val fullPixmap = Pixmap(buffer.width, buffer.height)
-    Buffers.copy(lines, 0, fullPixmap.pixels, lines.size)
-
-    return TextureRegion(Texture(fullPixmap))
+    Draw.proj()
+    buff.end()
   }
 
-  fun toBuffer(buff: FrameBuffer, boundX: Float, boundY: Float, scl: Float): FrameBuffer {
+  private fun buildFoldedPane(foldedSide: Side, padding: Float, cardScl: Float, targetWidth: Float, targetHeight: Float): Table {
+    val res = Table()
+    res.add(Core.bundle["dialog.calculator.foldedCards"]).pad(16f).growX().fillY()
+    res.row()
+    res.image().color(Color.black).growX().height(4f).padBottom(8f)
+    res.row()
+
+    if (foldedSide == Side.LEFT || foldedSide == Side.RIGHT) {
+      val cont = res.table().fillX().growY().get().top()
+      var table = Table()
+      foldCards.forEach { card ->
+        val elem = buildCardShower(card, foldedSide, cardScl, padding)
+
+        if (table.prefHeight + elem.prefHeight < targetHeight) {
+          table.center().add(elem).fillY().growX().pad(padding).row()
+        }
+        else {
+          cont.add(table).fill()
+          table = Table()
+        }
+      }
+      if (table.children.any()) cont.add(table).fill()
+
+      res.setSize(
+        res.prefWidth,
+        targetHeight
+      )
+    }
+    else {
+      val cont = res.table().fillY().growX().get().left()
+      var table = Table()
+      foldCards.forEach { card ->
+        val elem = buildCardShower(card, foldedSide, cardScl, padding)
+
+        if (table.prefWidth + elem.prefWidth < targetWidth) {
+          table.top().add(elem).fillX().growY().pad(padding)
+        }
+        else {
+          cont.add(table).fill().row()
+          table = Table()
+        }
+      }
+      if (table.children.any()) cont.add(table).fill().row()
+
+      res.setSize(
+        targetWidth,
+        res.prefHeight
+      )
+    }
+
+    return res
+  }
+
+  private fun buildCardShower(card: Card, side: Side, cardScl: Float, padding: Float,): Element {
+    val linker = foldLinkers[card]
+    val paneSize = card.paneSize.scl(cardScl)
+    val dh = paneSize.y + padding + linker.height
+
+    return object: Element(){
+      override fun draw() {
+        validate()
+
+        val dx: Float
+        val dy: Float
+        when(side) {
+          Side.LEFT -> { dx = x + width - paneSize.x; dy = y }
+          Side.RIGHT -> { dx = x; dy = y + height - dh }
+          Side.TOP -> { dx = x; dy = y }
+          Side.BOTTOM -> { dx = x; dy = y + height - dh }
+        }
+        drawFoldCard(
+          card,
+          cardScl,
+          linker,
+          dx, dy,
+          padding
+        )
+      }
+
+      override fun getPrefWidth(): Float {
+        return paneSize.x
+      }
+
+      override fun getPrefHeight(): Float {
+        return dh
+      }
+    }
+  }
+
+  private fun drawFoldCard(
+    card: Card,
+    cardScl: Float,
+    foldLinker: FoldLink,
+    x: Float,
+    y: Float,
+    padding: Float,
+  ) {
+    val pane = card.pane
+    val paneSize = card.paneSize.scl(cardScl)
+
+    val origX = pane.x
+    val origY = pane.y
+    val origLinPar = foldLinker.parent
+    val origLinX = foldLinker.x
+    val origLinY = foldLinker.y
+    val origTrans = Tmp.m1.set(Draw.trans())
+
+    pane.parent = null
+    foldLinker.parent = null
+    pane.x = 0f
+    pane.y = 0f
+    foldLinker.x = x + paneSize.x/2 - foldLinker.width/2
+    foldLinker.y = y + paneSize.y + padding
+
+    card.singleRend()
+    pane.invalidate()
+    Draw.trans(Tmp.m2.setToTranslation(x, y).scale(cardScl, cardScl))
+    pane.draw()
+    Draw.trans(origTrans)
+    pane.invalidate()
+
+    foldLinker.invalidate()
+    foldLinker.draw()
+    foldLinker.invalidate()
+
+    pane.parent = card
+    foldLinker.parent = origLinPar
+    pane.x = origX
+    pane.y = origY
+    foldLinker.x = origLinX
+    foldLinker.y = origLinY
+  }
+
+  fun drawCardsContainer(buff: FrameBuffer, boundX: Float, boundY: Float, scl: Float): FrameBuffer {
     val bound = getBound()
 
     val width = bound.width + boundX*2
@@ -976,13 +1117,14 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     Core.scene.viewport.worldWidth = width
     Core.scene.viewport.worldHeight = height
 
+    cards.forEach { it.singleRend() }
     container.draw()
 
     val imageWidth = (width*scl).toInt()
     val imageHeight = (height*scl).toInt()
 
     buff.resize(imageWidth, imageHeight)
-    buff.begin(Color.clear)
+    buff.begin(Pal.darkerGray)
     Draw.proj(camera)
     container.draw()
     Draw.flush()

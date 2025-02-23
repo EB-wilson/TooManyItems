@@ -5,8 +5,9 @@ import java.io.StringReader
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
-val kotlin_version = "1.9.23"
-val mindustryVersion = "v146"
+val kotlinVersion = "1.9.23"
+val mindustryVersion = "851817a049"
+val arcVersion = "deacd9c98e"
 
 val modOutputDir = properties["modOutputDir"] as? String
 
@@ -24,7 +25,7 @@ plugins {
 }
 
 group = "com.github.EB-wilson"
-version = "2.5.1"
+version = "2.6"
 
 run { "java SyncBundles.java $version".execute() }
 
@@ -62,12 +63,12 @@ repositories {
 
 
 dependencies {
-    compileOnly("com.github.Anuken.Arc:arc-core:$mindustryVersion")
+    compileOnly("com.github.Anuken.Arc:arc-core:$arcVersion")
     compileOnly("com.github.Anuken.Mindustry:core:$mindustryVersion")
 
     implementation("com.github.EB-wilson.UniverseCore:markdown:2.1.1")
 
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
 }
 
 tasks {
@@ -167,7 +168,7 @@ tasks {
             if (!modOutputDir.isNullOrEmpty()) {
                 copy {
                     into("$modOutputDir/")
-                    from("${buildDir}/libs/${project.name}.jar")
+                    from("${buildDir}/libs/${project.name}-${version}.jar")
                 }
             }
         }

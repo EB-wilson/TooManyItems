@@ -155,7 +155,9 @@ object TmiUI {
         group = "export",
         valid = { currPage != null },
         subTabs = arrayOf(
-          MenuTab(Core.bundle["misc.exportImg"], "file", Icon.imageSmall){},
+          MenuTab(Core.bundle["misc.exportImg"], "file", Icon.imageSmall){
+            ExportDialog(this.currPage!!.view).show()
+          },
           MenuTab(Core.bundle["misc.exportText"], "file", Icon.fileTextSmall){},
           MenuTab(Core.bundle["misc.exportStat"], "file", Icon.bookSmall){},
         )
@@ -662,7 +664,7 @@ object TmiUI {
             )
 
           ls.forEach { item ->
-            if (item.locked || (item.item is Item && Vars.state.rules.hiddenBuildItems.contains(item.item)) || item.hidden) return@forEach
+            if (item.locked || item.hidden) return@forEach
 
             val b = cont.button(TextureRegionDrawable(item.icon), Styles.clearNonei, 32f) {
               callBack[item]

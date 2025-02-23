@@ -1,12 +1,11 @@
 package tmi.ui.designer
 
+import arc.graphics.Color
 import arc.math.geom.Vec2
+import arc.scene.style.Drawable
 import arc.util.Time
-import mindustry.content.SectorPresets.origin
-import mindustry.graphics.Layer.end
 import tmi.recipe.EnvParameter
 import tmi.recipe.types.RecipeItem
-import java.util.Collections.addAll
 
 abstract class DesignerHandle(val ownerView: DesignerView) {
   val handleTime = Time.globalTime
@@ -425,5 +424,42 @@ class SetRecipeArgsHandle(
     target.observeUpdate()
     target.rebuildAttrs()
     target.rebuildOptionals()
+  }
+}
+
+class SetFoldIconInfHandle(
+  ownerView: DesignerView,
+  private val card: Card,
+) : ContinuousHandle(ownerView) {
+  var setIcon: Boolean = false
+  var foldIcon: Drawable? = null
+  val foldColor: Color = Color(card.foldColor)
+  val iconColor: Color = Color(card.iconColor)
+  val backColor: Color = Color(card.backColor)
+
+  private val origIcon = card.foldIcon
+  private val origFoldColor = Color(card.foldColor)
+  private val origIconColor = Color(card.iconColor)
+  private val origBackColor = Color(card.backColor)
+  override fun sync() {
+    handle()
+  }
+
+  override fun handle() {
+    if (setIcon) card.foldIcon = foldIcon
+    else {
+      card.foldColor.set(foldColor)
+      card.iconColor.set(iconColor)
+      card.backColor.set(backColor)
+    }
+  }
+
+  override fun quash() {
+    if (setIcon) card.foldIcon = origIcon
+    else {
+      card.foldColor.set(origFoldColor)
+      card.iconColor.set(origIconColor)
+      card.backColor.set(origBackColor)
+    }
   }
 }
