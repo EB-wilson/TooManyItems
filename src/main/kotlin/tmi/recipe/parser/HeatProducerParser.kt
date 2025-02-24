@@ -19,7 +19,7 @@ open class HeatProducerParser : ConsumerParser<HeatProducer>() {
   override fun parse(content: HeatProducer): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.factory,
-      ownerBlock = getWrap(content),
+      ownerBlock = +content,
       craftTime = content.craftTime,
     )
 
@@ -28,23 +28,23 @@ open class HeatProducerParser : ConsumerParser<HeatProducer>() {
     res.addProduction(HeatMark, content.heatOutput as Number).floatFormat()
 
     if (content.outputItems == null) {
-      if (content.outputItem != null) res.addProductionInteger(getWrap(content.outputItem.item), content.outputItem.amount)
+      if (content.outputItem != null) res.addProductionInteger(+content.outputItem.item, content.outputItem.amount)
     }
     else {
       for (item in content.outputItems) {
-        res.addProductionInteger(getWrap(item.item), item.amount)
+        res.addProductionInteger(+item.item, item.amount)
       }
     }
 
     if (content.outputLiquids == null) {
       if (content.outputLiquid != null) res.addProductionPersec(
-        getWrap(content.outputLiquid.liquid),
+        +content.outputLiquid.liquid,
         content.outputLiquid.amount
       )
     }
     else {
       for (liquid in content.outputLiquids) {
-        res.addProductionPersec(getWrap(liquid.liquid), liquid.amount)
+        res.addProductionPersec(+liquid.liquid, liquid.amount)
       }
     }
 

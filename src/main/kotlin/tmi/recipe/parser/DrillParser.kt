@@ -45,11 +45,11 @@ open class DrillParser : ConsumerParser<Drill>() {
       val recipe = res.get(drop.itemDrop) {
         val r = Recipe(
           recipeType = RecipeType.collecting,
-          ownerBlock = getWrap(content),
+          ownerBlock = +content,
           craftTime = content.getDrillTime(drop.itemDrop)/content.size/content.size,
         ).setEff(Recipe.zeroEff)
 
-        r.addProductionInteger(getWrap(drop.itemDrop), 1)
+        r.addProductionInteger(+drop.itemDrop, 1)
 
         if (content.liquidBoostIntensity != 1f) {
           registerCons(r, *Seq.with(*content.consumers).select { e: Consume -> !(e.optional && e is ConsumeLiquidBase && e.booster) }.toArray(Consume::class.java))
@@ -80,7 +80,7 @@ open class DrillParser : ConsumerParser<Drill>() {
       }
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
-      recipe!!.addMaterial(getWrap(drop), (content.size*content.size) as Number)
+      recipe!!.addMaterial(+drop, (content.size*content.size) as Number)
         .setEff(content.drillTime/realDrillTime)
         .setAttribute()
         .emptyFormat()

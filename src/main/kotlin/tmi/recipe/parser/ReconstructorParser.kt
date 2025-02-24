@@ -16,12 +16,12 @@ open class ReconstructorParser : ConsumerParser<Reconstructor>() {
     for (upgrade in content.upgrades) {
       val recipe = Recipe(
         recipeType = RecipeType.factory,
-        ownerBlock = getWrap(content),
+        ownerBlock = +content,
         craftTime = content.constructTime,
       )
 
-      recipe.addMaterialInteger(getWrap(upgrade[0]), 1)
-      recipe.addProductionInteger(getWrap(upgrade[1]), 1)
+      recipe.addMaterialInteger(+upgrade[0], 1)
+      recipe.addProductionInteger(+upgrade[1], 1)
 
       registerCons(recipe, *content.consumers)
 

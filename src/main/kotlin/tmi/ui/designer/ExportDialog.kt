@@ -10,9 +10,7 @@ import arc.graphics.gl.FrameBuffer
 import arc.math.Mathf
 import arc.scene.style.TextureRegionDrawable
 import arc.scene.ui.Dialog
-import arc.scene.ui.layout.Cell
 import arc.scene.ui.layout.Scl
-import arc.scene.ui.layout.Table
 import arc.util.*
 import mindustry.Vars
 import mindustry.gen.Tex
@@ -21,7 +19,6 @@ import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.ui.Side
 import tmi.util.Consts
-import java.io.IOException
 import kotlin.math.max
 
 class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transparentBack) {
@@ -60,11 +57,12 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
           val img = prev.table(Tex.pane).margin(4f).size(340f).get().image(tmp).scaling(Scaling.fit).update { i ->
             val b = contUpdated or foldUpdated
             if (contUpdated) {
-              view.drawCardsContainer(cardContainerBuffer, boundX, boundY, imageScale)
+              SchematicGraphDrawer.drawCardsContainer(view, cardContainerBuffer, boundX, boundY, imageScale)
               contUpdated = false
             }
             if (foldUpdated) {
-              view.drawFoldPane(
+              SchematicGraphDrawer.drawFoldPane(
+                view,
                 foldCardsBuffer,
                 imageScale,
                 foldPaneSide,

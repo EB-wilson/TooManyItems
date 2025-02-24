@@ -617,13 +617,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
       bu.button(Icon.add, Styles.clearNonei, 36f) {
         toggle!![recipes[recipeIndex]]
       }.margin(5f).disabled {
-        val r = recipes[recipeIndex]
-        if (r.recipeType === RecipeType.building) return@disabled true
-        var ba = false
-        for (key in r.productions.keys) {
-          if (!RecipeType.generator.isPower(key)) ba = true
-        }
-        !ba
+        return@disabled recipes[recipeIndex].recipeType === RecipeType.building
       }
     }.visible { toggle != null }
     recipesTable.row()

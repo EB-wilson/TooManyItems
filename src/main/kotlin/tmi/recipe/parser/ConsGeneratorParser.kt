@@ -19,7 +19,7 @@ open class ConsGeneratorParser : ConsumerParser<ConsumeGenerator>() {
   override fun parse(content: ConsumeGenerator): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.generator,
-      ownerBlock = getWrap(content)
+      ownerBlock = +content
     )
 
     registerCons(res, *content.consumers)
@@ -27,7 +27,7 @@ open class ConsGeneratorParser : ConsumerParser<ConsumeGenerator>() {
     res.addProductionPersec(PowerMark, content.powerProduction)
 
     if (content.outputLiquid != null) {
-      res.addProductionPersec(getWrap(content.outputLiquid.liquid), content.outputLiquid.amount)
+      res.addProductionPersec(+content.outputLiquid.liquid, content.outputLiquid.amount)
     }
 
     return Seq.with(res)

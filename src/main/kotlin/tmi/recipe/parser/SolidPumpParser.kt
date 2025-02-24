@@ -22,11 +22,11 @@ open class SolidPumpParser : ConsumerParser<SolidPump>() {
   override fun parse(content: SolidPump): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.collecting,
-      ownerBlock = getWrap(content),
+      ownerBlock = +content,
       craftTime = content.consumeTime
     ).setEff(getDefaultEff(content.baseEfficiency))
 
-    res.addProductionPersec(getWrap(content.result), content.pumpAmount)
+    res.addProductionPersec(+content.result, content.pumpAmount)
 
     registerCons(res, *content.consumers)
 
@@ -34,7 +34,7 @@ open class SolidPumpParser : ConsumerParser<SolidPump>() {
       if (content.attribute == null || block.attributes[content.attribute] <= 0 || (block is Floor && block.isDeep)) continue
 
       val eff = block.attributes[content.attribute]
-      res.addMaterial(getWrap(block), (content.size*content.size) as Number)
+      res.addMaterial(+block, (content.size*content.size) as Number)
         .setOptional(content.baseEfficiency > 0.001f)
         .setEff(eff)
         .setAttribute()

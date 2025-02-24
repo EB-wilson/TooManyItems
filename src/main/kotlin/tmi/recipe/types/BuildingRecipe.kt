@@ -99,7 +99,7 @@ class BuildingRecipe : RecipeType() {
     blockPos.setZero()
     materialPos.clear()
 
-    val seq: List<RecipeItemStack> = recipe.materials.values.toList()
+    val seq: List<RecipeItemStack> = recipe.materials.values().toList()
     val radians = 2f*Mathf.pi/seq.size
     val radius = max(
       MIN_RAD.toDouble(),

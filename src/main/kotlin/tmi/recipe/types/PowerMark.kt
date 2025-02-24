@@ -7,4 +7,5 @@ import tmi.TooManyItems
 
 object PowerMark: SingleItemMark("power-mark") {
   override val icon: TextureRegion get() = Icon.power.region
+  override val ordinal: Int get() = 10000
 }

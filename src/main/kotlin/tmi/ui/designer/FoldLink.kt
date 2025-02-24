@@ -17,12 +17,16 @@ open class FoldLink(
   val linker: ItemLinker?,
   val inFold: Boolean
 ): Element() {
+  private var _centerUpdated = false
   val centerPos = Vec2()
+    get() = field
+      .takeIf { _centerUpdated }?:localToAscendantCoordinates(card.ownerDesigner, field.set(width/2, height/2))
+        .also { _centerUpdated = true }
   val linesColor: Color = Pal.accent.cpy()
 
   override fun act(delta: Float) {
     super.act(delta)
-    localToAscendantCoordinates(card.ownerDesigner, centerPos.set(width/2, height/2))
+    _centerUpdated = false
   }
 
   override fun draw() {

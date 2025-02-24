@@ -23,7 +23,6 @@ import tmi.forEach
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI
-import tmi.ui.designer.RecipeCard.Companion.CLASS_ID
 import tmi.util.Consts
 
 class IOCard(

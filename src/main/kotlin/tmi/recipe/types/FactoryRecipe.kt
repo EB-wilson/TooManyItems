@@ -92,9 +92,9 @@ open class FactoryRecipe : RecipeType() {
     blockPos.setZero()
 
     val mats: List<RecipeItemStack> =
-      recipe.materials.values.filter { e -> !e.optionalCons }
+      recipe.materials.values().filter { e -> !e.optionalCons }
     val opts: List<RecipeItemStack> =
-      recipe.materials.values.filter { e -> e.optionalCons }
+      recipe.materials.values().filter { e -> e.optionalCons }
     val materialNum = mats.size
     val productionNum = recipe.productions.size
     hasOptionals = opts.isNotEmpty()
@@ -141,7 +141,7 @@ open class FactoryRecipe : RecipeType() {
     offY += NODE_SIZE
     if (productionNum > 0) {
       offY += ROW_PAD
-      val seq: List<RecipeItemStack> = recipe.productions.values.toList()
+      val seq: List<RecipeItemStack> = recipe.productions.values().toList()
       handleNode(seq, prodPos, offProdX, offY, doubleOutput, true)
     }
 

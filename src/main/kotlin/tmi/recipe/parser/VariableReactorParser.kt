@@ -20,7 +20,7 @@ open class VariableReactorParser : ConsumerParser<VariableReactor>() {
   override fun parse(content: VariableReactor): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.generator,
-      ownerBlock = getWrap(content)
+      ownerBlock = +content
     )
 
     registerCons(res, *content.consumers)

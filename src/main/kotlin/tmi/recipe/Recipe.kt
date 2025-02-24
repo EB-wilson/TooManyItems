@@ -46,7 +46,7 @@ class Recipe @JvmOverloads constructor(
 
           attrGroups.clear()
 
-          recipe.materials.values.forEach { stack ->
+          recipe.materials.values().forEach { stack ->
             if (stack.isBooster || stack.isAttribute) return@forEach
 
             if (stack.attributeGroup != null) {
@@ -75,7 +75,7 @@ class Recipe @JvmOverloads constructor(
           var attr = 0f
           var boost = 1f
 
-          recipe.materials.values.forEach { stack ->
+          recipe.materials.values().forEach { stack ->
             if (!stack.isBooster && !stack.isAttribute) return@forEach
 
             if (stack.isAttribute) {
@@ -108,8 +108,11 @@ class Recipe @JvmOverloads constructor(
     }
   }
 
-  val productions = sortedMapOf<RecipeItem<*>, RecipeItemStack>()
-  val materials = sortedMapOf<RecipeItem<*>, RecipeItemStack>()
+  private var completed = false
+  private var hash = -1
+
+  val productions = OrderedMap<RecipeItem<*>, RecipeItemStack>()
+  val materials = OrderedMap<RecipeItem<*>, RecipeItemStack>()
 
   //infos
   /**配方的效率计算函数，用于给定一个输入环境参数和配方数据，计算出该配方在这个输入环境下的工作效率 */
@@ -118,6 +121,21 @@ class Recipe @JvmOverloads constructor(
 
   var subInfoBuilder: Cons<Table>? = null
     private set
+
+  fun complete(){
+    if (completed) return
+    productions.orderedKeys().sort()
+    materials.orderedKeys().sort()
+
+    hash = Objects.hash(
+      recipeType,
+      productions.keys().toList(),
+      materials.keys().toList(),
+      ownerBlock
+    )
+
+    completed = true
+  }
 
   /**用配方当前使用的效率计算器计算该配方在给定的环境参数下的运行效率 */
   @JvmOverloads
@@ -236,12 +254,8 @@ class Recipe @JvmOverloads constructor(
   }
 
   override fun hashCode(): Int {
-    return Objects.hash(
-      recipeType,
-      productions.keys.toList(),
-      materials.keys.toList(),
-      ownerBlock
-    )
+    if (!completed) throw IllegalStateException("Recipe is not completed")
+    return hash
   }
 
   interface EffFunc {

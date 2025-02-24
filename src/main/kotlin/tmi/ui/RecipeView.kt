@@ -41,10 +41,10 @@ class RecipeView @JvmOverloads constructor(
   init {
     addChild(childGroup)
 
-    for (content in recipe.materials.values) {
+    for (content in recipe.materials.values()) {
       nodes.add(RecipeNode(NodeType.MATERIAL, content, defClicked))
     }
-    for (content in recipe.productions.values) {
+    for (content in recipe.productions.values()) {
       nodes.add(RecipeNode(NodeType.PRODUCTION, content, defClicked))
     }
 

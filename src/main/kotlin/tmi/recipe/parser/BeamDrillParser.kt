@@ -45,11 +45,11 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
       val recipe = res.get(drop.itemDrop) {
         val r = Recipe(
           recipeType = RecipeType.collecting,
-          ownerBlock = getWrap(content),
+          ownerBlock = +content,
           craftTime = content.getDrillTime(drop.itemDrop)/content.size,
         ).setEff(Recipe.zeroEff)
 
-        r.addProductionInteger(getWrap(drop.itemDrop), 1)
+        r.addProductionInteger(+drop.itemDrop, 1)
 
         if (content.optionalBoostIntensity != 1f) {
           registerCons(
@@ -82,7 +82,7 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
       }
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
-      recipe!!.addMaterial(getWrap(drop), content.size as Number)
+      recipe!!.addMaterial(+drop, content.size as Number)
         .setEff(content.drillTime/realDrillTime)
         .setAttribute()
         .emptyFormat()

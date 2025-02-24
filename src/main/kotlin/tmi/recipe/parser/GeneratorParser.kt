@@ -15,7 +15,7 @@ open class GeneratorParser : ConsumerParser<PowerGenerator>() {
   override fun parse(content: PowerGenerator): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.generator,
-      ownerBlock = getWrap(content)
+      ownerBlock = +content
     )
 
     registerCons(res, *content.consumers)

@@ -17,18 +17,16 @@ import arc.scene.ui.layout.Table
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
+import arc.util.Tmp
 import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.gen.Tex
-import mindustry.type.Item
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.invoke
-import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
 import tmi.ui.designer.*
 import tmi.util.CombinedKeys
-import tmi.util.vec1
 
 object TmiUI {
   private val alignTable = intArrayOf(
@@ -88,21 +86,7 @@ object TmiUI {
         group = "fileIO"
       ){
         hideMenu()
-        Vars.platform.showFileChooser(true, "shd") { file ->
-          val page = getPages().find { it.fi == file }
-          if (page == null){
-            try {
-              createNewPage(fi = file)
-            } catch (e: Exception) {
-              Vars.ui.showException(e)
-              Log.err(e)
-            }
-          }
-          else {
-            setCurrPage(page)
-            Vars.ui.showInfo(Core.bundle["dialog.calculator.fileOpened"])
-          }
-        }
+        openFile()
       },
       MenuTab(
         Core.bundle["misc.save"], "file", Icon.saveSmall,
@@ -113,7 +97,7 @@ object TmiUI {
         hideMenu()
         val currPage = currPage!!
         if (currPage.fi != null) {
-          if (currPage.view.isUpdated) save(currPage.view, currPage.fi!!)
+          if (currPage.shouldSave()) save(currPage.view, currPage.fi!!)
         }
         else {
           Vars.platform.showFileChooser(false, currPage.title, "shd") { file ->
@@ -220,13 +204,11 @@ object TmiUI {
             valid = { currPage != null },
           ){
             hideMenu()
+
             val view = currPage!!.view
             recipesDialog.toggle = Cons { r ->
               recipesDialog.hide()
-              view.addRecipe(r)
-
-              view.container.stageToLocalCoordinates(vec1)
-              view.newSet!!.gridAlign(view.cardAlign)
+              view.addRecipe(r).gridAlign(view.cardAlign)
             }
             recipesDialog.show()
           },
@@ -494,6 +476,7 @@ object TmiUI {
   }
 
   private fun setDefaultViewTabs() {
+    val vec = Tmp.v1
     schematicDesigner.viewMenuTabs.addAll(
       ViewTab(
         title = Core.bundle["misc.remove"],
@@ -533,9 +516,9 @@ object TmiUI {
         clicked = { x, y, v, _ ->
           hideMenu()
           val l = getClipboard().toList()
-          vec1.set(x, y)
-          v.container.stageToLocalCoordinates(vec1)
-          l.forEach { it.moveBy(vec1.x, vec1.y) }
+          vec.set(x, y)
+          v.container.stageToLocalCoordinates(vec)
+          l.forEach { it.moveBy(vec.x, vec.y) }
           v.pushHandle(AddCardsHandle(v, l))
           v.newSet = null
         },
@@ -581,9 +564,8 @@ object TmiUI {
           hideMenu()
           recipesDialog.toggle = Cons { r ->
             recipesDialog.hide()
-            vec1.set(x, y)
-            v.container.stageToLocalCoordinates(vec1)
-            v.alignCard(v.addRecipe(r), vec1.x, vec1.y, v.cardAlign)
+            v.localToDescendantCoordinates(v.container, vec.set(x, y))
+            v.alignCard(v.addRecipe(r), vec.x, vec.y, v.cardAlign)
           }
           recipesDialog.show()
         }
@@ -595,9 +577,9 @@ object TmiUI {
           hideMenu()
           val c = IOCard(v, true)
           v.addIO(c)
-          vec1.set(x, y)
-          v.container.stageToLocalCoordinates(vec1)
-          v.alignCard(c, vec1.x, vec1.y, v.cardAlign)
+          vec.set(x, y)
+          v.container.stageToLocalCoordinates(vec)
+          v.alignCard(c, vec.x, vec.y, v.cardAlign)
         }
       ),
       ViewTab(
@@ -607,9 +589,9 @@ object TmiUI {
           hideMenu()
           val c = IOCard(v, false)
           v.addIO(c)
-          vec1.set(x, y)
-          v.container.stageToLocalCoordinates(vec1)
-          v.alignCard(c, vec1.x, vec1.y, v.cardAlign)
+          vec.set(x, y)
+          v.container.stageToLocalCoordinates(vec)
+          v.alignCard(c, vec.x, vec.y, v.cardAlign)
         }
       ),
     )
@@ -657,7 +639,7 @@ object TmiUI {
 
           val sorting = recipesDialog.sortings[i].sort
           val ls: List<RecipeItem<*>> = list.toList()
-            .filter { e -> !RecipeType.generator.isPower(e) && (e.name.contains(search) || e.localizedName.contains(search)) }
+            .filter { e -> (e.name.contains(search) || e.localizedName.contains(search)) }
             .sortedWith(
               if (reverse) java.util.Comparator { a, b -> sorting.compare(b, a) }
               else sorting

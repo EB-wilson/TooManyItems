@@ -6,7 +6,6 @@ import arc.func.Cons
 import arc.func.Prov
 import arc.graphics.Color
 import arc.input.KeyCode
-import arc.math.Mathf
 import arc.scene.event.Touchable
 import arc.scene.ui.CheckBox
 import arc.scene.ui.TextField
@@ -35,13 +34,11 @@ import tmi.ui.NodeType
 import tmi.ui.RecipeView
 import tmi.ui.TmiUI
 import tmi.ui.addEventBlocker
-import tmi.ui.designer.IOCard.Companion.CLASS_ID
 import tmi.util.Consts
 import tmi.util.vec1
 import kotlin.math.ceil
-import kotlin.math.max
 
-class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) {
+open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) {
   var rebuildConfig = {}
   var rebuildOptionals = {}
   var rebuildAttrs = {}
@@ -55,7 +52,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   var mul = -1
   var effScale = 1f
 
-  var over: Table? = null
+  lateinit var over: Table
 
   val recipeView: RecipeView = RecipeView(recipe, { i, t, m ->
     Time.run(0f){ ownerView.parentDialog.hideMenu() }
@@ -146,6 +143,27 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
       val stack = recipe.productions[linker.item] ?: continue
 
       linker.expectAmount = stack.amount*mul*efficiency
+    }
+  }
+
+  open fun buildLinker() {
+    pack()
+
+    for (item in outputs()) {
+      val linker = ItemLinker(this, item.item, false)
+      addOut(linker)
+    }
+
+    val outStep = pane.width/linkerOuts.size
+    val baseOff = outStep/2
+
+    linkerOuts.forEachIndexed { i, linker ->
+      linker.pack()
+      val offY = pane.height/2 + linker.height/1.5f
+      val offX = baseOff + i*outStep
+
+      linker.setPosition(pane.x + offX, pane.y + pane.height/2 + offY, Align.center)
+      linker.dir = 1
     }
   }
 
@@ -297,8 +315,8 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
   }
 
   private fun setDefAttribute() {
-    recipe.materials.toList().firstOrNull { it.second.run { isAttribute && !optionalCons } }?.apply {
-      environments.add(this.first, this.second.amount, true)
+    recipe.materials.toList().firstOrNull { it.value.run { isAttribute && !optionalCons } }?.apply {
+      environments.add(this.key, this.value.amount, true)
     }
   }
 
@@ -318,7 +336,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
             .pad(8f).padTop(4f).growX().left()
           i.row()
           i.pane { p ->
-            for (stack in recipe.materials.values) {
+            for (stack in recipe.materials.values()) {
               if (!stack.isAttribute) continue
               p.table { item ->
                 item.buildIcon(stack)
@@ -369,7 +387,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
         }
         else {
           i.pane { p ->
-            for (stack in recipe.materials.values) {
+            for (stack in recipe.materials.values()) {
               if (!stack.optionalCons || stack.isAttribute) continue
               val item = Elem.newCheck("") { b ->
                 val setArgsHandle = checkHandle()
@@ -429,18 +447,19 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
     efficiency = recipe.calculateEfficiency(param, multiplier)
   }
 
-  override fun accepts() = recipe.materials.values.toList()
+  override fun accepts() = recipe.materials.values().toList()
 
-  override fun outputs() = recipe.productions.values.toList()
-  override fun added() { setDefAttribute() }
+  override fun outputs() = recipe.productions.values().toList()
+  override fun added() {
+    buildLinker()
+    setDefAttribute()
+  }
 
   override fun calculateBalance() {
     balanceValid = true
     balanceAmount = 0
 
-    recipe.productions.values.forEach { stack ->
-      if ((RecipeType.generator as GeneratorRecipe?)!!.isPower(stack.item)) return@forEach
-
+    recipe.productions.values().forEach { stack ->
       val linker = linkerOuts.find { it.item == stack.item }
 
       linker?.links?.forEach { other, ent ->
@@ -451,7 +470,7 @@ class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerView) 
         }
 
         balanceAmount = balanceAmount.coerceAtLeast(
-          ceil(((if (other.links.size == 1) 1f else ent.rate)*other.expectAmount)/stack.amount).toInt()
+          ceil(((if (other.links.size == 1) 1f else ent.rate)*other.expectAmount)/(stack.amount * efficiency)).toInt()
         )
       }
     }

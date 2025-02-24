@@ -147,7 +147,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
       val pos = localToAscendantCoordinates(ownerDesigner, vec1.set(pane.x, pane.y))
       ownerDesigner.removeCard(this, false)
       ownerDesigner.addChild(this)
-      setPosition(pos.x, pos.y)
+      setPosition(pos.x - pane.x * scaleX, pos.y - pane.y * scaleY)
     }
     else {
       ownerDesigner.removeCard(this, false)
@@ -273,7 +273,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
         enabled = true
         ownerDesigner.moveLock(true)
         this@Card.removing = false
-        ownerDesigner.selects.each { e: Card? -> e!!.removing = false }
+        ownerDesigner.selects.each { e -> e!!.removing = false }
         rise()
       }
 

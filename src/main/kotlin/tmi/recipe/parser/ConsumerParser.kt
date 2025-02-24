@@ -41,7 +41,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { recipe: Recipe, consume: Consume, handle ->
           for (item in (consume as ConsumeItems).items) {
             handle(
-              recipe.addMaterialInteger(getWrap(item.item), item.amount)
+              recipe.addMaterialInteger(+item.item, item.amount)
                 .setOptional(consume.optional)
             )
           }
@@ -52,7 +52,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
           val cf = (consume as ConsumeItemFilter)
           for (item in Vars.content.items().select { i -> cf.filter[i] }) {
             handle(
-              recipe.addMaterialInteger(getWrap(item), 1)
+              recipe.addMaterialInteger(+item, 1)
                 .setOptional(consume.optional)
                 .setAttribute(cf)
                 .setMaxAttr()
@@ -65,14 +65,14 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumeLiquids },
         { recipe, consume, handle ->
           for (liquid in (consume as ConsumeLiquids).liquids) {
-            handle(recipe.addMaterialPersec(getWrap(liquid.liquid), liquid.amount)
+            handle(recipe.addMaterialPersec(+liquid.liquid, liquid.amount)
               .setOptional(consume.optional))
           }
         })
       registerVanillaConsParser(
         { c -> c is ConsumeLiquid },
         { recipe, consume, handle ->
-          handle(recipe.addMaterialPersec(getWrap((consume as ConsumeLiquid).liquid), consume.amount)
+          handle(recipe.addMaterialPersec(+(consume as ConsumeLiquid).liquid, consume.amount)
             .setOptional(consume.optional))
         })
       registerVanillaConsParser(
@@ -80,7 +80,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { recipe, consume, handle ->
           val cf = (consume as ConsumeLiquidFilter)
           for (liquid in Vars.content.liquids().select { i -> cf.filter[i] }) {
-            handle(recipe.addMaterialPersec(getWrap(liquid), cf.amount)
+            handle(recipe.addMaterialPersec(+liquid, cf.amount)
               .setOptional(consume.optional)
               .setAttribute(cf)
               .setMaxAttr())
@@ -92,9 +92,9 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumePayloads },
         { recipe, consume, handle ->
           for (stack in (consume as ConsumePayloads).payloads) {
-            if (stack.amount > 1) handle(recipe.addMaterialInteger(getWrap(stack.item), stack.amount))
+            if (stack.amount > 1) handle(recipe.addMaterialInteger(+stack.item, stack.amount))
             else handle(
-              recipe.addMaterialInteger(getWrap(stack.item), 1)
+              recipe.addMaterialInteger(+stack.item, 1)
                 .setOptional(consume.optional)
             )
           }

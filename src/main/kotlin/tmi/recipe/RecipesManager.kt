@@ -10,6 +10,7 @@ import mindustry.world.Block
 import mindustry.world.meta.Stat.buildTime
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
+import tmi.ui.Cursor.Companion.recipe
 
 private val errorRecipe = Recipe(
   recipeType = RecipeType.factory,
@@ -35,28 +36,30 @@ open class RecipesManager {
   }
 
   /**添加若干个配方 */
-  fun addRecipe(recipes: Seq<Recipe>) {
+  fun addRecipe(completeRecipe: Boolean = true, vararg recipes: Recipe) {
     for (recipe in recipes) {
-      addRecipe(recipe)
+      addRecipe(recipe, completeRecipe)
     }
   }
 
   /**添加若干个配方 */
-  fun addRecipe(vararg recipes: Recipe) {
+  fun addRecipe(recipes: Seq<Recipe>, completeRecipe: Boolean = true) {
     for (recipe in recipes) {
-      addRecipe(recipe)
+      addRecipe(recipe, completeRecipe)
     }
   }
 
   /**添加单个配方 */
-  fun addRecipe(recipe: Recipe) {
+  fun addRecipe(recipe: Recipe, completeRecipe: Boolean = true) {
+    if (completeRecipe) recipe.complete()
+
     idMap.put(recipe.hashCode(), recipe)
 
     recipes.add(recipe)
-    for (stack in recipe.materials.values) {
+    for (stack in recipe.materials.values()) {
       materials.add(stack.item)
     }
-    for (stack in recipe.productions.values) {
+    for (stack in recipe.productions.values()) {
       productions.add(stack.item)
     }
     if (recipe.ownerBlock != null) blocks.add(recipe.ownerBlock)

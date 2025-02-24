@@ -52,6 +52,7 @@ class TooManyItems : Mod() {
     recipesManager.registerParser(UnitFactoryParser())
     recipesManager.registerParser(ReconstructorParser())
     recipesManager.registerParser(UnitAssemblerParser())
+    recipesManager.registerParser(ConstructorParser())
     recipesManager.registerParser(PumpParser())
     recipesManager.registerParser(SolidPumpParser())
     recipesManager.registerParser(FrackerParser())

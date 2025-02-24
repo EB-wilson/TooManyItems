@@ -71,7 +71,6 @@ class ItemLinker @JvmOverloads internal constructor(
 
   var hover: ItemLinker? = null
 
-
   var hoverCard: Card? = null
   var hoverValid: Boolean = false
 
@@ -584,8 +583,8 @@ class ItemLinker @JvmOverloads internal constructor(
   }
 
   override fun draw() {
-    super.draw()
     updateLinkPos()
+    super.draw()
 
     Draw.reset()
     Lines.stroke(Scl.scl(4f), lineColor)

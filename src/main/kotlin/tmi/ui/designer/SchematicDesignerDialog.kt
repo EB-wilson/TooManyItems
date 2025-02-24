@@ -3,15 +3,9 @@ package tmi.ui.designer
 import arc.ApplicationCore
 import arc.ApplicationListener
 import arc.Core
-import arc.Events
 import arc.files.Fi
-import arc.func.Boolf
-import arc.func.Boolp
-import arc.func.Cons
-import arc.func.Cons2
-import arc.func.Func
+import arc.func.*
 import arc.graphics.Color
-import arc.graphics.g2d.Fill
 import arc.input.KeyCode
 import arc.math.geom.Vec2
 import arc.scene.Element
@@ -21,11 +15,9 @@ import arc.scene.event.InputListener
 import arc.scene.event.Touchable
 import arc.scene.style.Drawable
 import arc.scene.ui.Button
-import arc.scene.ui.TextField
 import arc.scene.ui.Tooltip
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
-import arc.struct.ObjectSet
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
@@ -34,28 +26,20 @@ import arc.util.Scaling
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.Vars
-import mindustry.content.SectorPresets.origin
-import mindustry.core.Renderer
-import mindustry.core.UI
-import mindustry.game.EventType
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
-import mindustry.graphics.g3d.PlanetRenderer
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.invoke
 import tmi.ui.TmiUI
 import tmi.ui.addEventBlocker
-import tmi.ui.designer.SchematicDesignerDialog.Companion.modules
 import tmi.util.*
-import tmi.util.Consts.leftLine
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import kotlin.math.max
-import kotlin.math.min
 
 open class SchematicDesignerDialog : BaseDialog("") {
   companion object {
@@ -92,7 +76,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
   private var topTable: Table? = null
   private var viewTable: Table? = null
   private var sideTable: Table? = null
-  private var pageTable: Table? = null
 
   private val menuTable: Table = object : Table() {
     init {
@@ -100,8 +83,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
     }
   }
   private val menuHiddens = Seq<Runnable>()
-  //private val export by lazy { ExportDialog(this) }
-  //private val balance by lazy { BalanceDialog(this) }
 
   fun build(){
     titleTable.clear()
@@ -111,18 +92,12 @@ open class SchematicDesignerDialog : BaseDialog("") {
     cont.background(Consts.grayUI)
     cont.defaults().pad(0f)
     cont.table{
-      topTable = it.table(Consts.darkGrayUI).growX().height(42f).get()
+      topTable = it.table(Consts.darkGrayUI).growX().fillY().get()
       it.row()
       it.table{ under ->
         sideTable = under.table(Consts.midGrayUI).fillX().growY().get()
         under.image().color(Pal.darkestGray).width(2f).growY().pad(0f)
-        under.table{ right ->
-          pageTable = right.table(Consts.midGrayUI).growX().fillY().minHeight(42f).get().left()
-          right.row()
-          right.image().color(Pal.darkestGray).height(2f).growX().pad(0f)
-          right.row()
-          viewTable = right.table().grow().get().apply { clip = true }
-        }.grow()
+        viewTable = under.table().grow().get().apply { clip = true }
       }.grow().get()
     }.grow().get()
 
@@ -192,95 +167,8 @@ open class SchematicDesignerDialog : BaseDialog("") {
     buildView()
     buildTopBar()
     buildSideBar()
-    buildPageBar()
 
     setupMenuBinds()
-  }
-
-  fun buildPageBar() {
-    pageTable!!.clear()
-    pageTable!!.table().grow().get().left().apply {
-      val e = Element()
-      pane { pane ->
-        rebuildPages = {
-          pane.clearChildren()
-
-          pane.add(e).width(14f)
-          pages.forEach { page ->
-            buildPageTab(pane, page).style = Button.ButtonStyle(Styles.clearNoneTogglei).apply {
-              down = Tex.underline
-              checked = Tex.underline
-            }
-          }
-
-          pane.button(Icon.addSmall, Styles.clearNonei, 24f){
-            createNewPage()
-            rebuildPages()
-          }.size(42f)
-        }
-        rebuildPages()
-      }.scrollY(false).scrollX(true).fillX().growY().get().apply {
-        addListener(object : InputListener() {
-          override fun scrolled(event: InputEvent, x: Float, y: Float, sx: Float, sy: Float): Boolean {
-            scrollX += min(scrollWidth, max((scrollWidth*0.9f), (maxX*0.1f))/4f)*sy
-            return true
-          }
-        })
-      }
-
-      fill { over ->
-        over.touchable = Touchable.disabled
-
-        val c1 = Pal.darkestGray.toFloatBits()
-        val c2 = Pal.darkestGray.cpy().a(0f).toFloatBits()
-        over.add(object: Element(){
-          override fun draw() {
-            Fill.quad(
-              x, y, c1,
-              x, y + height, c1,
-              x + width, y + height, c2,
-              x + width, y, c2
-            )
-          }
-        }).growY().width(14f)
-        over.add().grow()
-        over.add(object: Element(){
-          override fun draw() {
-            Fill.quad(
-              x, y, c2,
-              x, y + height, c2,
-              x + width, y + height, c1,
-              x + width, y, c1
-            )
-          }
-        }).growY().width(14f)
-      }
-    }
-    var button: Button? = null
-    var shown = false
-    pageTable!!.button(Icon.downOpen, Styles.clearNonei) {
-      if (shown) {
-        shown = false
-        hideMenu()
-      }
-      else {
-        if (pages.isEmpty) return@button
-        shown = true
-        onMenuHidden{ shown = false }
-        showMenu(button!!, Align.bottomRight, Align.topRight) { menu ->
-          menu.table(Consts.padDarkGrayUI) { m ->
-            m.defaults().growX().fillY().minWidth(300f)
-            pages.forEach {
-              buildPageTab(m, it).style = Button.ButtonStyle(Styles.clearNoneTogglei).apply {
-                down = leftLine
-                checked = leftLine
-              }
-              m.row()
-            }
-          }.fill()
-        }
-      }
-    }.get().also { button = it }
   }
 
   private fun buildPageTab(
@@ -288,13 +176,22 @@ open class SchematicDesignerDialog : BaseDialog("") {
     page: ViewPage,
   ): Button {
     return pane.button({ b ->
-      arrayOf(
-        b.table().growY().fillX().get().image(Icon.map).size(20f).scaling(Scaling.fit).padLeft(4f),
-        b.add(page.title).padLeft(12f),
-        b.add("*").padLeft(2f).padRight(4f).visible { page.shouldSave() },
-      ).forEach {
-        it.update { i -> i.setColor(Color.white.takeIf { page.hovered || page == currPage } ?: Color.lightGray) }
-      }
+      b.margin(6f)
+      b.table{ t ->
+        val updateColor = Cons<Element>{
+          it.setColor(Color.white.takeIf { page.hovered || page == currPage }?: Color.lightGray)
+        }
+        t.image(Icon.map).size(36f).scaling(Scaling.fit).padLeft(4f).update{ l -> updateColor(l) }
+        t.table { fi ->
+          fi.left().defaults().left()
+          fi.table {
+            it.add(page.title).padLeft(12f).pad(4f).update{ l -> updateColor(l) }
+            it.add("*").padLeft(2f).padRight(4f).visible { page.shouldSave() }
+          }
+          fi.row()
+          fi.add(page.fi?.path() ?: "no directed file", 0.9f).color(Color.lightGray).padLeft(12f).pad(4f)
+        }
+      }.growY().fillX()
 
       b.add().grow()
 
@@ -328,7 +225,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
           hideMenu()
         }
       }.margin(5f).visible { page.hovered || page == currPage }
-    }) {
+    }, Button.ButtonStyle(Styles.cleart)) {
       currPage = page
       buildView()
     }.grow().margin(4f).marginLeft(10f).marginRight(10f)
@@ -398,9 +295,117 @@ open class SchematicDesignerDialog : BaseDialog("") {
 
     topTable!!.table{ it.image(Consts.tmi).scaling(Scaling.fit).size(32f) }.growY().marginLeft(8f).marginRight(8f)
 
+    var folded = true
+    var menuTable: Table? = null
+
+    this@SchematicDesignerDialog.addListener(object : InputListener(){
+      override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
+        val elem = this@SchematicDesignerDialog.hit(x, y, false)
+        if (elem != null && elem.isDescendantOf(menuTable)) return false
+
+        folded = true
+        return false
+      }
+    })
+
+    topTable!!.stack(Table{ def ->
+      def.left()
+      def.visibility = Boolp{ folded }
+      def.button(Icon.menuSmall, Styles.clearNonei, 48f) {
+        folded = false
+      }.growY().fillX().padLeft(12f).padRight(12f)
+
+      buildFoldedMenu(def)
+    }, Table{ menus ->
+      menuTable = menus
+      menus.left()
+      menus.visibility = Boolp{ !folded }
+
+      buildUnfoldedMenuTabs(tabs, menus)
+    })
+
+    topTable!!.add().growX()
+    topTable!!.button(Icon.cancel, Styles.clearNonei, 32f) { this.hide() }.marginLeft(5f).marginRight(5f).growY()
+  }
+
+  private fun buildFoldedMenu(
+    menu: Table,
+  ) {
+    menu.button({ t ->
+      t.left().defaults().left()
+      t.image(Icon.mapSmall).size(36f).scaling(Scaling.fit).padLeft(4f)
+      t.add("").padLeft(12f).minWidth(60f).update { it.setText(currPage?.title?: Core.bundle["dialog.calculator.noFileOpened"]) }
+      t.add("*").padLeft(2f).padRight(4f).visible { currPage?.shouldSave()?: false }
+      t.image(Icon.downOpenSmall).size(32f).scaling(Scaling.fit).padLeft(4f)
+    }, Styles.cleart) {}.fillX().growY().get().also {
+      it.clicked {
+        showMenu(it, Align.bottomLeft) { page ->
+          page.table(Consts.padDarkGrayUI) { m ->
+            m.left().defaults().growX().fillY().minWidth(300f).left()
+
+            m.button({ b ->
+              b.left().defaults().left()
+              b.image(Icon.addSmall).scaling(Scaling.fit).size(14f)
+              b.add(Core.bundle["misc.new"]).padLeft(6f).labelAlign(Align.left)
+            }, Styles.cleart) {
+              hideMenu()
+              createNewPage()
+            }.margin(8f)
+            m.row()
+            m.button({ b ->
+              b.left().defaults().left()
+              b.image(Icon.fileSmall).scaling(Scaling.fit).size(14f)
+              b.add(Core.bundle["misc.open"]).padLeft(6f).labelAlign(Align.left)
+            }, Styles.cleart) {
+              hideMenu()
+              openFile()
+            }.margin(8f)
+
+            if (pages.any()) {
+              m.row()
+              m.image().color(Pal.darkerGray).height(4f).growX().padTop(4f).padBottom(4f)
+              m.row()
+              m.add(Core.bundle["dialog.calculator.openedFile"]).pad(4f).color(Pal.darkerGray)
+              m.row()
+
+              pages.forEach { p ->
+                buildPageTab(m, p)
+                m.row()
+              }
+            }
+          }.fill()
+        }
+      }
+    }
+
+    menu.button({ b ->
+      b.image(Icon.saveSmall).size(42f).update { it.setColor(Color.lightGray.takeIf { b.isDisabled }?: Color.white) }
+      b.add(Core.bundle["misc.save"]).update { it.setColor(Color.lightGray.takeIf { b.isDisabled }?: Color.white) }
+    }, Styles.cleart) {
+      val currPage = currPage!!
+
+      if (currPage.fi != null) {
+        if (currPage.shouldSave()) save(currPage.view, currPage.fi!!)
+      }
+      else {
+        Vars.platform.showFileChooser(false, currPage.title, "shd") { file ->
+          if (save(currPage.view, file)) {
+            currPage.fi = file
+            currPage.title = file.nameWithoutExtension()
+            rebuildPages()
+          }
+        }
+      }
+    }.disabled { currPage == null }.growY().padLeft(6f).marginLeft(8f).marginRight(12f)
+  }
+
+  private fun buildUnfoldedMenuTabs(
+    tabs: LinkedHashMap<String, MutableMap<String, Seq<MenuTab>>>,
+    menu: Table,
+  ) {
     var currHover: Button? = null
     tabs.forEach { (tabName, groups) ->
-      val button = object :Button(Styles.cleart){
+      val button = object : Button(Styles.cleart) {
         init {
           add(Core.bundle["calculator.tabs.$tabName", tabName])
         }
@@ -410,21 +415,21 @@ open class SchematicDesignerDialog : BaseDialog("") {
         }
       }
 
-      topTable!!.add(button).marginLeft(20f).marginRight(20f).growY().get()
+      menu.add(button).marginLeft(20f).marginRight(20f).growY().get()
         .apply {
           val show = show@{
             if (currHover == this) return@show
             currHover = this
-            onMenuHidden{ currHover = null }
-            showMenu(this, Align.bottomLeft, Align.topLeft, true){ menu ->
-              menu.table(Consts.padDarkGrayUI){ m ->
+            onMenuHidden { currHover = null }
+            showMenu(this, Align.bottomLeft, Align.topLeft, true) { menu ->
+              menu.table(Consts.padDarkGrayUI) { m ->
                 m.defaults().growX().fillY().minWidth(300f)
                 buildMenuTab(m, groups.values)
               }.fill()
             }
           }
 
-          addListener(object : ClickListener(){
+          addListener(object : ClickListener() {
             override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
               super.enter(event, x, y, pointer, fromActor)
               if (fromActor != null && !fromActor.isDescendantOf(this@apply)) show()
@@ -442,9 +447,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
           addEventBlocker()
         }
     }
-
-    topTable!!.add().growX()
-    topTable!!.button(Icon.cancel, Styles.clearNonei, 32f) { this.hide() }.margin(5f)
   }
 
   fun setupMenuBinds() {
@@ -607,6 +609,24 @@ open class SchematicDesignerDialog : BaseDialog("") {
       setCurrPage(it)
     }
 
+  fun openFile(){
+    Vars.platform.showFileChooser(true, "shd") { file ->
+      val existed = getPages().find { it.fi == file }
+      if (existed == null){
+        try {
+          createNewPage(fi = file)
+        } catch (e: Exception) {
+          Vars.ui.showException(e)
+          Log.err(e)
+        }
+      }
+      else {
+        setCurrPage(existed)
+        Vars.ui.showInfo(Core.bundle["dialog.calculator.fileOpened"])
+      }
+    }
+  }
+
   fun deletePage(page: ViewPage) {
     val index = pages.indexOf(page)
     pages.remove(index)
@@ -633,7 +653,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
     val reads = Reads(DataInputStream(ByteArrayInputStream(clipboard)))
     tempView.readCards(reads)
     tempView.standardization()
-    return tempView.cards
+    return tempView.cards.toList().plus(tempView.foldCards)
   }
 
   fun clipboardEmpty() = clipboard.isEmpty()
@@ -685,10 +705,10 @@ open class SchematicDesignerDialog : BaseDialog("") {
     build: Cons<Table>,
   ): Table {
     val parent = showOn.parent
-    val subTable = Table(Consts.padDarkGrayUI)
-    parent.addChild(subTable)
-
-    build(subTable)
+    val menuTable = Table(Consts.padDarkGrayUI)
+    parent.addChild(menuTable)
+    build(menuTable)
+    menuTable.pack()
 
     vec1.set(showOn.x, showOn.y)
 
@@ -698,7 +718,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
     if ((alignment and Align.top) != 0) vec1.y += showOn.height
     else if ((alignment and Align.bottom) == 0) vec1.y += showOn.height/2
 
-    subTable.localToStageCoordinates(vec2.set(vec1))
+    menuTable.localToStageCoordinates(vec2.set(vec1))
     var align = tableAlign
     if ((align and Align.right) != 0 && vec2.x - menuTable.width < 0) align = align and Align.right.inv() or Align.left
     if ((align and Align.left) != 0 && vec2.x + menuTable.width > Core.scene.width) align = align and Align.left.inv() or Align.right
@@ -706,10 +726,10 @@ open class SchematicDesignerDialog : BaseDialog("") {
     if ((align and Align.top) != 0 && vec2.y - menuTable.height < 0) align = align and Align.top.inv() or Align.bottom
     if ((align and Align.bottom) != 0 && vec2.y + menuTable.height > Core.scene.height) align = align and Align.bottom.inv() or Align.top
 
-    subTable.pack()
-    subTable.setPosition(vec1.x, vec1.y, align)
+    menuTable.setPosition(vec1.x, vec1.y, align)
+    menuTable.addEventBlocker()
 
-    return subTable
+    return menuTable
   }
 
   fun hideMenu() {
