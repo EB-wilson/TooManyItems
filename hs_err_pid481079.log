@@ -1113,7 +1113,7 @@ Dynamic libraries:
 7f3b341fb000-7f3b341fe000 r--p 0006d000 103:04 168084                    /usr/lib/x86_64-linux-gnu/libGLX_mesa.so.0.0.0
 7f3b341fe000-7f3b341ff000 rw-p 00070000 103:04 168084                    /usr/lib/x86_64-linux-gnu/libGLX_mesa.so.0.0.0
 7f3b341ff000-7f3b34200000 rw-p 00000000 00:00 0 
-7f3b34200000-7f3b3429c000 r--p 00000000 103:04 95359                     /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.32
+7f3b34200000-7f3b3429c000 r--p 00000000 103:04 95359                     /usr/lib/x86_64-linux-gnu/libstdc+.so..getWrap()6.0.32
 7f3b3429c000-7f3b343cd000 r-xp 0009c000 103:04 95359                     /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.32
 7f3b343cd000-7f3b3445a000 r--p 001cd000 103:04 95359                     /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.32
 7f3b3445a000-7f3b34465000 r--p 0025a000 103:04 95359                     /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.32

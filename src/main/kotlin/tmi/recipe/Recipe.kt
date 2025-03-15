@@ -111,8 +111,8 @@ class Recipe @JvmOverloads constructor(
   private var completed = false
   private var hash = -1
 
-  val productions = OrderedMap<RecipeItem<*>, RecipeItemStack>()
-  val materials = OrderedMap<RecipeItem<*>, RecipeItemStack>()
+  val productions = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
+  val materials = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
 
   //infos
   /**配方的效率计算函数，用于给定一个输入环境参数和配方数据，计算出该配方在这个输入环境下的工作效率 */

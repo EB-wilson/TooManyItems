@@ -17,14 +17,14 @@ open class UnitAssemblerParser : ConsumerParser<UnitAssembler>() {
     for (plan in content.plans) {
       val recipe = Recipe(
         recipeType = RecipeType.factory,
-        ownerBlock = +content,
+        ownerBlock = content.getWrap(),
         craftTime = plan.time
       )
 
-      recipe.addProductionInteger(+plan.unit, 1)
+      recipe.addProductionInteger(plan.unit.getWrap(), 1)
 
       for (stack in plan.requirements) {
-        recipe.addMaterialInteger(+stack.item, stack.amount)
+        recipe.addMaterialInteger(stack.item.getWrap(), stack.amount)
       }
 
       registerCons(recipe, *content.consumers)

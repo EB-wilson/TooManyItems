@@ -35,6 +35,7 @@ import arc.struct.ObjectMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
 import arc.util.Align
+import arc.util.Log
 import arc.util.Time
 import arc.util.Tmp
 import arc.util.io.Reads
@@ -46,6 +47,8 @@ import tmi.TooManyItems
 import tmi.f
 import tmi.invoke
 import tmi.recipe.Recipe
+import tmi.recipe.types.PowerMark
+import tmi.recipe.types.RecipeItem
 import tmi.set
 import tmi.ui.addEventBlocker
 import tmi.util.*
@@ -56,7 +59,7 @@ import kotlin.math.min
 class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   companion object{
     private val seq: Seq<ItemLinker> = Seq()
-    private const val SHD_REV = 7
+    private const val SHD_REV = 8
   }
 
   var currAlignIcon: Drawable = Icon.none
@@ -76,7 +79,12 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   val selects = ObjectSet<Card>()
   val foldLinkers = ObjectMap<Card, FoldLink>()
 
+  val statistic = BalanceStatistic(this)
+  val globalInput = Seq<RecipeItem<*>>().also { it.add(PowerMark) }
+  val globalOutput = Seq<RecipeItem<*>>()
+
   private val shownCards = ObjectSet<Card>()
+  private val balanceObserving = ObjectSet<Card>()
 
   private val history = Seq<DesignerHandle>()
   private var historyIndex = 0
@@ -94,9 +102,9 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   private var panX: Float = 0f
   private var panY: Float = 0f
 
-  private lateinit var zoomBar: Table
-
   private var foldShown = false
+
+  private lateinit var zoomBar: Table
 
   val isUpdated
     get() = updatedIndex != historyIndex
@@ -143,8 +151,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     init {
       setFillParent(true)
       isTransform = true
-
-      Core.app.post { setOrigin(Align.center) } // after handle
     }
 
     override fun draw() {
@@ -316,6 +322,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
 
   fun build() {
+    clear()
+
     addChild(menuPos)
     zoom.addChild(container)
     fill { t -> t.add(zoom).grow() }
@@ -435,6 +443,19 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     setOpenMenuListener()
     setZoomListener()
     setAreaSelectListener()
+  }
+
+  fun statistic(){
+    statistic.setGlobal(globalInput, globalOutput)
+    statistic.reset()
+    statistic.updateStatistic()
+
+    Log.info(statistic.toString())
+  }
+
+  override fun layout() {
+    super.layout()
+    zoom.setOrigin(Align.center)
   }
 
   private fun drawFoldCurveLink(
@@ -595,8 +616,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       hoveringCard = card
 
       if (card != null && card != c) {
-        val out = c.outputs().map { it.item }.toSet()
-        val accept = card.accepts().map { it.item }.toSet()
+        val out = c.outputTypes().toSet()
+        val accept = card.inputTypes().toSet()
 
         val validItems = out intersect accept
 
@@ -748,13 +769,13 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 
   fun unfoldCard(card: Card) {
+    removeCard(card, false)
+
     card.isTransform = false
     card.isFold = false
     card.scaleX = 1f
     card.scaleY = 1f
     card.pack()
-
-    removeCard(card, false)
     
     cards.add(card)
     container.addChild(card)
@@ -776,6 +797,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   fun addRecipe(recipe: Recipe): RecipeCard {
     return RecipeCard(this, recipe).also {
       buildCard(it)
+      it.buildLinker()
       pushHandle(AddCardHandle(this, it))
       newSet = it
       it.rebuildConfig()
@@ -921,7 +943,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     for (s in list.size - 1 downTo 0) {
       val card = list[s]
 
-      val (v1, v2) = checkNorm(inner && !card.isFold, card)
+      val (v1, v2) = checkNorm(inner, card)
 
       val ox = v1.x
       val oy = v1.y
@@ -991,6 +1013,12 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     write.f(zoom.scaleX)
 
     this.writeCards(write)
+
+    write.i(globalInput.size)
+    globalInput.forEach{ write.str(it.name) }
+
+    write.i(globalOutput.size)
+    globalOutput.forEach{ write.str(it.name) }
   }
 
   fun read(read: Reads) {
@@ -1018,6 +1046,13 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
 
     this.readCards(read, ver)
+
+    if (ver >= 8) {
+      val inputSize = read.i()
+      for (i in 0 until inputSize) globalInput.add(TooManyItems.itemsManager.getByName<Any>(read.str()))
+      val outputSize = read.i()
+      for (i in 0 until outputSize) globalOutput.add(TooManyItems.itemsManager.getByName<Any>(read.str()))
+    }
 
     newSet = null
   }
@@ -1173,7 +1208,10 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
           if (enable && !panned) {
             val selecting = hitCard(x, y, true)
             if (selecting == null) selects.clear()
-            else selects.add(selecting)
+            else {
+              if (selects.firstOrNull()?.let { it.isFold != selecting.isFold } == true) selects.clear()
+              if (!selects.add(selecting)) selects.remove(selecting)
+            }
           }
 
           enable = false
@@ -1209,7 +1247,10 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
             for (card in selects) {
               if (!lastSelected.contains(card)) selects.remove(card)
             }
-            eachCard(rect, true){ key -> selects.add(key) }
+            eachCard(rect, inner = true, fold = false){ key ->
+              if (selects.firstOrNull()?.isFold == true) selects.clear()
+              selects.add(key)
+            }
           }
         }
       }
@@ -1221,6 +1262,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       var panEnable: Boolean = false
 
       override fun zoom(event: InputEvent, initialDistance: Float, distance: Float) {
+        zoom.setOrigin(Align.center)
+
         if (lastZoom < 0) {
           lastZoom = zoom.scaleX
         }
@@ -1231,6 +1274,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       }
 
       override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
+        zoom.setOrigin(Align.center)
         if (button != KeyCode.mouseMiddle && button != KeyCode.mouseRight || pointer != 0) return
         panEnable = true
       }
@@ -1393,6 +1437,18 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       v2.y = max(v2.y, (card.y + card.height))
     }
     return Rect(v1.x, v1.y, v2.x - v1.x, v2.y - v1.y)
+  }
+
+  fun pushObserve(card: Card) {
+    balanceObserving.add(card)
+  }
+
+  fun popObserve(card: Card) {
+    balanceObserving.remove(card)
+    if (balanceObserving.isEmpty) {
+      statistic()
+      fire(StatisticEvent())
+    }
   }
 }
 

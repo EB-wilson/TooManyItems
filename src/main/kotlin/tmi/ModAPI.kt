@@ -238,7 +238,7 @@ class ModAPI {
     }
   }
 
-  private fun parseStack(comp: Jval): ((Recipe) -> RecipeItemStack) {
+  private fun parseStack(comp: Jval): ((Recipe) -> RecipeItemStack<*>) {
     val itemRaw = comp.getString("item", "<error>")
     val amountFormat = comp.getString("amountFormat", "none")
 

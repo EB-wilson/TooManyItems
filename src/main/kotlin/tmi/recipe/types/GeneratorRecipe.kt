@@ -5,7 +5,6 @@ import arc.math.geom.Vec2
 import arc.scene.Group
 import arc.scene.ui.Label
 import arc.struct.ObjectSet
-import arc.struct.Seq
 import arc.util.Align
 import mindustry.ui.Styles
 import tmi.recipe.Recipe
@@ -48,8 +47,8 @@ class GeneratorRecipe : FactoryRecipe() {
 
     val mats = recipe.materials.values().filter { e -> !e.optionalCons }
     val opts = recipe.materials.values().filter { e -> e.optionalCons }
-    val prod = arrayListOf<RecipeItemStack>()
-    val powers = arrayListOf<RecipeItemStack>()
+    val prod = arrayListOf<RecipeItemStack<*>>()
+    val powers = arrayListOf<RecipeItemStack<*>>()
     for (item in recipe.productions.values()) {
       if (isPower(item.item)) powers.add(item)
       else prod.add(item)

@@ -5,8 +5,6 @@ import arc.func.Cons
 import arc.func.Cons3
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
-import arc.graphics.g2d.Fill
-import arc.graphics.g2d.Lines
 import arc.input.KeyCode
 import arc.math.Mathf
 import arc.scene.Element
@@ -23,7 +21,6 @@ import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.gen.Sounds.click
 import mindustry.gen.Tex
-import mindustry.graphics.Drawf
 import mindustry.ui.Styles
 import tmi.TooManyItems
 import tmi.recipe.RecipeItemStack
@@ -34,8 +31,8 @@ val NODE_SIZE: Float = Scl.scl(80f)
 /**在[tmi.recipe.RecipeType]进行布局时所操作的元素对象，用于显示单个条目信息和提供控制逻辑 */
 class RecipeNode(
   val type: NodeType,
-  val stack: RecipeItemStack,
-  val clickListener: Cons3<RecipeItemStack, NodeType, RecipesDialog.Mode>? = null
+  val stack: RecipeItemStack<*>,
+  val clickListener: Cons3<RecipeItemStack<*>, NodeType, RecipesDialog.Mode>? = null
 ) : Button() {
   private var lastTouchedTime = 0f
   private var progress: Float = 0f

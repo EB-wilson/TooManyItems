@@ -1,10 +1,6 @@
 package tmi.recipe
 
-import arc.math.Mathf
-import arc.util.Strings
-import mindustry.core.UI
 import mindustry.ctype.UnlockableContent
-import mindustry.world.meta.StatUnit
 import tmi.recipe.AmountFormatter.Companion.emptyFormatter
 import tmi.recipe.AmountFormatter.Companion.floatFormatter
 import tmi.recipe.AmountFormatter.Companion.integerFormatter
@@ -12,9 +8,9 @@ import tmi.recipe.AmountFormatter.Companion.persecFormatter
 import tmi.recipe.types.RecipeItem
 
 /**保存一个材料项目数据的结构类型，在[Recipe]中作数据记录对象使用 */
-class RecipeItemStack(
+class RecipeItemStack<T>(
   /**该条目表示的[UnlockableContent] */
-  val item: RecipeItem<*>,
+  val item: RecipeItem<T>,
   /**条目附加的数量信息，这将被用作生产计算和显示数据的文本格式化 */
   var amount: Float = 0f
 ) {
@@ -47,7 +43,7 @@ class RecipeItemStack(
     private set
 
   @Suppress("UNCHECKED_CAST")
-  fun <T, RT: RecipeItem<T>> item(): RT = item as RT
+  fun item(): RecipeItem<T> = item
   /**获取经过格式化的表示数量的文本信息 */
   fun getAmount() = amountFormat.format(amount)
 
@@ -66,7 +62,7 @@ class RecipeItemStack(
   fun setAltPersecFormat() = setFormat(persecFormatter())
 
   //属性设置的工具方法
-  fun setEff(efficiency: Float): RecipeItemStack = also { this.efficiency = efficiency }
+  fun setEff(efficiency: Float) = also { this.efficiency = efficiency }
   @JvmOverloads
   fun setOptional(optionalCons: Boolean = true) = also { this.optionalCons = optionalCons }
   @JvmOverloads
@@ -87,10 +83,21 @@ class RecipeItemStack(
   fun integerFormat(mul: Float = 1f) = also { setFormat(integerFormatter(mul)) }
   fun persecFormat() = also { setFormat(persecFormatter()) }
 
+  fun copy() = RecipeItemStack(item, amount).also{
+    it.amountFormat = amountFormat
+    it.alternativeFormat = alternativeFormat
+    it.efficiency = efficiency
+    it.optionalCons = optionalCons
+    it.isAttribute = isAttribute
+    it.isBooster = isBooster
+    it.attributeGroup = attributeGroup
+    it.maxAttribute = maxAttribute
+  }
+
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     if (other == null || javaClass != other.javaClass) return false
-    val stack = other as RecipeItemStack
+    val stack = other as RecipeItemStack<*>
     return amount == stack.amount
         && isAttribute == stack.isAttribute
         && isBooster == stack.isBooster

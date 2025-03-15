@@ -17,7 +17,7 @@ open class SeparatorParser : ConsumerParser<Separator>() {
   override fun parse(content: Separator): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.factory,
-      ownerBlock = +content,
+      ownerBlock = content.getWrap(),
       craftTime = content.craftTime
     )
 
@@ -28,7 +28,7 @@ open class SeparatorParser : ConsumerParser<Separator>() {
       n += stack.amount.toFloat()
     }
     for (item in content.results) {
-      res.addProduction(+item.item, (item.amount/n/content.craftTime) as Number)
+      res.addProduction(item.item.getWrap(), (item.amount/n/content.craftTime) as Number)
         .setFormat { f -> Mathf.round(f*100*res.craftTime).toString() + "%" }
         .setAltFormat { f -> Strings.autoFixed(f*60, 1) + StatUnit.perSecond.localized() }
     }

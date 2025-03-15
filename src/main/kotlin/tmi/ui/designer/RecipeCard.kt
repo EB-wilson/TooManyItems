@@ -27,8 +27,6 @@ import tmi.forEach
 import tmi.recipe.EnvParameter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
-import tmi.recipe.RecipeType
-import tmi.recipe.types.GeneratorRecipe
 import tmi.recipe.types.RecipeItem
 import tmi.ui.NodeType
 import tmi.ui.RecipeView
@@ -135,8 +133,9 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
       val stack = recipe.materials[linker.item] ?: continue
 
       if (stack.isBooster) linker.expectAmount = (stack.amount*mul*effScale)
-        .takeIf { stack.optionalCons && optionalSelected.contains(stack.item) }?: 0f
-      else linker.expectAmount = stack.amount*mul*multiplier
+        .takeIf { !stack.optionalCons || optionalSelected.contains(stack.item) }?: 0f
+      else linker.expectAmount = (stack.amount*mul*multiplier)
+        .takeIf { !stack.optionalCons || optionalSelected.contains(stack.item) }?: 0f
     }
 
     for (linker in linkerOuts) {
@@ -422,7 +421,7 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
     }
   }
 
-  private fun Table.buildIcon(stack: RecipeItemStack) {
+  private fun Table.buildIcon(stack: RecipeItemStack<*>) {
     image(stack.item.icon).size(36f).scaling(Scaling.fit)
     add(stack.item.localizedName).padLeft(5f).growX().left()
     table { am ->
@@ -447,11 +446,33 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
     efficiency = recipe.calculateEfficiency(param, multiplier)
   }
 
-  override fun accepts() = recipe.materials.values().toList()
+  @Deprecated(
+    message = "unnamed to inputs()",
+    replaceWith = ReplaceWith("inputs()"),
+    level = DeprecationLevel.WARNING
+  )
+  override fun accepts() = inputs()
 
-  override fun outputs() = recipe.productions.values().toList()
+  override fun inputTypes() = recipe.materials.values().map { it.item }
+  override fun outputTypes() = recipe.productions.values().map { it.item }
+  override fun inputs() = recipe.materials.values()
+    .filter { stack ->
+      !stack.isAttribute && (!stack.optionalCons || optionalSelected.contains(stack.item))
+    }
+    .map { stack ->
+      stack.copy().also { s ->
+        s.amount = if (!balanceValid) 0f
+        else if (s.isBooster) (s.amount*mul*effScale)
+          .takeIf { !s.optionalCons || optionalSelected.contains(s.item) } ?: 0f
+        else (s.amount*mul*multiplier)
+          .takeIf { !s.optionalCons || optionalSelected.contains(s.item) } ?: 0f
+      }
+    }
+  override fun outputs() = recipe.productions.values()
+    .map { stack ->
+      stack.copy().also { it.amount = if (balanceValid) it.amount*efficiency*mul else 0f }
+    }
   override fun added() {
-    buildLinker()
     setDefAttribute()
   }
 
@@ -480,12 +501,9 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
     if (mul != balanceAmount || allUpdate){
       mul = balanceAmount
 
-      linkerIns.forEach{l ->
-        l.links.forEach {
-          (it.key.parent as? Card)?.observeUpdate()
-        }
-      }
+      super.onObserveUpdated()
     }
+    else ownerDesigner.popObserve(this)
   }
 
   override fun checkLinking(linker: ItemLinker): Boolean {

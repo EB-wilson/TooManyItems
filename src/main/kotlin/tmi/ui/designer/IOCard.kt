@@ -23,13 +23,14 @@ import tmi.forEach
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI
+import tmi.ui.addEventBlocker
 import tmi.util.Consts
 
 class IOCard(
   ownerDesigner: DesignerView,
   val isInput: Boolean
 ) : Card(ownerDesigner) {
-  private val items = sortedMapOf<RecipeItem<*>, RecipeItemStack>()
+  private val items = sortedMapOf<RecipeItem<*>, RecipeItemStack<*>>()
   private val inner = Table()
 
   override val balanceValid: Boolean get() = true
@@ -65,6 +66,7 @@ class IOCard(
         top.hovered { Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand) }
         top.exited { Core.graphics.restoreCursor() }
         top.addCaptureListener(moveListener(top))
+        top.addEventBlocker()
       }.fillY().growX().get()
       t.row()
       t.table { m ->
@@ -73,7 +75,7 @@ class IOCard(
           .labelAlign(Align.left).pad(12f)
       }
       t.row()
-      t.add(inner).center().fill().pad(24f).padTop(24f)
+      t.add(inner).center().grow().pad(24f).padTop(24f)
 
       if (isInput) {
         t.row()
@@ -179,9 +181,10 @@ class IOCard(
     }
   }
 
-  fun addItem(item: RecipeItem<*>): RecipeItemStack {
+  @Suppress("UNCHECKED_CAST")
+  fun <T> addItem(item: RecipeItem<T>): RecipeItemStack<T> {
     var stack = items[item]
-    if (stack != null) return stack
+    if (stack != null) return stack as RecipeItemStack<T>
 
     stack = RecipeItemStack(item, 0f)
     this.items[item] = stack
@@ -204,10 +207,17 @@ class IOCard(
 
     return false
   }
+  @Deprecated(
+    message = "unnamed to inputs()",
+    replaceWith = ReplaceWith("inputs()"),
+    level = DeprecationLevel.WARNING
+  )
+  override fun accepts() = inputs()
 
-  override fun accepts() = if (isInput) items.values.toList() else emptyList()
-
-  override fun outputs() = if (!isInput) items.values.toList() else emptyList()
+  override fun inputTypes() = if (!isInput) items.values.map { it.item } else emptyList()
+  override fun outputTypes() = if (isInput) items.values.map { it.item } else emptyList()
+  override fun inputs() = if (!isInput) items.values.toList() else emptyList()
+  override fun outputs() = if (isInput) items.values.toList() else emptyList()
 
   override fun added() {}
 

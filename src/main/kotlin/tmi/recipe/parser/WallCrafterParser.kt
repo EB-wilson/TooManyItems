@@ -17,11 +17,11 @@ open class WallCrafterParser : ConsumerParser<WallCrafter>() {
   override fun parse(content: WallCrafter): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.collecting,
-      ownerBlock = +content,
+      ownerBlock = content.getWrap(),
       craftTime = content.drillTime
     ).setEff(Recipe.zeroEff)
 
-    res.addProductionInteger(+content.output, 1)
+    res.addProductionInteger(content.output.getWrap(), 1)
 
     registerCons(res, *content.consumers)
 
@@ -29,7 +29,7 @@ open class WallCrafterParser : ConsumerParser<WallCrafter>() {
       if (content.attribute == null || block.attributes[content.attribute] <= 0 || (block is Floor && block.isDeep)) continue
 
       val eff = block.attributes[content.attribute]
-      res.addMaterial(+block, block.size as Number)
+      res.addMaterial(block.getWrap(), block.size as Number)
         .setEff(eff)
         .setAttribute()
         .setFormat { "[#98ffa9]" + Mathf.round(eff*100) + "%" }

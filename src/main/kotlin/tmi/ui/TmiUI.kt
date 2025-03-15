@@ -19,11 +19,13 @@ import arc.util.Align
 import arc.util.Log
 import arc.util.Tmp
 import mindustry.Vars
+import mindustry.content.Items
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.invoke
+import tmi.recipe.RecipeParser.Companion.getWrap
 import tmi.recipe.types.RecipeItem
 import tmi.ui.designer.*
 import tmi.util.CombinedKeys
@@ -104,7 +106,6 @@ object TmiUI {
             if (save(currPage.view, file)) {
               currPage.fi = file
               currPage.title = file.nameWithoutExtension()
-              rebuildPages()
             }
           }
         }
@@ -121,7 +122,6 @@ object TmiUI {
           if (save(page.view, file)) {
             page.fi = file
             page.title = file.nameWithoutExtension()
-            rebuildPages()
           }
         }
       },
@@ -492,9 +492,9 @@ object TmiUI {
       ViewTab(
         title = Core.bundle["misc.fold"],
         icon = Icon.layersSmall,
-        clicked = { _, _, v, s ->
+        clicked = { _, _, v, _ ->
           hideMenu()
-          v.foldCard(s as Card)
+          v.pushHandle(FoldCardHandle(v, v.selects.toList(), true))
         },
         group = "edit",
         filter = { _, _, _, s -> s is Card && !s.isFold },

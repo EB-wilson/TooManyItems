@@ -12,7 +12,6 @@ import arc.scene.ui.ImageButton
 import arc.scene.ui.Label
 import arc.scene.ui.layout.Scl
 import arc.struct.ObjectMap
-import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
 import arc.util.Strings
@@ -99,7 +98,7 @@ class BuildingRecipe : RecipeType() {
     blockPos.setZero()
     materialPos.clear()
 
-    val seq: List<RecipeItemStack> = recipe.materials.values().toList()
+    val seq: List<RecipeItemStack<*>> = recipe.materials.values().toList()
     val radians = 2f*Mathf.pi/seq.size
     val radius = max(
       MIN_RAD.toDouble(),

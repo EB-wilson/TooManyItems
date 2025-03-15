@@ -6,7 +6,6 @@ import arc.scene.Group
 import arc.scene.ui.Label
 import arc.scene.ui.layout.Scl
 import arc.struct.ObjectMap
-import arc.struct.Seq
 import arc.util.Align
 import mindustry.ui.Styles
 import tmi.recipe.Recipe
@@ -37,9 +36,9 @@ open class CollectingRecipe : FactoryRecipe() {
     optPos.setZero()
     blockPos.setZero()
 
-    val mats: List<RecipeItemStack> =
+    val mats: List<RecipeItemStack<*>> =
       recipe.materials.values().filter { e -> !e.optionalCons }
-    val opts: List<RecipeItemStack> =
+    val opts: List<RecipeItemStack<*>> =
       recipe.materials.values().filter { e -> e.optionalCons }
     hasOptionals = opts.isNotEmpty()
     val materialNum = mats.size
@@ -85,7 +84,7 @@ open class CollectingRecipe : FactoryRecipe() {
     offY += NODE_SIZE
     if (productionNum > 0) {
       offY += ROW_PAD
-      val seq: List<RecipeItemStack> = recipe.productions.values().toList()
+      val seq: List<RecipeItemStack<*>> = recipe.productions.values().toList()
       handleNode(seq, prodPos, offProdX, offY)
     }
 
@@ -93,7 +92,7 @@ open class CollectingRecipe : FactoryRecipe() {
   }
 
   protected fun handleNode(
-    seq: List<RecipeItemStack>,
+    seq: List<RecipeItemStack<*>>,
     pos: ObjectMap<RecipeItem<*>, Vec2>,
     offX: Float,
     offY: Float

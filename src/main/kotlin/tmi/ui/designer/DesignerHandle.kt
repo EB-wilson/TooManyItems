@@ -3,9 +3,11 @@ package tmi.ui.designer
 import arc.graphics.Color
 import arc.math.geom.Vec2
 import arc.scene.style.Drawable
+import arc.util.Align
 import arc.util.Time
 import tmi.recipe.EnvParameter
 import tmi.recipe.types.RecipeItem
+import tmi.util.vec1
 
 abstract class DesignerHandle(val ownerView: DesignerView) {
   val handleTime = Time.globalTime
@@ -229,28 +231,45 @@ class AddCardsHandle(
 
 class FoldCardHandle(
   ownerView: DesignerView,
-  private val card: Card,
-  private val toPos: Vec2,
-  private val fold: Boolean
+  private val cards: List<Card>,
+  private val fold: Boolean,
+  private val move: Vec2 = Vec2.ZERO,
 ): DesignerHandle(ownerView){
-  private val originPos = Vec2(card.x, card.y)
+  private val originPos = cards.associateWith { c ->
+    c.localToAscendantCoordinates(ownerView, Vec2(c.width/2f, c.height/2f))
+  }
+  private val toPos = cards.associateWith { c ->
+    c.localToAscendantCoordinates(ownerView, Vec2(c.width/2f, c.height/2f ).add(move))
+  }
 
   override fun handle() {
-    if (fold) ownerView.foldCard(card)
-    else ownerView.unfoldCard(card)
+    if (fold) cards.filter { !it.isFold }.forEach { ownerView.foldCard(it) }
+    else cards.filter { it.isFold }.forEach { ownerView.unfoldCard(it) }
 
-    card.setPosition(toPos.x, toPos.y)
+    cards.forEach { card ->
+      val vec = vec1.set(toPos[card]!!)
+      if (fold) ownerView.localToDescendantCoordinates(ownerView.foldPane, vec)
+      else ownerView.localToDescendantCoordinates(ownerView.container, vec)
 
-    if (fold) ownerView.alignFoldCard(card)
+      card.setPosition(vec.x, vec.y, Align.center)
+      if (fold) ownerView.alignFoldCard(card)
+      else card.gridAlign(ownerView.cardAlign)
+    }
   }
 
   override fun quash() {
-    if (fold) ownerView.unfoldCard(card)
-    else ownerView.foldCard(card)
+    if (fold) cards.filter { it.isFold }.forEach { ownerView.unfoldCard(it) }
+    else cards.filter { !it.isFold }.forEach { ownerView.foldCard(it) }
 
-    card.setPosition(originPos.x, originPos.y)
+    cards.forEach { card ->
+      val vec = vec1.set(originPos[card]!!)
+      if (fold) ownerView.localToDescendantCoordinates(ownerView.container, vec)
+      else ownerView.localToDescendantCoordinates(ownerView.foldPane, vec)
 
-    if (!fold) ownerView.alignFoldCard(card)
+      card.setPosition(vec.x, vec.y, Align.center)
+      if (fold) card.gridAlign(ownerView.cardAlign)
+      else ownerView.alignFoldCard(card)
+    }
   }
 }
 

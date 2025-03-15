@@ -21,7 +21,7 @@ open class ThermalGeneratorParser : ConsumerParser<ThermalGenerator>() {
   override fun parse(content: ThermalGenerator): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.generator,
-      ownerBlock = +content
+      ownerBlock = content.getWrap()
     ).setEff(Recipe.zeroEff)
 
     registerCons(res, *content.consumers)
@@ -33,14 +33,14 @@ open class ThermalGeneratorParser : ConsumerParser<ThermalGenerator>() {
 
       val eff = content.displayEfficiencyScale*content.size*content.size*block.attributes[content.attribute]
       if (eff <= content.minEfficiency) continue
-      res.addMaterial(+block, (content.size*content.size) as Number)
+      res.addMaterial(block.getWrap(), (content.size*content.size) as Number)
         .setEff(eff)
         .setAttribute()
         .setFormat { "[#98ffa9]" + Mathf.round(eff*100) + "%" }
     }
 
     if (content.outputLiquid != null) res.addProductionPersec(
-      +content.outputLiquid.liquid,
+      content.outputLiquid.liquid.getWrap(),
       content.outputLiquid.amount
     )
 

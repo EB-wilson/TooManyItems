@@ -1,28 +1,29 @@
 package tmi.ui.designer
 
 import arc.Core
-import arc.func.*
-import arc.graphics.*
+import arc.func.Cons
+import arc.func.Func2
+import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
 import arc.input.KeyCode
 import arc.math.Mathf
 import arc.math.geom.Vec2
 import arc.scene.Element
-import arc.scene.event.*
+import arc.scene.event.DragListener
+import arc.scene.event.ElementGestureListener
+import arc.scene.event.EventListener
+import arc.scene.event.InputEvent
 import arc.scene.style.Drawable
-import arc.scene.ui.layout.Cell
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.IntMap
 import arc.struct.ObjectSet
-import arc.struct.Seq
 import arc.util.Align
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.graphics.Pal
 import tmi.TooManyItems
-import tmi.f
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.set
@@ -144,6 +145,9 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   fun rise() {
     if(isFold){
+      ownerDesigner.selects.clear()
+      ownerDesigner.selects.add(this)
+
       val pos = localToAscendantCoordinates(ownerDesigner, vec1.set(pane.x, pane.y))
       ownerDesigner.removeCard(this, false)
       ownerDesigner.addChild(this)
@@ -235,11 +239,21 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
   fun observeUpdate(allUpdate: Boolean = false){
     observeUpdated = true
     this.allUpdate = this.allUpdate or allUpdate
+
+    ownerDesigner.pushObserve(this)
   }
 
-  abstract fun accepts(): List<RecipeItemStack>
+  @Deprecated(
+    message = "unnamed to inputs()",
+    replaceWith = ReplaceWith("inputs()"),
+    level = DeprecationLevel.WARNING
+  )
+  abstract fun accepts(): List<RecipeItemStack<*>>
 
-  abstract fun outputs(): List<RecipeItemStack>
+  abstract fun inputTypes(): List<RecipeItem<*>>
+  abstract fun outputTypes(): List<RecipeItem<*>>
+  abstract fun inputs(): List<RecipeItemStack<*>>
+  abstract fun outputs(): List<RecipeItemStack<*>>
 
   abstract fun added()
 
@@ -261,12 +275,17 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
         }
       }
     }
+
+    ownerDesigner.popObserve(this)
   }
 
   protected fun moveListener(element: Element): EventListener {
     return object : ElementGestureListener() {
       var enabled: Boolean = false
       var moveHandle: MoveCardHandle? = null
+
+      val beginPos = Vec2()
+      val endPos = Vec2()
 
       override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
         if (pointer != 0 || button != KeyCode.mouseLeft || ownerDesigner.isSelecting) return
@@ -275,6 +294,8 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
         this@Card.removing = false
         ownerDesigner.selects.each { e -> e!!.removing = false }
         rise()
+
+        localToAscendantCoordinates(ownerDesigner, beginPos.set(pane.getX(Align.center), pane.getY(Align.center)))
       }
 
       override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
@@ -289,7 +310,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
         if (isFold) {
           if (tmp.y < ownerDesigner.foldHeight){
-            val n = ownerDesigner.localToDescendantCoordinates(ownerDesigner.foldPane, vec1.set(this@Card.x, this@Card.y))
+            val n = ownerDesigner.localToDescendantCoordinates(ownerDesigner.foldPane, endPos.set(this@Card.x, this@Card.y))
             ownerDesigner.addCard(this@Card)
             this@Card.setPosition(n.x, n.y)
             if (moveHandle != null) {
@@ -299,16 +320,14 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
             else ownerDesigner.alignFoldCard(this@Card)
           }
           else {
-            val v = ownerDesigner.localToDescendantCoordinates(
-              ownerDesigner.container,
-              localToAscendantCoordinates(ownerDesigner, vec1.set(pane.getX(Align.center), pane.getY(Align.center)))
-            )
+            val v = localToAscendantCoordinates(ownerDesigner, vec1.set(pane.getX(Align.center), pane.getY(Align.center)))
+
             setPosition(v.x, v.y, Align.center)
             ownerDesigner.pushHandle(FoldCardHandle(
               ownerDesigner,
-              this@Card,
-              Vec2(v.x - width/2, v.y - height/2),
-              false
+              listOf(this@Card),
+              false,
+              v.sub(beginPos)
             ))
           }
         }

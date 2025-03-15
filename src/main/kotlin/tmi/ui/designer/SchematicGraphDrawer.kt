@@ -66,21 +66,23 @@ object SchematicGraphDrawer {
     res.image().color(Color.black).growX().height(4f).padBottom(8f)
     res.row()
 
+    val list = mutableListOf<Table>()
     if (foldedSide == Side.LEFT || foldedSide == Side.RIGHT) {
       val cont = res.table().fillX().growY().get().top()
       var table = Table()
       view.foldCards.forEach { card ->
         val elem = buildCardShower(view, card, foldedSide, cardScl, padding)
 
-        if (table.prefHeight + elem.prefHeight < targetHeight) {
-          table.center().add(elem).fillY().growX().pad(padding).row()
-        }
-        else {
-          cont.add(table).fill()
+        if (table.prefHeight + elem.prefHeight > targetHeight) {
+          list.add(table)
           table = Table()
         }
+        table.center().add(elem).fillY().growX().pad(padding).row()
       }
-      if (table.children.any()) cont.add(table).fill()
+      if (table.children.any()) list.add(table)
+
+      if (foldedSide == Side.RIGHT) list.forEach { cont.add(it).fill() }
+      else list.reversed().forEach { cont.add(it).fill() }
 
       res.setSize(
         res.prefWidth,
@@ -93,15 +95,16 @@ object SchematicGraphDrawer {
       view.foldCards.forEach { card ->
         val elem = buildCardShower(view, card, foldedSide, cardScl, padding)
 
-        if (table.prefWidth + elem.prefWidth < targetWidth) {
-          table.top().add(elem).fillX().growY().pad(padding)
-        }
-        else {
-          cont.add(table).fill().row()
+        if (table.prefWidth + elem.prefWidth > targetWidth) {
+          list.add(table)
           table = Table()
         }
+        table.top().add(elem).fillX().growY().pad(padding)
       }
-      if (table.children.any()) cont.add(table).fill().row()
+      if (table.children.any()) list.add(table)
+
+      if (foldedSide == Side.TOP) list.forEach { cont.add(it).fill().row() }
+      else list.reversed().forEach { cont.add(it).fill().row() }
 
       res.setSize(
         targetWidth,

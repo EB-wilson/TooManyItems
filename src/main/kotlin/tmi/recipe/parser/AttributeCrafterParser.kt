@@ -8,6 +8,7 @@ import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.production.AttributeCrafter
 import tmi.recipe.Recipe
 import tmi.recipe.Recipe.Companion.getDefaultEff
+import tmi.recipe.RecipeParser.Companion.getWrap
 import tmi.recipe.RecipeType
 import kotlin.math.min
 
@@ -23,7 +24,7 @@ open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
   override fun parse(content: AttributeCrafter): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.factory,
-      ownerBlock = +content,
+      ownerBlock = content.getWrap(),
       craftTime = content.craftTime,
     ).setEff(getDefaultEff(content.baseEfficiency))
 
@@ -37,7 +38,7 @@ open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
         content.maxBoost
       )
 
-      res.addMaterial(+block, (content.size*content.size) as Number)
+      res.addMaterial(block.getWrap(), (content.size*content.size) as Number)
         .setAttribute()
         .setOptional(content.baseEfficiency > 0.001f)
         .setEff(eff)
@@ -45,23 +46,23 @@ open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
     }
 
     if (content.outputItems == null) {
-      if (content.outputItem != null) res.addProductionInteger(+content.outputItem.item, content.outputItem.amount)
+      if (content.outputItem != null) res.addProductionInteger(content.outputItem.item.getWrap(), content.outputItem.amount)
     }
     else {
       for (item in content.outputItems) {
-        res.addProductionInteger(+item.item, item.amount)
+        res.addProductionInteger(item.item.getWrap(), item.amount)
       }
     }
 
     if (content.outputLiquids == null) {
       if (content.outputLiquid != null) res.addProductionPersec(
-        +content.outputLiquid.liquid,
+        content.outputLiquid.liquid.getWrap(),
         content.outputLiquid.amount
       )
     }
     else {
       for (liquid in content.outputLiquids) {
-        res.addProductionPersec(+liquid.liquid, liquid.amount)
+        res.addProductionPersec(liquid.liquid.getWrap(), liquid.amount)
       }
     }
 

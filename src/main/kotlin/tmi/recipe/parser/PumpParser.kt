@@ -43,15 +43,15 @@ open class PumpParser : ConsumerParser<Pump>() {
         val r = Recipe(
           recipeType = RecipeType.collecting,
           craftTime = content.consumeTime,
-          ownerBlock = +content
+          ownerBlock = content.getWrap()
         ).setEff(Recipe.zeroEff)
 
-        r.addProductionPersec(+drop.liquidDrop, content.pumpAmount)
+        r.addProductionPersec(drop.liquidDrop.getWrap(), content.pumpAmount)
         registerCons(r, *content.consumers)
         r
       }]
 
-      recipe!!.addMaterial(+drop, (content.size*content.size) as Number)
+      recipe!!.addMaterial(drop.getWrap(), (content.size*content.size) as Number)
         .setAttribute()
         .emptyFormat()
     }

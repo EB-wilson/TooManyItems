@@ -1,7 +1,6 @@
 package tmi.recipe
 
 import arc.struct.Seq
-import mindustry.ctype.UnlockableContent
 import mindustry.world.Block
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
@@ -27,12 +26,13 @@ abstract class RecipeParser<T : Block> {
   abstract fun parse(content: T): Seq<Recipe>
 
   companion object {
-    operator fun <T: UnlockableContent> T.unaryPlus(): RecipeItem<T> {
-      return getWrap(this)
+    @JvmStatic
+    protected fun <T> T.getWrap(): RecipeItem<T> {
+      return wrapItem(this)
     }
 
     @JvmStatic
-    protected fun <I> getWrap(item: I): RecipeItem<I> {
+    protected fun <I> wrapItem(item: I): RecipeItem<I> {
       return TooManyItems.itemsManager.getItem(item)
     }
   }

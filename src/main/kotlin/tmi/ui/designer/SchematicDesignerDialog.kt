@@ -9,10 +9,7 @@ import arc.graphics.Color
 import arc.input.KeyCode
 import arc.math.geom.Vec2
 import arc.scene.Element
-import arc.scene.event.ClickListener
-import arc.scene.event.InputEvent
-import arc.scene.event.InputListener
-import arc.scene.event.Touchable
+import arc.scene.event.*
 import arc.scene.style.Drawable
 import arc.scene.ui.Button
 import arc.scene.ui.Tooltip
@@ -65,17 +62,17 @@ open class SchematicDesignerDialog : BaseDialog("") {
     private set
   var removeArea: Table? = null
     private set
-  var rebuildPages = {}
-    private set
 
   private var clipboard: ByteArray = byteArrayOf() // serialize view
 
   private val pages = Seq<ViewPage>()
+  private val recentPages = Seq<ViewPage>()
   private val keyBinds = CombineKeyTree<Runnable>()
 
   private var topTable: Table? = null
   private var viewTable: Table? = null
   private var sideTable: Table? = null
+  private var fastStatistic: Table? = null
 
   private val menuTable: Table = object : Table() {
     init {
@@ -84,7 +81,28 @@ open class SchematicDesignerDialog : BaseDialog("") {
   }
   private val menuHiddens = Seq<Runnable>()
 
+  private fun loadRecentPages(){
+    recentPages.clear()
+    val raw = Core.settings.getString("tmi-schematic-recent-pages", "")
+    val entries = raw.split(";")
+
+    entries.forEach {
+      addRecentPage(Fi(it))
+    }
+  }
+
+  private fun addRecentPage(fi: Fi) {
+    recentPages.removeAll { it.fi?.exists()?.let { b -> !b }?: true }
+    if (!fi.exists()) return
+    if (recentPages.contains { it.fi == fi }) return
+    recentPages.add(ViewPage({ DesignerView(this) }, fi, fi.nameWithoutExtension()))
+
+    Core.settings.put("tmi-schematic-recent-pages", recentPages.joinToString(";") { it.fi!!.path() })
+  }
+
   fun build(){
+    loadRecentPages()
+
     titleTable.clear()
 
     margin(0f)
@@ -164,6 +182,16 @@ open class SchematicDesignerDialog : BaseDialog("") {
       }
     })
 
+    addListener(object: EventListener {
+      override fun handle(event: SceneEvent?): Boolean {
+        if (event is StatisticEvent) {
+          updateStatistic()
+          return true
+        }
+        return false
+      }
+    })
+
     buildView()
     buildTopBar()
     buildSideBar()
@@ -174,6 +202,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
   private fun buildPageTab(
     pane: Table,
     page: ViewPage,
+    recentMark: Boolean
   ): Button {
     return pane.button({ b ->
       b.margin(6f)
@@ -186,46 +215,52 @@ open class SchematicDesignerDialog : BaseDialog("") {
           fi.left().defaults().left()
           fi.table {
             it.add(page.title).padLeft(12f).pad(4f).update{ l -> updateColor(l) }
-            it.add("*").padLeft(2f).padRight(4f).visible { page.shouldSave() }
+            if (!recentMark) it.add("*").padLeft(2f).padRight(4f).visible { page.shouldSave() }
           }
           fi.row()
-          fi.add(page.fi?.path() ?: "no directed file", 0.9f).color(Color.lightGray).padLeft(12f).pad(4f)
+          fi.add(page.fi?.path() ?: "no directed file", 0.9f).padLeft(12f).pad(4f)
+            .update { it.setColor(Color.lightGray.takeIf { page.hovered || page == currPage }?: Color.gray) }
         }
       }.growY().fillX()
 
       b.add().grow()
 
-      b.button(Icon.cancelSmall, Styles.clearNonei, 20f) {
-        if (page.shouldSave()) {
-          TmiUI.showChoiceIcons(
-            Core.bundle["misc.unsaved"],
-            Core.bundle["misc.ensureClose"],
-            true,
-            Core.bundle["misc.save"] to Icon.save to Runnable {
-              if (page.fi != null) {
-                save(page.view, page.fi!!)
-                deletePage(page)
-              }
-              else {
-                Vars.platform.showFileChooser(false, "shd") { file ->
-                  save(page.view, file)
+      if (!recentMark) {
+        b.button(Icon.cancelSmall, Styles.clearNonei, 20f) {
+          if (page.shouldSave()) {
+            TmiUI.showChoiceIcons(
+              Core.bundle["misc.unsaved"],
+              Core.bundle["misc.ensureClose"],
+              true,
+              Core.bundle["misc.save"] to Icon.save to Runnable {
+                if (page.fi != null) {
+                  save(page.view, page.fi!!)
                   deletePage(page)
                 }
-              }
-              hideMenu()
-            },
-            Core.bundle["misc.close"] to Icon.cancel to Runnable {
-              deletePage(page)
-              hideMenu()
-            },
-          )
-        }
-        else {
-          deletePage(page)
-          hideMenu()
-        }
-      }.margin(5f).visible { page.hovered || page == currPage }
+                else {
+                  Vars.platform.showFileChooser(false, "shd") { file ->
+                    save(page.view, file)
+                    deletePage(page)
+                  }
+                }
+                hideMenu()
+              },
+              Core.bundle["misc.close"] to Icon.cancel to Runnable {
+                deletePage(page)
+                hideMenu()
+              },
+            )
+          }
+          else {
+            deletePage(page)
+            hideMenu()
+          }
+        }.margin(5f).visible { page.hovered || page == currPage }
+      }
     }, Button.ButtonStyle(Styles.cleart)) {
+      hideMenu()
+
+      if (recentMark) pages.add(page)
       currPage = page
       buildView()
     }.grow().margin(4f).marginLeft(10f).marginRight(10f)
@@ -246,6 +281,8 @@ open class SchematicDesignerDialog : BaseDialog("") {
       }
 
       currPage.makeSaved()
+
+      addRecentPage(file)
 
       return true
     } catch (e: Exception) {
@@ -284,7 +321,8 @@ open class SchematicDesignerDialog : BaseDialog("") {
   }
 
   fun buildTopBar() {
-    topTable!!.clear()
+    val top = topTable!!
+    top.clear()
 
     val tabs = linkedMapOf<String, MutableMap<String, Seq<MenuTab>>>()
     topMenuTabSet.forEach {
@@ -293,7 +331,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
         .add(it)
     }
 
-    topTable!!.table{ it.image(Consts.tmi).scaling(Scaling.fit).size(32f) }.growY().marginLeft(8f).marginRight(8f)
+    top.table{ it.image(Consts.tmi).scaling(Scaling.fit).size(32f) }.growY().marginLeft(8f).marginRight(8f)
 
     var folded = true
     var menuTable: Table? = null
@@ -308,7 +346,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
       }
     })
 
-    topTable!!.stack(Table{ def ->
+    top.stack(Table{ def ->
       def.left()
       def.visibility = Boolp{ folded }
       def.button(Icon.menuSmall, Styles.clearNonei, 48f) {
@@ -324,13 +362,72 @@ open class SchematicDesignerDialog : BaseDialog("") {
       buildUnfoldedMenuTabs(tabs, menus)
     })
 
-    topTable!!.add().growX()
-    topTable!!.button(Icon.cancel, Styles.clearNonei, 32f) { this.hide() }.marginLeft(5f).marginRight(5f).growY()
+    top.add().growX()
+    top.table { buildStatisticBar(it) }.padRight(180f).fillX().growY()
+    top.button(Icon.cancel, Styles.clearNonei, 32f) { this.hide() }.marginLeft(5f).marginRight(5f).growY()
   }
 
-  private fun buildFoldedMenu(
-    menu: Table,
-  ) {
+  private fun buildStatisticBar(stat: Table) {
+    stat.defaults().growY()
+    //stat.add(Core.bundle["dialog.calculator.statistic"])
+
+    stat.image().color(Color.darkGray).width(2f).growY().pad(0f).padLeft(6f)
+    stat.button({ t ->
+      fastStatistic = t.table().minWidth(220f).maxWidth(500f).fillX().get().left()
+      t.image(Icon.downOpenSmall).size(36f).scaling(Scaling.fit).padLeft(4f)
+    }, Styles.clearNonei){
+    }.fillX()
+
+    stat.image().color(Color.darkGray).width(2f).growY().pad(0f).padRight(6f)
+
+    stat.button(Icon.listSmall, Styles.clearNonei, 36f){
+
+    }.margin(4f)
+    stat.button(Icon.settingsSmall, Styles.clearNonei, 36f){
+
+    }.margin(4f)
+  }
+
+  private fun updateStatistic(){
+    val curr = currPage?.view?:return
+
+    fastStatistic?.apply {
+      clearChildren()
+
+      var n = 0
+      curr.statistic.resultMissing().forEach{ s ->
+        if (n++ > 6) return@forEach
+
+        stack(
+          Table{ t ->
+            t.left().image(s.item.icon).left().scaling(Scaling.fit).pad(4f)
+          },
+          Table{ t ->
+            t.bottom().left().add(s.getAmount(), Styles.outlineLabel).color(Color.red).fontScale(0.7f)
+          }
+        ).height(32f).fillX().padLeft(4f).padRight(4f)
+      }
+
+      curr.statistic.resultRedundant().forEach{ s ->
+        if (n++ > 6) return@forEach
+
+        stack(
+          Table{ t ->
+            t.left().image(s.item.icon).left().scaling(Scaling.fit).pad(4f)
+          },
+          Table{ t ->
+            t.bottom().left().add(s.getAmount(), Styles.outlineLabel).color(Pal.heal).fontScale(0.7f)
+          }
+        ).height(32f).fillX().padLeft(4f).padRight(4f)
+      }
+
+      if (n > 6) {
+        add("...").pad(4f)
+      }
+    }
+  }
+
+  private fun buildFoldedMenu(menu: Table, ) {
     menu.button({ t ->
       t.left().defaults().left()
       t.image(Icon.mapSmall).size(36f).scaling(Scaling.fit).padLeft(4f)
@@ -365,11 +462,26 @@ open class SchematicDesignerDialog : BaseDialog("") {
               m.row()
               m.image().color(Pal.darkerGray).height(4f).growX().padTop(4f).padBottom(4f)
               m.row()
-              m.add(Core.bundle["dialog.calculator.openedFile"]).pad(4f).color(Pal.darkerGray)
+              m.add(Core.bundle["dialog.calculator.openedFile"]).pad(4f).color(Color.darkGray)
               m.row()
 
               pages.forEach { p ->
-                buildPageTab(m, p)
+                buildPageTab(m, p, false)
+                m.row()
+              }
+            }
+
+            if (recentPages.any{ a -> !pages.contains { b -> a.fi == b.fi } }) {
+              m.row()
+              m.image().color(Pal.darkerGray).height(4f).growX().padTop(4f).padBottom(4f)
+              m.row()
+              m.add(Core.bundle["dialog.calculator.recentFile"]).pad(4f).color(Color.darkGray)
+              m.row()
+
+              recentPages.forEach { p ->
+                if (pages.contains { e -> e.fi == p.fi }) return@forEach
+
+                buildPageTab(m, p, true)
                 m.row()
               }
             }
@@ -392,7 +504,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
           if (save(currPage.view, file)) {
             currPage.fi = file
             currPage.title = file.nameWithoutExtension()
-            rebuildPages()
           }
         }
       }
@@ -600,10 +711,11 @@ open class SchematicDesignerDialog : BaseDialog("") {
     fi: Fi? = null,
     title: String = fi?.nameWithoutExtension() ?: "untitled",
     activate: Boolean = true,
-  ) = ViewPage(DesignerView(this), fi, title)
+  ) = ViewPage({ DesignerView(this) }, fi, title)
     .also {
       pages.add(it)
-      rebuildPages()
+
+      if (fi != null) addRecentPage(fi)
 
       if (!activate) return@also
       setCurrPage(it)
@@ -633,8 +745,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
     if (page == currPage){
       setCurrPage(if (pages.isEmpty) null else pages[max(index - 1, 0)])
     }
-    page.view.clear()
-    rebuildPages()
+    page.reset()
   }
 
   fun setClipboard(card: Iterable<Card>){
@@ -745,15 +856,19 @@ open class SchematicDesignerDialog : BaseDialog("") {
   fun menuShown() = menuTable.visible
 
   data class ViewPage(
-    val view: DesignerView,
+    val viewBuilder: Prov<DesignerView>,
     var fi: Fi?,
     var title: String,
   ){
-    fun shouldSave() = fi == null || view.isUpdated
-
+    var view = viewBuilder()
     var loaded: Boolean = false
-
     internal var hovered: Boolean = false
+
+    fun reset(){
+      loaded = false
+      view = viewBuilder()
+    }
+    fun shouldSave() = fi == null || view.isUpdated
   }
 }
 

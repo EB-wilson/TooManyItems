@@ -9,7 +9,6 @@ import arc.scene.Group
 import arc.scene.ui.Label
 import arc.scene.ui.layout.Scl
 import arc.struct.ObjectMap
-import arc.struct.Seq
 import arc.util.Align
 import arc.util.Strings
 import arc.util.Time
@@ -91,9 +90,9 @@ open class FactoryRecipe : RecipeType() {
     optPos.setZero()
     blockPos.setZero()
 
-    val mats: List<RecipeItemStack> =
+    val mats: List<RecipeItemStack<*>> =
       recipe.materials.values().filter { e -> !e.optionalCons }
-    val opts: List<RecipeItemStack> =
+    val opts: List<RecipeItemStack<*>> =
       recipe.materials.values().filter { e -> e.optionalCons }
     val materialNum = mats.size
     val productionNum = recipe.productions.size
@@ -141,7 +140,7 @@ open class FactoryRecipe : RecipeType() {
     offY += NODE_SIZE
     if (productionNum > 0) {
       offY += ROW_PAD
-      val seq: List<RecipeItemStack> = recipe.productions.values().toList()
+      val seq: List<RecipeItemStack<*>> = recipe.productions.values().toList()
       handleNode(seq, prodPos, offProdX, offY, doubleOutput, true)
     }
 
@@ -149,7 +148,7 @@ open class FactoryRecipe : RecipeType() {
   }
 
   protected fun handleNode(
-    seq: List<RecipeItemStack>,
+    seq: List<RecipeItemStack<*>>,
     pos: ObjectMap<RecipeItem<*>, Vec2>,
     offX: Float,
     offY: Float,

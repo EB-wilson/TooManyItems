@@ -7,7 +7,7 @@ import arc.struct.Seq
 import arc.util.Strings
 import mindustry.Vars
 import mindustry.core.UI
-import mindustry.type.*
+import mindustry.type.Item
 import mindustry.world.Block
 import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.environment.OreBlock
@@ -45,11 +45,11 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
       val recipe = res.get(drop.itemDrop) {
         val r = Recipe(
           recipeType = RecipeType.collecting,
-          ownerBlock = +content,
+          ownerBlock = content.getWrap(),
           craftTime = content.getDrillTime(drop.itemDrop)/content.size,
         ).setEff(Recipe.zeroEff)
 
-        r.addProductionInteger(+drop.itemDrop, 1)
+        r.addProductionInteger(drop.itemDrop.getWrap(), 1)
 
         if (content.optionalBoostIntensity != 1f) {
           registerCons(
@@ -59,8 +59,8 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
           )
           val consBase = content.findConsumer<Consume> { e: Consume -> e.booster }
           if (consBase is ConsumeLiquidBase) {
-            registerCons(r, { s: RecipeItemStack? ->
-              s!!.setEff(content.optionalBoostIntensity)
+            registerCons(r, { s: RecipeItemStack<*> ->
+              s.setEff(content.optionalBoostIntensity)
                 .setBooster()
                 .setOptional()
                 .setFormat { f ->
@@ -82,7 +82,7 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
       }
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
-      recipe!!.addMaterial(+drop, content.size as Number)
+      recipe!!.addMaterial(drop.getWrap(), content.size as Number)
         .setEff(content.drillTime/realDrillTime)
         .setAttribute()
         .emptyFormat()

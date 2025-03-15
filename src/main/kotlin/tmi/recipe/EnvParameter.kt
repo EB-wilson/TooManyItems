@@ -21,7 +21,7 @@ class EnvParameter {
     return attributes[b, 0f]
   }
 
-  fun add(item: RecipeItemStack): EnvParameter {
+  fun add(item: RecipeItemStack<*>): EnvParameter {
     return add(item.item, item.amount, item.isAttribute)
   }
 

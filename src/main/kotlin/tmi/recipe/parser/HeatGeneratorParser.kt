@@ -21,7 +21,7 @@ open class HeatGeneratorParser : ConsumerParser<HeaterGenerator>() {
   override fun parse(content: HeaterGenerator): Seq<Recipe> {
     val res = Recipe(
       recipeType = RecipeType.generator,
-      ownerBlock = +content,
+      ownerBlock = content.getWrap(),
       craftTime = content.itemDuration,
     )
 
@@ -34,7 +34,7 @@ open class HeatGeneratorParser : ConsumerParser<HeaterGenerator>() {
     }
 
     if (content.outputLiquid != null) {
-      res.addProductionPersec(+content.outputLiquid.liquid, content.outputLiquid.amount)
+      res.addProductionPersec(content.outputLiquid.liquid.getWrap(), content.outputLiquid.amount)
     }
 
     return Seq.with(res)

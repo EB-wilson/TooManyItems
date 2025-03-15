@@ -28,7 +28,7 @@ import tmi.recipe.RecipeItemStack
 /**配方表显示的布局元素，用于为添加的[RecipeNode]设置正确的位置并将他们显示到界面容器当中 */
 class RecipeView @JvmOverloads constructor(
   val recipe: Recipe,
-  defClicked: Cons3<RecipeItemStack, NodeType, RecipesDialog.Mode>? = null,
+  defClicked: Cons3<RecipeItemStack<*>, NodeType, RecipesDialog.Mode>? = null,
   nodeListenerBuilder: Cons<RecipeNode>? = null
 ) : Group() {
   private val bound = Vec2()
