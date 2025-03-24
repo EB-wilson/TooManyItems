@@ -2,6 +2,7 @@ package tmi.ui.designer
 
 import arc.math.Mathf
 import arc.struct.ObjectIntMap
+import arc.struct.ObjectSet
 import arc.struct.OrderedMap
 import tmi.forEach
 import tmi.recipe.AmountFormatter
@@ -12,6 +13,9 @@ import tmi.set
 
 class BalanceStatistic(private val ownerView: DesignerView) {
   private val allRecipes = ObjectIntMap<Recipe>()
+
+  private val inputTypes = ObjectSet<RecipeItem<*>>()
+  private val outputTypes = ObjectSet<RecipeItem<*>>()
 
   private val inputs = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
   private val outputs = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
@@ -27,6 +31,9 @@ class BalanceStatistic(private val ownerView: DesignerView) {
     outputs.clear()
     redundant.clear()
     missing.clear()
+
+    inputTypes.clear()
+    outputTypes.clear()
 
     globalInputs.values().forEach { it.amount = 0f }
     globalOutputs.values().forEach { it.amount = 0f }
@@ -60,7 +67,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
       }
     }
 
-    val allCards = ownerView.cards + ownerView.foldCards
+    val allCards = (ownerView.cards + ownerView.foldCards).filter { it.balanceValid }
     val cardIOs = allCards.map { card ->
       val input = card.inputs()
       val output = card.outputs()
@@ -96,9 +103,10 @@ class BalanceStatistic(private val ownerView: DesignerView) {
     val inputCards = allCards.filterIsInstance<IOCard>().filter { it.isInput }
     val outputCards = allCards.filterIsInstance<IOCard>().filter { !it.isInput }
 
-    recipeCards.forEach { allRecipes.put(it.recipe, it.mul) }
+    recipeCards.filter { it.balanceValid }.forEach { allRecipes.put(it.recipe, it.mul) }
     inputCards.forEach {
       it.outputs()/* card input means linker output */.forEach { s ->
+        inputTypes.add(s.item)
         val stack = inputs.get(s.item) {
           RecipeItemStack(s.item, 0f).setFormat(AmountFormatter.persecFormatter())
         }
@@ -108,6 +116,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
     }
     outputCards.forEach {
       it.inputs()/* card output means linker input */.forEach { s ->
+        outputTypes.add(s.item)
         val stack = outputs.get(s.item) {
           RecipeItemStack(s.item, 0f).setFormat(AmountFormatter.persecFormatter())
         }
@@ -118,6 +127,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
 
     cardIOs.forEach { io ->
       io.eachOut { s, rs ->
+        outputTypes.add(s.item)
         val red = globalOutputs[s.item]?:redundant.get(s.item){
           RecipeItemStack(s.item, 0f).setFormat(AmountFormatter.persecFormatter())
         }
@@ -126,6 +136,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
       }
 
       io.eachIn { s, rs ->
+        inputTypes.add(s.item)
         val mis = globalInputs[s.item]?:missing.get(s.item) {
           RecipeItemStack(s.item, 0f).setFormat(AmountFormatter.persecFormatter())
         }
@@ -135,12 +146,20 @@ class BalanceStatistic(private val ownerView: DesignerView) {
     }
   }
 
+  fun inputTypes(): Set<RecipeItem<*>> = inputTypes.toSet()
+  fun outputTypes(): Set<RecipeItem<*>> = outputTypes.toSet()
+
   fun resultInputs(): List<RecipeItemStack<*>> = inputs.values().filter { it.amount > 0 }
   fun resultOutputs(): List<RecipeItemStack<*>> = outputs.values().filter { it.amount > 0 }
   fun resultMissing(): List<RecipeItemStack<*>> = missing.values().filter { it.amount > 0 }
   fun resultRedundant(): List<RecipeItemStack<*>> = redundant.values().filter { it.amount > 0 }
   fun resultGlobalInputs(): List<RecipeItemStack<*>> = globalInputs.values().filter { it.amount > 0 }
   fun resultGlobalOutputs(): List<RecipeItemStack<*>> = globalOutputs.values().filter { it.amount > 0 }
+
+  @Suppress("UNCHECKED_CAST")
+  fun allBlocks(): List<RecipeItemStack<*>> = allRecipes.map {
+    RecipeItemStack(it.key.ownerBlock as RecipeItem<Any>, it.value.toFloat()).setFormat(AmountFormatter.integerFormatter())
+  }
 
   override fun toString(): String {
     val res = StringBuilder()

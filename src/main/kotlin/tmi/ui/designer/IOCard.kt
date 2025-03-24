@@ -36,8 +36,6 @@ class IOCard(
   override val balanceValid: Boolean get() = true
 
   override fun act(delta: Float) {
-    super.act(delta)
-
     for (linker in linkerIns) {
       val stack = items[linker.item] ?: continue
 
@@ -49,6 +47,8 @@ class IOCard(
 
       linker.expectAmount = stack.amount
     }
+
+    super.act(delta)
   }
 
   override fun buildCard() {
@@ -235,6 +235,12 @@ class IOCard(
       }
 
       entry.value.amount = amount
+    }
+
+    for (linker in linkerOuts) {
+      val stack = items[linker.item] ?: continue
+
+      linker.expectAmount = stack.amount
     }
   }
 

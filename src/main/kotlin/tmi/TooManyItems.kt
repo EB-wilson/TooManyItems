@@ -72,7 +72,6 @@ class TooManyItems : Mod() {
 
   override fun init() {
     Cursor.init()
-
     binds.load()
     api.init()
 

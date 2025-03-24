@@ -30,10 +30,7 @@ import arc.scene.ui.ScrollPane
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.scene.ui.layout.WidgetGroup
-import arc.struct.LongMap
-import arc.struct.ObjectMap
-import arc.struct.ObjectSet
-import arc.struct.Seq
+import arc.struct.*
 import arc.util.Align
 import arc.util.Log
 import arc.util.Time
@@ -47,7 +44,6 @@ import tmi.TooManyItems
 import tmi.f
 import tmi.invoke
 import tmi.recipe.Recipe
-import tmi.recipe.types.PowerMark
 import tmi.recipe.types.RecipeItem
 import tmi.set
 import tmi.ui.addEventBlocker
@@ -80,8 +76,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   val foldLinkers = ObjectMap<Card, FoldLink>()
 
   val statistic = BalanceStatistic(this)
-  val globalInput = Seq<RecipeItem<*>>().also { it.add(PowerMark) }
-  val globalOutput = Seq<RecipeItem<*>>()
+  val globalInput = OrderedSet<RecipeItem<*>>()
+  val globalOutput = OrderedSet<RecipeItem<*>>()
 
   private val shownCards = ObjectSet<Card>()
   private val balanceObserving = ObjectSet<Card>()
@@ -451,6 +447,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     statistic.updateStatistic()
 
     Log.info(statistic.toString())
+    fire(StatisticEvent())
   }
 
   override fun layout() {
@@ -917,6 +914,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
         if (link!!.links.isEmpty && link.isInput) link.remove()
       }
     }
+
+    balanceObserving.remove(card)
   }
 
   fun eachCard(range: Rect, inner: Boolean, fold: Boolean = true, cons: Cons<Card>) {
@@ -1447,7 +1446,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     balanceObserving.remove(card)
     if (balanceObserving.isEmpty) {
       statistic()
-      fire(StatisticEvent())
     }
   }
 }

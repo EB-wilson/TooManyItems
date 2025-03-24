@@ -1,12 +1,8 @@
 package tmi.util
 
 import arc.Core
-import arc.func.Cons
-import arc.func.Cons4
 import arc.func.Prov
 import arc.graphics.Color
-import arc.graphics.g2d.Draw
-import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
 import arc.scene.style.BaseDrawable
 import arc.scene.style.Drawable
@@ -25,7 +21,6 @@ import mindustry.ui.Fonts
 import mindustry.world.Block
 import mindustry.world.Tile
 import mindustry.world.blocks.environment.Floor
-import tmi.invoke
 
 object Consts {
   private val emp: Seq<*> = Seq<Any>()
@@ -88,6 +83,14 @@ object Consts {
   val a_z: Drawable by lazy { Core.atlas.getDrawable("tmi-a_z") }
   val tmi: Drawable by lazy { Core.atlas.getDrawable("tmi-tmi") }
   val panner: Drawable by lazy { Core.atlas.getDrawable("tmi-panner") }
+  val balance: Drawable by lazy { Core.atlas.getDrawable("tmi-balance") }
+  val inbalance: Drawable by lazy { Core.atlas.getDrawable("tmi-inbalance") }
+
+  val side_bottom: Drawable by lazy { Core.atlas.getDrawable("tmi-side_bottom") }
+  val side_top: Drawable by lazy { Core.atlas.getDrawable("tmi-side_top") }
+  val side_left: Drawable by lazy { Core.atlas.getDrawable("tmi-side_left") }
+  val side_right: Drawable by lazy { Core.atlas.getDrawable("tmi-side_right") }
+
   val transparent: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Color.clear) }
 
   val transparentBack: DialogStyle by lazy { object : DialogStyle() {

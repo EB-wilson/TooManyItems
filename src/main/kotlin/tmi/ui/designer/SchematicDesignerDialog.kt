@@ -12,7 +12,9 @@ import arc.scene.Element
 import arc.scene.event.*
 import arc.scene.style.Drawable
 import arc.scene.ui.Button
+import arc.scene.ui.Image
 import arc.scene.ui.Tooltip
+import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
 import arc.struct.Seq
@@ -29,6 +31,8 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.invoke
+import tmi.recipe.RecipeItemStack
+import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI
 import tmi.ui.addEventBlocker
 import tmi.util.*
@@ -72,7 +76,11 @@ open class SchematicDesignerDialog : BaseDialog("") {
   private var topTable: Table? = null
   private var viewTable: Table? = null
   private var sideTable: Table? = null
+  private var balance: Image? = null
   private var fastStatistic: Table? = null
+  private var staticTable: Table? = null
+
+  private var rebuildStat: Runnable? = null
 
   private val menuTable: Table = object : Table() {
     init {
@@ -115,9 +123,15 @@ open class SchematicDesignerDialog : BaseDialog("") {
       it.table{ under ->
         sideTable = under.table(Consts.midGrayUI).fillX().growY().get()
         under.image().color(Pal.darkestGray).width(2f).growY().pad(0f)
-        viewTable = under.table().grow().get().apply { clip = true }
-      }.grow().get()
-    }.grow().get()
+        under.table{ v ->
+          viewTable = v.table().grow().get().apply { clip = true }
+          v.fill(Consts.grayUIAlpha){ t ->
+            staticTable = t
+            t.visible = false
+          }
+        }.grow()
+      }.grow()
+    }.grow()
 
     addChild(menuTable)
 
@@ -178,6 +192,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
     addListener(object: InputListener(){
       override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
         hideMenu()
+        staticTable?.visible = false
         return false
       }
     })
@@ -370,22 +385,245 @@ open class SchematicDesignerDialog : BaseDialog("") {
   private fun buildStatisticBar(stat: Table) {
     stat.defaults().growY()
     //stat.add(Core.bundle["dialog.calculator.statistic"])
+    balance = stat.image(Consts.balance).size(32f).scaling(Scaling.fit).get()
 
     stat.image().color(Color.darkGray).width(2f).growY().pad(0f).padLeft(6f)
     stat.button({ t ->
       fastStatistic = t.table().minWidth(220f).maxWidth(500f).fillX().get().left()
       t.image(Icon.downOpenSmall).size(36f).scaling(Scaling.fit).padLeft(4f)
     }, Styles.clearNonei){
-    }.fillX()
+      if (currPage == null) return@button
+
+      val tab = staticTable?: return@button
+
+      if (tab.visible){
+        tab.visible = false
+      }
+      else {
+        tab.visible = true
+        buildStatisticTable()
+      }
+    }.fillX().marginLeft(8f).get().addEventBlocker()
 
     stat.image().color(Color.darkGray).width(2f).growY().pad(0f).padRight(6f)
 
     stat.button(Icon.listSmall, Styles.clearNonei, 36f){
 
     }.margin(4f)
-    stat.button(Icon.settingsSmall, Styles.clearNonei, 36f){
+  }
 
-    }.margin(4f)
+  private fun buildStatisticTable(){
+    val staticTab = staticTable!!
+    staticTab.clearChildren()
+
+    val currStat = currPage?.view?.statistic?: return
+
+    staticTab.table(Consts.darkGrayUIAlpha) { gray ->
+      gray.add(Core.bundle["dialog.calculator.statistic"])
+        .growX().pad(12f).color(Pal.accent).labelAlign(Align.center)
+      gray.row()
+      gray.image().color(Pal.accent).height(4f).growX()
+    }.growX().fillY()
+    staticTab.row()
+    staticTab.pane { inner ->
+      rebuildStat = Runnable {
+        inner.clearChildren()
+        inner.image().color(Color.gray).width(2f).growY()
+        inner.table { inputs ->
+          inputs.table(Consts.darkGrayUIAlpha) {
+            it.image(Icon.downloadSmall).scaling(Scaling.fit).size(26f).padLeft(4f)
+            it.add(Core.bundle["dialog.calculator.statInputs"]).growX().pad(8f)
+          }.growX().fillY()
+          inputs.row()
+          inputs.table().grow().get().top().pane(Styles.smallPane) { pane ->
+            buildStatasticItems(pane, currStat.resultInputs())
+          }.pad(6f).growX()
+        }.grow().minWidth(200f)
+        inner.image().color(Color.gray).width(2f).growY()
+        inner.table { outputs ->
+          outputs.table(Consts.darkGrayUIAlpha) {
+            it.image(Icon.uploadSmall).scaling(Scaling.fit).size(26f).padLeft(4f)
+            it.add(Core.bundle["dialog.calculator.statOutputs"]).growX().pad(8f)
+          }.growX().fillY()
+          outputs.row()
+          outputs.table().grow().get().top().pane(Styles.smallPane) { pane ->
+            buildStatasticItems(pane, currStat.resultOutputs())
+          }.pad(6f).growX()
+        }.grow().minWidth(200f)
+        inner.image().color(Color.gray).width(2f).growY()
+        inner.table { missing ->
+          missing.table(Consts.darkGrayUIAlpha) {
+            it.image(Icon.cancelSmall).scaling(Scaling.fit).size(26f).padLeft(4f)
+            it.add(Core.bundle["dialog.calculator.statMissing"]).growX().pad(8f)
+          }.growX().fillY()
+          missing.row()
+          missing.table().grow().get().top().pane(Styles.smallPane) { pane ->
+            buildStatasticItems(pane, currStat.resultMissing(), Color.crimson)
+          }.pad(6f).growX()
+        }.grow().minWidth(200f)
+        inner.image().color(Color.gray).width(2f).growY()
+        inner.table { redundant ->
+          redundant.table(Consts.darkGrayUIAlpha) {
+            it.image(Consts.inbalance).scaling(Scaling.fit).size(26f).padLeft(4f)
+            it.add(Core.bundle["dialog.calculator.statRedundant"]).growX().pad(8f)
+          }.growX().fillY()
+          redundant.row()
+          redundant.table().grow().get().top().pane(Styles.smallPane) { pane ->
+            buildStatasticItems(pane, currStat.resultRedundant(), Pal.heal)
+          }.pad(6f).growX()
+        }.grow().minWidth(200f)
+        inner.image().color(Color.gray).width(2f).growY()
+        inner.table { blocks ->
+          blocks.table(Consts.darkGrayUIAlpha) {
+            it.image(Icon.boxSmall).scaling(Scaling.fit).size(26f).padLeft(4f)
+            it.add(Core.bundle["dialog.calculator.statBlocks"]).growX().pad(8f)
+          }.growX().fillY()
+          blocks.row()
+          blocks.table().grow().get().top().pane(Styles.smallPane) { pane ->
+            buildStatasticItems(pane, currStat.allBlocks())
+          }.pad(6f).growX()
+        }.grow().minWidth(200f)
+        inner.image().color(Color.gray).width(2f).growY()
+      }
+
+      rebuildStat!!.run()
+    }.grow().padLeft(40f).padRight(40f).scrollX(true).scrollY(false)
+    staticTab.row()
+    staticTab.image().color(Color.gray).height(4f).growX()
+    staticTab.row()
+    staticTab.table(Consts.darkGrayUIAlpha) { bottom ->
+      bottom.touchable = Touchable.enabled
+      bottom.addEventBlocker()
+
+      bottom.table { left ->
+        left.add(Core.bundle["dialog.calculator.globalIOs"])
+          .growX().pad(12f).color(Pal.accent).fontScale(0.85f).labelAlign(Align.center)
+        left.row()
+        left.image().color(Pal.accent).height(2f).growX()
+        left.row()
+        left.table { buildGlobalConfig(it) }.grow()
+      }.fillX().growY()
+      bottom.image().color(Color.gray).width(2f).growY()
+      bottom.table { right ->
+        right.add(Core.bundle["dialog.calculator.statMaterials"])
+          .growX().pad(12f).color(Pal.accent).fontScale(0.85f).labelAlign(Align.center)
+        right.row()
+        right.image().color(Pal.accent).height(2f).growX()
+        right.row()
+        right.table { buildStatBuildMaterials(it) }.grow()
+      }.grow()
+    }.growX().height(Core.graphics.height*0.36f/Scl.scl())
+  }
+
+  private fun buildGlobalConfig(table: Table) {
+    val currStat = currPage?.view?: return
+    val stat = currStat.statistic
+    var rebuild: Runnable? = null
+
+    fun buildStatGlobalSelection(
+      pane: Table,
+      list: Seq<RecipeItem<*>>,
+      isInput: Boolean
+    ){
+      list.forEach { item ->
+        val ls = if (isInput) stat.resultGlobalInputs() else stat.resultGlobalOutputs()
+        val stack = ls.find { it.item == item }
+
+        pane.table { i ->
+          i.left().defaults().left().fillY().padTop(4f).padBottom(4f)
+          i.image(item.icon).scaling(Scaling.fit).size(34f).pad(6f)
+          i.table { info ->
+            info.left().defaults().left().growX()
+            info.add(item.localizedName).padLeft(12f).labelAlign(Align.left).color(Pal.accent)
+            info.row()
+            info.add(stack?.getAmount()?:"...").padLeft(12f).labelAlign(Align.left)
+          }.padLeft(2f).growX()
+          i.button(Icon.cancelSmall, Styles.clearNonei, 20f) {
+            if(if (isInput) {
+              currStat.globalInput.remove(item)
+            } else {
+              currStat.globalOutput.remove(item)
+            }){
+              currStat.statistic()
+              rebuild!!.run()
+              rebuildStat!!.run()
+            }
+          }.margin(4f)
+        }.growX().fillY().padBottom(4f)
+        pane.row()
+      }
+    }
+
+    rebuild = Runnable{
+      table.clearChildren()
+      table.table { input ->
+        input.table { p -> p.top().pane {
+          buildStatGlobalSelection(it, currStat.globalInput.orderedItems(), true)
+        }.growX().fillY() }.grow()
+        input.row()
+        var tabIn: Table? = null
+        tabIn = input.button(Core.bundle["dialog.calculator.addGlobalInput"], Icon.addSmall, Styles.flatt, 32f) {
+          showMenu(tabIn!!, Align.topLeft, Align.bottomLeft) { selection ->
+            val l = stat.inputTypes().filter { !currStat.globalInput.contains(it) }
+            TmiUI.buildItems(selection.table(Consts.padDarkGrayUIAlpha).fill().get(), Seq.with(l)) { item ->
+              if (!currStat.globalInput.remove(item)) currStat.globalInput.add(item)
+              currStat.statistic()
+              rebuild!!.run()
+              rebuildStat!!.run()
+              hideMenu()
+            }
+          }
+        }.growX().fillY().margin(4f).get()
+      }.width(Core.graphics.width*0.25f/Scl.scl()).growY()
+
+      table.image().color(Color.gray).width(2f).growY()
+
+      table.table { output ->
+        output.table { p -> p.top().pane {
+          buildStatGlobalSelection(it, currStat.globalOutput.orderedItems(), false)
+        }.growX().fillY() }.grow()
+        output.row()
+        var tabOut: Table? = null
+        tabOut = output.button(Core.bundle["dialog.calculator.addGlobalOutput"], Icon.addSmall, Styles.flatt, 32f) {
+          showMenu(tabOut!!, Align.topLeft, Align.bottomLeft) { selection ->
+            val l = stat.outputTypes().filter { !currStat.globalOutput.contains(it) }
+            TmiUI.buildItems(selection.table(Consts.padDarkGrayUIAlpha).fill().get(), Seq.with(l)) { item ->
+              if (!currStat.globalOutput.remove(item)) currStat.globalOutput.add(item)
+              currStat.statistic()
+              rebuild!!.run()
+              rebuildStat!!.run()
+              hideMenu()
+            }
+          }
+        }.growX().fillY().margin(4f).get()
+      }.width(Core.graphics.width*0.25f/Scl.scl()).growY()
+    }
+
+    rebuild.run()
+  }
+
+  private fun buildStatBuildMaterials(table: Table) {
+
+  }
+
+  private fun buildStatasticItems(
+    pane: Table,
+    list: List<RecipeItemStack<*>>,
+    amountColor: Color = Color.white
+  ) {
+    list.forEach {
+      pane.table { item ->
+        item.left().defaults().left().fillY().padTop(4f).padBottom(4f)
+        item.image(it.item.icon).scaling(Scaling.fit).size(40f).pad(6f)
+        item.table { info ->
+          info.left().defaults().left().growX()
+          info.add(it.item.localizedName).padLeft(12f).labelAlign(Align.left).color(Pal.accent)
+          info.row()
+          info.add(it.getAmount()).padLeft(12f).labelAlign(Align.left).color(amountColor)
+        }.padLeft(2f).growX()
+      }.growX().fillY().padBottom(4f)
+      pane.row()
+    }
   }
 
   private fun updateStatistic(){
@@ -397,28 +635,30 @@ open class SchematicDesignerDialog : BaseDialog("") {
       var n = 0
       curr.statistic.resultMissing().forEach{ s ->
         if (n++ > 6) return@forEach
-
+        Regex("(!\\[\\w*]\\()/docs/public/")
         stack(
           Table{ t ->
-            t.left().image(s.item.icon).left().scaling(Scaling.fit).pad(4f)
+            t.left().image(s.item.icon).left().scaling(Scaling.fit).pad(4f).size(26f)
           },
           Table{ t ->
             t.bottom().left().add(s.getAmount(), Styles.outlineLabel).color(Color.red).fontScale(0.7f)
           }
-        ).height(32f).fillX().padLeft(4f).padRight(4f)
+        ).fill().padLeft(4f).padRight(4f)
       }
+
+      balance!!.setDrawable(if (n > 0) Consts.inbalance else Consts.balance)
 
       curr.statistic.resultRedundant().forEach{ s ->
         if (n++ > 6) return@forEach
 
         stack(
           Table{ t ->
-            t.left().image(s.item.icon).left().scaling(Scaling.fit).pad(4f)
+            t.left().image(s.item.icon).left().scaling(Scaling.fit).pad(4f).size(28f)
           },
           Table{ t ->
             t.bottom().left().add(s.getAmount(), Styles.outlineLabel).color(Pal.heal).fontScale(0.7f)
           }
-        ).height(32f).fillX().padLeft(4f).padRight(4f)
+        ).fill().padLeft(4f).padRight(4f)
       }
 
       if (n > 6) {
@@ -697,6 +937,8 @@ open class SchematicDesignerDialog : BaseDialog("") {
         t.add(Core.bundle["dialog.calculator.openPage"]).padTop(8f)
       }.fill()
     }
+
+    updateStatistic()
   }
 
   fun getPages(): Iterable<ViewPage> = pages

@@ -190,7 +190,7 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
           pane.table { sides ->
             sides.defaults().growX().height(45f)
             Side.entries.forEach { s ->
-              sides.button(Core.atlas.getDrawable("tmi-side_${s.name}"), Styles.clearNoneTogglei) {
+              sides.button(s.drawable, Styles.clearNoneTogglei, 42f) {
                 foldPaneSide = s
                 foldUpdated = true
               }.update { b -> b.isChecked = foldPaneSide == s }
