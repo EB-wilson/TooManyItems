@@ -4,6 +4,7 @@ import arc.math.Mathf
 import arc.struct.ObjectIntMap
 import arc.struct.ObjectSet
 import arc.struct.OrderedMap
+import tmi.TooManyItems
 import tmi.forEach
 import tmi.recipe.AmountFormatter
 import tmi.recipe.Recipe
@@ -24,6 +25,8 @@ class BalanceStatistic(private val ownerView: DesignerView) {
 
   private val globalOutputs = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
   private val globalInputs = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
+
+  private val buildMaterials = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
 
   fun reset(){
     allRecipes.clear()
@@ -99,11 +102,26 @@ class BalanceStatistic(private val ownerView: DesignerView) {
       CardIO(card, input, output, realIn, realOut)
     }
 
-    val recipeCards = allCards.filterIsInstance<RecipeCard>()
+    val recipeCards = allCards.filterIsInstance<RecipeCard>().filter { it.balanceValid }
     val inputCards = allCards.filterIsInstance<IOCard>().filter { it.isInput }
     val outputCards = allCards.filterIsInstance<IOCard>().filter { !it.isInput }
 
-    recipeCards.filter { it.balanceValid }.forEach { allRecipes.put(it.recipe, it.mul) }
+    recipeCards.forEach { c ->
+      allRecipes.put(c.recipe, c.mul)
+
+      TooManyItems.recipesManager
+        .getRecipesByBuilding(c.recipe.ownerBlock as RecipeItem<*>)
+        .firstOpt()?.let { rec ->
+          rec.materials.values().forEach {
+            val stack = buildMaterials.get(it.item) {
+              RecipeItemStack(it.item, 0f).setFormat(AmountFormatter.integerFormatter())
+            }
+
+            stack.amount += it.amount * rec.craftTime
+          }
+        }
+    }
+
     inputCards.forEach {
       it.outputs()/* card input means linker output */.forEach { s ->
         inputTypes.add(s.item)
@@ -155,6 +173,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
   fun resultRedundant(): List<RecipeItemStack<*>> = redundant.values().filter { it.amount > 0 }
   fun resultGlobalInputs(): List<RecipeItemStack<*>> = globalInputs.values().filter { it.amount > 0 }
   fun resultGlobalOutputs(): List<RecipeItemStack<*>> = globalOutputs.values().filter { it.amount > 0 }
+  fun resultBuildMaterials(): List<RecipeItemStack<*>> = buildMaterials.values().filter { it.amount > 0 }
 
   @Suppress("UNCHECKED_CAST")
   fun allBlocks(): List<RecipeItemStack<*>> = allRecipes.map {

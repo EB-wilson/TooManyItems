@@ -192,7 +192,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
     addListener(object: InputListener(){
       override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
         hideMenu()
-        staticTable?.visible = false
         return false
       }
     })
@@ -379,7 +378,12 @@ open class SchematicDesignerDialog : BaseDialog("") {
 
     top.add().growX()
     top.table { buildStatisticBar(it) }.padRight(180f).fillX().growY()
-    top.button(Icon.cancel, Styles.clearNonei, 32f) { this.hide() }.marginLeft(5f).marginRight(5f).growY()
+    top.button(Icon.cancel, Styles.clearNonei, 32f) {
+      if (staticTable!!.visible){
+        staticTable!!.visible = false
+      }
+      else this.hide()
+    }.marginLeft(5f).marginRight(5f).growY()
   }
 
   private fun buildStatisticBar(stat: Table) {
@@ -403,7 +407,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
         tab.visible = true
         buildStatisticTable()
       }
-    }.fillX().marginLeft(8f).get().addEventBlocker()
+    }.fillX().marginLeft(8f)
 
     stat.image().color(Color.darkGray).width(2f).growY().pad(0f).padRight(6f)
 
@@ -493,7 +497,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
     staticTab.row()
     staticTab.table(Consts.darkGrayUIAlpha) { bottom ->
       bottom.touchable = Touchable.enabled
-      bottom.addEventBlocker()
 
       bottom.table { left ->
         left.add(Core.bundle["dialog.calculator.globalIOs"])
@@ -603,7 +606,26 @@ open class SchematicDesignerDialog : BaseDialog("") {
   }
 
   private fun buildStatBuildMaterials(table: Table) {
+    val currStat = currPage?.view?.statistic?: return
 
+    table.top().pane { pane ->
+      val tw = Core.graphics.width*0.5f/Scl.scl() - 40f
+      val n = max((tw/200).toInt(), 2)
+
+      currStat.resultBuildMaterials().forEachIndexed { i, stack ->
+        if (i > 0 && i % n == 0) pane.row()
+        pane.table(Tex.whiteui) { item ->
+          item.left().defaults().left().fillY().padTop(4f).padBottom(4f)
+          item.image(stack.item.icon).scaling(Scaling.fit).size(28f).pad(6f)
+          item.table { info ->
+            info.left().defaults().left().growX()
+            info.add(stack.item.localizedName).labelAlign(Align.left).color(Pal.accent)
+            info.row()
+            info.add(stack.getAmount()).labelAlign(Align.left)
+          }.padLeft(2f).growX()
+        }.padLeft(6f).padRight(6f).growX().fillY().color(Color.black)
+      }
+    }.growX().fillY()
   }
 
   private fun buildStatasticItems(

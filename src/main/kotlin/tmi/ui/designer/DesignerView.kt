@@ -55,7 +55,7 @@ import kotlin.math.min
 class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   companion object{
     private val seq: Seq<ItemLinker> = Seq()
-    private const val SHD_REV = 8
+    private const val SHD_REV = 9
   }
 
   var currAlignIcon: Drawable = Icon.none
@@ -1007,8 +1007,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     write.i(SchematicDesignerDialog.FI_HEAD)
     write.i(SHD_REV)
 
-    write.f(panX)
-    write.f(panY)
     write.f(zoom.scaleX)
 
     this.writeCards(write)
@@ -1031,7 +1029,11 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
     val ver = read.i()
 
-    if (ver >= 2) {
+    if (ver >= 9) {
+      zoom.scaleX = read.f()
+      zoom.scaleY = zoom.scaleX
+    }
+    else if (ver >= 2) {
       panX = read.f()
       panY = read.f()
       zoom.scaleX = read.f()
@@ -1054,15 +1056,30 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
 
     newSet = null
+
+    val bound = getBound()
+    val cx = bound.x + bound.width/2f
+    val cy = bound.y + bound.height/2f
+
+    panX = -cx
+    panY = -cy
   }
 
   fun writeCards(write: Writes) {
+    val bound = getBound()
+
+    val (ox, oy) = (bound.x to bound.y)
+    write.f(ox, oy)
+
     val seq = Seq.withArrays<Card>(cards, foldCards)
     write.i(seq.size)
     for (card in seq) {
       card.write(write)
 
-      write.f(card.x, card.y, card.width, card.height)
+      write.f(
+        (card.x - ox)/Scl.scl(), (card.y - oy)/Scl.scl(),
+        card.width, card.height
+      )
       write.f(card.scaleX, card.scaleY)
 
       write.i(card.linkerIns.size)
@@ -1092,13 +1109,18 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     val linkerMap = LongMap<ItemLinker>()
     val links = ObjectMap<ItemLinker, Seq<Pair<Long, Float>>>()
 
+    val (ox, oy) = if(ver >= 9) (read.f() to read.f()) else (0f to 0f)
+
     val cardsLen = read.i()
     for (i in 0 until cardsLen) {
       val card = Card.read(read, ver)
       card.build()
       addCard(card, false)
 
-      card.setBounds(read.f(), read.f(), read.f(), read.f())
+      card.setBounds(
+        (ox + read.f())*Scl.scl(), (oy + read.f())*Scl.scl(),
+        read.f(), read.f()
+      )
 
       card.scaleX = read.f()
       card.scaleY = read.f()
