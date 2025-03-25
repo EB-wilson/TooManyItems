@@ -21,9 +21,16 @@ import mindustry.ui.Fonts
 import mindustry.world.Block
 import mindustry.world.Tile
 import mindustry.world.blocks.environment.Floor
+import java.lang.reflect.Field
 
 object Consts {
   private val emp: Seq<*> = Seq<Any>()
+
+  val buildTimeAlter: Field = try {
+    Block::class.java.getField("buildTime")
+  } catch (e: NoSuchFieldException) {
+    Block::class.java.getField("buildCost")
+  }
 
   val foldCardIcons: List<Drawable> by lazy {
     Icon.icons.map { it.key to it.value }.sortedBy { it.first }.filter { !it.first.contains("Small") }.map { it.second }

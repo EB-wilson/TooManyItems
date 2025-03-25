@@ -5,7 +5,6 @@ import java.io.StringReader
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
-val kotlinVersion = "1.9.23"
 val mindustryVersion = "851817a049"
 val arcVersion = "deacd9c98e"
 
@@ -20,7 +19,7 @@ val buildDir = layout.buildDirectory.get().asFile.path
 val projectName = project.name
 
 plugins {
-    kotlin("jvm") version "1.9.24"
+    kotlin("jvm") version "2.1.20"
     `maven-publish`
 }
 
@@ -35,7 +34,7 @@ java {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_1_8)
@@ -68,7 +67,7 @@ dependencies {
 
     implementation("com.github.EB-wilson.UniverseCore:markdown:2.1.1")
 
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+    implementation(kotlin("stdlib-jdk8"))
 }
 
 tasks {

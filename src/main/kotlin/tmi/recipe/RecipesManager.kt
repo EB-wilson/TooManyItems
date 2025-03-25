@@ -7,10 +7,9 @@ import arc.struct.Seq
 import mindustry.Vars
 import mindustry.content.Items
 import mindustry.world.Block
-import mindustry.world.meta.Stat.buildTime
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
-import tmi.ui.Cursor.Companion.recipe
+import tmi.util.Consts
 
 private val errorRecipe = Recipe(
   recipeType = RecipeType.factory,
@@ -129,7 +128,7 @@ open class RecipesManager {
         val recipe = Recipe(
           RecipeType.building,
           TooManyItems.itemsManager.getItem(block),
-          block.buildTime
+          Consts.buildTimeAlter.get(block) as Float
         )
 
         for (stack in block.requirements) {
