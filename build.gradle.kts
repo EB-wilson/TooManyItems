@@ -1,3 +1,4 @@
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileOutputStream
 import java.io.InputStreamReader
@@ -13,7 +14,7 @@ val modOutputDir = properties["modOutputDir"] as? String
 val sdkRoot: String? = System.getenv("ANDROID_HOME")
 
 //version of SDK you will be using
-val minSdkAPI = 30
+val minSdkAPI = 34
 
 val buildDir = layout.buildDirectory.get().asFile.path
 val projectName = project.name
@@ -94,37 +95,25 @@ tasks {
 
         doLast {
             try {
-                val fi = File("$sdkRoot/platforms/")
-                if (!fi.exists()) throw RuntimeException("android SDK platfroms was not found")
+                if (sdkRoot == null) throw GradleException("No valid Android SDK found. Ensure that ANDROID_HOME is set to your Android SDK directory.");
 
-                val platformRoot = fi.listFiles()!!.sorted().reversed().find { File(it, "android.jar").exists() }
+                val platformRoot = File("$sdkRoot/platforms/").listFiles()
+                    ?.sorted()
+                    ?.reversed()
+                    ?.find { f -> File (f, "android.jar").exists() }
+
+                if (platformRoot == null) throw GradleException("No android.jar found. Ensure that you have an Android platform installed.")
 
                 //collect dependencies needed for desugaring
                 val dependencies = (
-                    configurations.getByName("runtimeClasspath") +
-                        configurations.getByName("compileClasspath") +
-                        File(platformRoot, "android.jar")
-                    ).joinToString(" ") { "--classpath $it" }
+                    configurations.compileClasspath.get().files +
+                    configurations.runtimeClasspath.get().files +
+                    setOf(File(platformRoot, "android.jar"))
+                ).joinToString(" ") { "--classpath $it" }
 
-                try {
-                    println("build android dex...")
-
-                    //dex and desugar files - this requires d8 in your PATH
-                    "d8 $dependencies --min-api 14 --output ${project.name}-android.jar ${project.name}-desktop.jar"
-                        .execute(File("${buildDir}/libs"))
-                }
-                catch (e: Throwable) {
-                    if (e is Error) throw e
-
-                    val d8 = File("$sdkRoot/build-tools/").listFiles()!!.find {
-                        it.listFiles()!!.any { f ->
-                            f.name.contains("d8")
-                        } && Integer.valueOf(it.name.substring(0, 2)) >= minSdkAPI
-                    }?.listFiles()?.find { it.name.contains("d8") }
-
-                    "$d8 $dependencies --min-api 14 --output ${project.name}-android.jar ${project.name}-desktop.jar"
-                        .execute(File("${buildDir}/libs"))
-                }
+              //dex and desugar files - this requires d8 in your PATH
+                "d8 $dependencies --min-api 14 --output ${project.name}-android.jar ${project.name}-desktop.jar"
+                    .execute(File("$buildDir/libs"))
             }
             catch (e: Throwable) {
                 if (e is Error){
@@ -202,12 +191,15 @@ tasks {
 }
 
 fun String.execute(path: File? = null, vararg args: Any?): Process{
-    val process = Runtime.getRuntime().exec(
-        this.split(Regex("\\s+")).toMutableList()
-            .apply { addAll(args.map { it?.toString()?:"null" }) }.toTypedArray(),
-        null,
-        path?:rootDir
-    )
+    val cmd = split(Regex("\\s+"))
+        .toMutableList()
+        .apply { addAll(args.map { it?.toString()?:"null" }) }
+        .toTypedArray()
+    val process = ProcessBuilder(*cmd)
+        .directory(path?:rootDir)
+        .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+        .redirectError(ProcessBuilder.Redirect.INHERIT)
+        .start()
 
     if (process.waitFor() != 0) throw Error(InputStreamReader(process.errorStream).readText())
 
