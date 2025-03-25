@@ -8,15 +8,12 @@ import arc.math.geom.Vec2
 import arc.scene.Group
 import arc.scene.ui.Label
 import arc.scene.ui.layout.Scl
+import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
-import arc.util.Align
-import arc.util.Strings
-import arc.util.Time
-import arc.util.Tmp
+import arc.util.*
 import mindustry.core.UI
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
-import mindustry.world.meta.Stat
 import mindustry.world.meta.StatUnit
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
@@ -26,6 +23,7 @@ import tmi.ui.NODE_SIZE
 import tmi.ui.NodeType
 import tmi.ui.RecipeNode
 import tmi.ui.RecipeView.LineMeta
+import tmi.util.Consts
 import kotlin.math.max
 
 open class FactoryRecipe : RecipeType() {
@@ -55,12 +53,14 @@ open class FactoryRecipe : RecipeType() {
 
   protected fun buildTime(view: Group?, offY: Float) {
     if (time > 0) {
-      val time = Label(
-        Stat.productionTime.localized() + ": " + (if (this.time > 3600) UI.formatTime(
-          this.time
+      val time = Table{ t ->
+        t.image(Consts.time).scaling(Scaling.fit).size(24f).pad(4f)
+        t.add(
+            (if (this.time > 3600) UI.formatTime(this.time)
+            else Strings.autoFixed(this.time/60, 2) + StatUnit.seconds.localized()),
+            Styles.outlineLabel
         )
-        else Strings.autoFixed(this.time/60, 2) + StatUnit.seconds.localized()), Styles.outlineLabel
-      )
+      }
       time.validate()
 
       time.setPosition(

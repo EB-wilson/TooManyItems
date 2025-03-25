@@ -6,13 +6,16 @@ import arc.struct.ObjectSet
 import arc.struct.OrderedMap
 import tmi.TooManyItems
 import tmi.forEach
-import tmi.recipe.AmountFormatter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.set
 
 class BalanceStatistic(private val ownerView: DesignerView) {
+  companion object{
+    private const val ZERO = 0.0001f
+  }
+
   private val allRecipes = ObjectIntMap<Recipe>()
 
   private val inputTypes = ObjectSet<RecipeItem<*>>()
@@ -45,8 +48,8 @@ class BalanceStatistic(private val ownerView: DesignerView) {
   fun setGlobal(input: Iterable<RecipeItem<*>>, output: Iterable<RecipeItem<*>>) {
     globalInputs.clear()
     globalOutputs.clear()
-    input.forEach { globalInputs[it] = RecipeItemStack(it, 0f).setFormat(AmountFormatter.persecFormatter()) }
-    output.forEach { globalOutputs[it] = RecipeItemStack(it, 0f).setFormat(AmountFormatter.persecFormatter()) }
+    input.forEach { globalInputs[it] = RecipeItemStack(it, 0f).unitTimedFormat() }
+    output.forEach { globalOutputs[it] = RecipeItemStack(it, 0f).unitTimedFormat() }
   }
 
   fun updateStatistic() {
@@ -114,7 +117,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
         .firstOpt()?.let { rec ->
           rec.materials.values().forEach {
             val stack = buildMaterials.get(it.item) {
-              RecipeItemStack(it.item, 0f).setFormat(AmountFormatter.integerFormatter())
+              RecipeItemStack(it.item, 0f).integerFormat()
             }
 
             stack.amount += it.amount * rec.craftTime
@@ -126,7 +129,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
       it.outputs()/* card input means linker output */.forEach { s ->
         inputTypes.add(s.item)
         val stack = inputs.get(s.item) {
-          RecipeItemStack(s.item, 0f).setFormat(AmountFormatter.persecFormatter())
+          RecipeItemStack(s.item, 0f).unitTimedFormat()
         }
 
         stack.amount += s.amount
@@ -136,7 +139,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
       it.inputs()/* card output means linker input */.forEach { s ->
         outputTypes.add(s.item)
         val stack = outputs.get(s.item) {
-          RecipeItemStack(s.item, 0f).setFormat(AmountFormatter.persecFormatter())
+          RecipeItemStack(s.item, 0f).unitTimedFormat()
         }
 
         stack.amount += s.amount
@@ -147,7 +150,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
       io.eachOut { s, rs ->
         outputTypes.add(s.item)
         val red = globalOutputs[s.item]?:redundant.get(s.item){
-          RecipeItemStack(s.item, 0f).setFormat(AmountFormatter.persecFormatter())
+          RecipeItemStack(s.item, 0f).unitTimedFormat()
         }
 
         red.amount += Mathf.maxZero(s.amount - rs.amount)
@@ -156,7 +159,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
       io.eachIn { s, rs ->
         inputTypes.add(s.item)
         val mis = globalInputs[s.item]?:missing.get(s.item) {
-          RecipeItemStack(s.item, 0f).setFormat(AmountFormatter.persecFormatter())
+          RecipeItemStack(s.item, 0f).unitTimedFormat()
         }
 
         mis.amount += Mathf.maxZero(s.amount - rs.amount)
@@ -167,50 +170,50 @@ class BalanceStatistic(private val ownerView: DesignerView) {
   fun inputTypes(): Set<RecipeItem<*>> = inputTypes.toSet()
   fun outputTypes(): Set<RecipeItem<*>> = outputTypes.toSet()
 
-  fun resultInputs(): List<RecipeItemStack<*>> = inputs.values().filter { it.amount > 0 }
-  fun resultOutputs(): List<RecipeItemStack<*>> = outputs.values().filter { it.amount > 0 }
-  fun resultMissing(): List<RecipeItemStack<*>> = missing.values().filter { it.amount > 0 }
-  fun resultRedundant(): List<RecipeItemStack<*>> = redundant.values().filter { it.amount > 0 }
-  fun resultGlobalInputs(): List<RecipeItemStack<*>> = globalInputs.values().filter { it.amount > 0 }
-  fun resultGlobalOutputs(): List<RecipeItemStack<*>> = globalOutputs.values().filter { it.amount > 0 }
-  fun resultBuildMaterials(): List<RecipeItemStack<*>> = buildMaterials.values().filter { it.amount > 0 }
+  fun resultInputs(): List<RecipeItemStack<*>> = inputs.values().filter { it.amount > ZERO }
+  fun resultOutputs(): List<RecipeItemStack<*>> = outputs.values().filter { it.amount > ZERO }
+  fun resultMissing(): List<RecipeItemStack<*>> = missing.values().filter { it.amount > ZERO }
+  fun resultRedundant(): List<RecipeItemStack<*>> = redundant.values().filter { it.amount > ZERO }
+  fun resultGlobalInputs(): List<RecipeItemStack<*>> = globalInputs.values().filter { it.amount > ZERO }
+  fun resultGlobalOutputs(): List<RecipeItemStack<*>> = globalOutputs.values().filter { it.amount > ZERO }
+  fun resultBuildMaterials(): List<RecipeItemStack<*>> = buildMaterials.values().filter { it.amount > ZERO }
 
   @Suppress("UNCHECKED_CAST")
   fun allBlocks(): List<RecipeItemStack<*>> = allRecipes.map {
-    RecipeItemStack(it.key.ownerBlock as RecipeItem<Any>, it.value.toFloat()).setFormat(AmountFormatter.integerFormatter())
+    RecipeItemStack(it.key.ownerBlock as RecipeItem<Any>, it.value.toFloat()).integerFormat()
   }
 
   override fun toString(): String {
     val res = StringBuilder()
 
-    inputs.values().filter { it.amount > 0 }.also {
+    inputs.values().filter { it.amount > ZERO }.also {
       if (it.isEmpty()) return@also
       res.append("inputs:\n")
       it.forEach{ e -> res.append("| ${e.item.name}: ${e.amount}\n") }
     }
-    outputs.values().filter { it.amount > 0 }.also {
+    outputs.values().filter { it.amount > ZERO }.also {
       if (it.isEmpty()) return@also
       res.append("outputs:\n")
       it.forEach{ e -> res.append("| ${e.item.name}: ${e.amount}\n") }
     }
 
-    globalInputs.values().filter { it.amount > 0 }.also {
+    globalInputs.values().filter { it.amount > ZERO }.also {
       if (it.isEmpty()) return@also
       res.append("global inputs:\n")
       it.forEach{ e -> res.append("| ${e.item.name}: ${e.amount}\n") }
     }
-    globalOutputs.values().filter { it.amount > 0 }.also {
+    globalOutputs.values().filter { it.amount > ZERO }.also {
       if (it.isEmpty()) return@also
       res.append("global outputs:\n")
       it.forEach{ e -> res.append("| ${e.item.name}: ${e.amount}\n") }
     }
 
-    redundant.values().filter { it.amount > 0 }.also {
+    redundant.values().filter { it.amount > ZERO }.also {
       if (it.isEmpty()) return@also
       res.append("redundant:\n")
       it.forEach{ e -> res.append("| ${e.item.name}: ${e.amount}\n") }
     }
-    missing.values().filter { it.amount > 0 }.also {
+    missing.values().filter { it.amount > ZERO }.also {
       if (it.isEmpty()) return@also
       res.append("missing:\n")
       it.forEach{ e -> res.append("| ${e.item.name}: ${e.amount}\n") }

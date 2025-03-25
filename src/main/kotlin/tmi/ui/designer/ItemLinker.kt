@@ -4,7 +4,6 @@ import arc.Core
 import arc.Graphics
 import arc.func.Prov
 import arc.graphics.Color
-import arc.graphics.Texture
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
@@ -20,7 +19,6 @@ import arc.scene.event.ElementGestureListener
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
 import arc.scene.event.Touchable
-import arc.scene.style.Drawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
@@ -30,7 +28,6 @@ import mindustry.Vars
 import mindustry.core.UI
 import mindustry.gen.Icon
 import mindustry.graphics.Pal
-import mindustry.ui.Fonts.icon
 import mindustry.ui.Styles
 import tmi.recipe.types.RecipeItem
 import tmi.set
@@ -92,10 +89,11 @@ class ItemLinker @JvmOverloads internal constructor(
         inc.add("", Styles.outlineLabel).padTop(20f).update { l ->
           l.setText(
             if (expectAmount <= 0) "--/s"
-            else (if (expectAmount*60 > 1000) UI.formatAmount(
-              (expectAmount*60).toLong()
-            )
-            else Strings.autoFixed(expectAmount*60, 1)) + "/s\n"
+            else {
+              val (value, unit) = Utils.unitTimed(expectAmount)
+
+              (if (value > 1000) UI.formatAmount(value.toLong()) else Strings.autoFixed(value, 1)) + unit + "\n"
+            }
           )
         }.get().setAlignment(Align.center)
       }

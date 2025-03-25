@@ -1,27 +1,14 @@
 package tmi.ui
 
-import arc.Core
 import arc.func.Cons
 import arc.func.Cons3
-import arc.func.Func3
 import arc.func.Prov
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
-import arc.input.KeyCode
 import arc.math.geom.Vec2
-import arc.scene.Element
 import arc.scene.Group
-import arc.scene.event.InputEvent
-import arc.scene.event.InputListener
 import arc.struct.FloatSeq
 import arc.struct.Seq
-import arc.util.Time
-import arc.util.Time.time
-import mindustry.Vars
-import mindustry.Vars.content
-import mindustry.core.Version.type
-import mindustry.gen.Sounds.click
-import tmi.invoke
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 
@@ -39,7 +26,7 @@ class RecipeView @JvmOverloads constructor(
   private val childGroup = object : Group() {}
 
   init {
-    addChild(childGroup)
+    addChild(backGroup)
 
     for (content in recipe.materials.values()) {
       nodes.add(RecipeNode(NodeType.MATERIAL, content, defClicked))
@@ -65,8 +52,6 @@ class RecipeView @JvmOverloads constructor(
     super.layout()
     backGroup.clear()
     childGroup.clear()
-    backGroup.invalidate()
-    childGroup.invalidate()
 
     lines.clear()
     bound.set(recipe.recipeType.initial(recipe))

@@ -5,6 +5,7 @@ import tmi.recipe.AmountFormatter.Companion.emptyFormatter
 import tmi.recipe.AmountFormatter.Companion.floatFormatter
 import tmi.recipe.AmountFormatter.Companion.integerFormatter
 import tmi.recipe.AmountFormatter.Companion.persecFormatter
+import tmi.recipe.AmountFormatter.Companion.unitTimedFormatter
 import tmi.recipe.types.RecipeItem
 
 /**保存一个材料项目数据的结构类型，在[Recipe]中作数据记录对象使用 */
@@ -42,7 +43,7 @@ class RecipeItemStack<T>(
   var maxAttribute = false
     private set
 
-  @Suppress("UNCHECKED_CAST")
+  /**获取此堆所保存的而物品类型*/
   fun item(): RecipeItem<T> = item
   /**获取经过格式化的表示数量的文本信息 */
   fun getAmount() = amountFormat.format(amount)
@@ -81,6 +82,11 @@ class RecipeItemStack<T>(
   fun floatFormat(mul: Float = 1f) = also { setFormat(floatFormatter(mul)) }
   @JvmOverloads
   fun integerFormat(mul: Float = 1f) = also { setFormat(integerFormatter(mul)) }
+  fun unitTimedFormat() = also { setFormat( unitTimedFormatter()) }
+  @Deprecated(
+    message = "standardized function name to unitTimedFormat",
+    replaceWith = ReplaceWith("unitTimedFormat()")
+  )
   fun persecFormat() = also { setFormat(persecFormatter()) }
 
   fun copy() = RecipeItemStack(item, amount).also{

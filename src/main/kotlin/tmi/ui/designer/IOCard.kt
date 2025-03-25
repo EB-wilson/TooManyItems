@@ -17,7 +17,6 @@ import arc.util.io.Writes
 import mindustry.core.UI
 import mindustry.gen.Icon
 import mindustry.ui.Styles
-import mindustry.world.meta.StatUnit
 import tmi.TooManyItems
 import tmi.forEach
 import tmi.recipe.RecipeItemStack
@@ -25,6 +24,7 @@ import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI
 import tmi.ui.addEventBlocker
 import tmi.util.Consts
+import tmi.util.Utils
 
 class IOCard(
   ownerDesigner: DesignerView,
@@ -126,12 +126,13 @@ class IOCard(
           t.image(item.item.icon).scaling(Scaling.fit).size(42f).pad(4f)
           t.add(item.item.localizedName).growX().left().pad(5f)
           t.add("").left().update {
-            val f = item.amount
+            val (value, unit) = Utils.unitTimed(item.amount)
+
             it.setText(
-              (if (f <= 0) "--"
-              else if (f*60 > 1000) UI.formatAmount((f*60).toLong())
-              else Strings.autoFixed(f*60, 2))
-              + "/" + StatUnit.seconds.localized()
+              (if (value <= 0) "--"
+              else if (value > 1000) UI.formatAmount(value.toLong())
+              else Strings.autoFixed(value, 2))
+              + unit
             )
           }.color(Color.lightGray).pad(5f)
         }
@@ -146,13 +147,18 @@ class IOCard(
                 it.add(Core.bundle["dialog.calculator.setAmount"])
                 it.row()
                 it.table{ t ->
-                  t.field(Strings.autoFixed(item.amount*60, 2), TextField.TextFieldFilter.floatsOnly){ str ->
+                  var (_, unit) = Utils.unitTimed(item.amount)
+
+                  val field = t.field(Strings.autoFixed(item.amount*unit.multi, 2), TextField.TextFieldFilter.floatsOnly){ str ->
                     try {
-                      item.amount = str.toFloat()/60f
+                      item.amount = str.toFloat()/unit.multi
                       observeUpdate()
                     } catch (ignored: NumberFormatException){}
-                  }
-                  t.add("/" + StatUnit.seconds.localized()).left().padLeft(4f).color(Color.lightGray)
+                  }.get()
+                  t.button({ b -> b.add("").pad(4f).update{ l -> l.setText(unit.toString()) } }, Styles.flatt){
+                    unit = unit.next()
+                    field.text = Strings.autoFixed(item.amount*unit.multi, 2)
+                  }.left().padLeft(4f).color(Color.lightGray).fillX().growY()
                 }
               }.margin(6f)
             }

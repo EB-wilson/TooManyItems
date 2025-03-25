@@ -5,12 +5,10 @@ import arc.math.Mathf
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectFloatMap
 import arc.struct.OrderedMap
-import mindustry.world.Block
 import tmi.invoke
 import tmi.recipe.types.RecipeItem
 import tmi.set
 import java.util.*
-import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 
 /**配方信息的存储类，该类的每一个实例都表示为一个单独的配方，用于显示配方或者计算生产数据
@@ -194,7 +192,7 @@ class Recipe @JvmOverloads constructor(
       item,
       amount.toFloat()
     ).integerFormat()).also {
-      it.setAltFormat(AmountFormatter.persecFormatter())
+      it.setAltFormat(AmountFormatter.unitTimedFormatter())
       materials[item] = it
     }
 
@@ -204,12 +202,12 @@ class Recipe @JvmOverloads constructor(
       item,
       amount
     ).floatFormat()).also {
-      it.setAltFormat(AmountFormatter.persecFormatter())
+      it.setAltFormat(AmountFormatter.unitTimedFormatter())
       materials[item] = it
     }
 
   fun addMaterialPersec(item: RecipeItem<*>, persec: Float) =
-    RecipeItemStack(item, persec).persecFormat().also {
+    RecipeItemStack(item, persec).unitTimedFormat().also {
       if (craftTime > 0) it.setAltFormat(AmountFormatter.floatFormatter(craftTime))
       materials[item] = it
     }
@@ -220,7 +218,7 @@ class Recipe @JvmOverloads constructor(
       item,
       amount.toFloat()
     ).integerFormat()).also {
-      it.setAltFormat(AmountFormatter.persecFormatter())
+      it.setAltFormat(AmountFormatter.unitTimedFormatter())
       productions[item] = it
     }
 
@@ -230,12 +228,12 @@ class Recipe @JvmOverloads constructor(
       item,
       amount
     ).floatFormat()).also {
-      it.setAltFormat(AmountFormatter.persecFormatter())
+      it.setAltFormat(AmountFormatter.unitTimedFormatter())
       productions[item] = it
     }
 
   fun addProductionPersec(item: RecipeItem<*>, perSec: Float) =
-    RecipeItemStack(item, perSec).persecFormat().also {
+    RecipeItemStack(item, perSec).unitTimedFormat().also {
       if (craftTime > 0) it.setAltFormat(AmountFormatter.floatFormatter(craftTime))
       productions[item] = it
     }

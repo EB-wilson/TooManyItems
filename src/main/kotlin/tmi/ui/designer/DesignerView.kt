@@ -32,7 +32,6 @@ import arc.scene.ui.layout.Table
 import arc.scene.ui.layout.WidgetGroup
 import arc.struct.*
 import arc.util.Align
-import arc.util.Log
 import arc.util.Time
 import arc.util.Tmp
 import arc.util.io.Reads
@@ -446,12 +445,12 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     statistic.reset()
     statistic.updateStatistic()
 
-    Log.info(statistic.toString())
     fire(StatisticEvent())
   }
 
   override fun layout() {
     super.layout()
+    zoom.setOrigin(Align.center)
     zoom.setOrigin(Align.center)
   }
 
@@ -1078,7 +1077,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
       write.f(
         (card.x - ox)/Scl.scl(), (card.y - oy)/Scl.scl(),
-        card.width, card.height
+        card.width/Scl.scl(), card.height/Scl.scl()
       )
       write.f(card.scaleX, card.scaleY)
 
@@ -1118,8 +1117,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       addCard(card, false)
 
       card.setBounds(
-        (ox + read.f())*Scl.scl(), (oy + read.f())*Scl.scl(),
-        read.f(), read.f()
+        Scl.scl(ox + read.f()), Scl.scl(oy + read.f()),
+        Scl.scl(read.f()), Scl.scl(read.f())
       )
 
       card.scaleX = read.f()
@@ -1169,7 +1168,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     write.i(linker.dir)
     write.f(linker.expectAmount)
 
-    write.f(linker.x, linker.y, linker.width, linker.height)
+    write.f(linker.x/Scl.scl(), linker.y/Scl.scl(), linker.width/Scl.scl(), linker.height/Scl.scl())
   }
 
   private fun readLinker(read: Reads, card: Card, ver: Int): ItemLinker {
@@ -1182,7 +1181,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     )
     res.dir = read.i()
     res.expectAmount = read.f()
-    res.setBounds(read.f(), read.f(), read.f(), read.f())
+    res.setBounds(Scl.scl(read.f()), Scl.scl(read.f()), Scl.scl(read.f()), Scl.scl(read.f()))
     return res
   }
 

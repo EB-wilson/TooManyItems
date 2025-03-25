@@ -253,7 +253,8 @@ class ModAPI {
           when (amountFormat) {
             "integer" -> integerFormat(it.craftTime)
             "float" -> floatFormat(it.craftTime)
-            "persecond" -> persecFormat()
+            "persecond" -> persecFormat() // deprecated
+            "unitTimed" -> unitTimedFormat()
             "rawInt" -> floatFormat()
             "rawFloat" -> floatFormat()
             else -> emptyFormat()

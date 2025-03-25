@@ -3,7 +3,7 @@ package tmi.recipe
 import arc.math.Mathf
 import arc.util.Strings
 import mindustry.core.UI
-import mindustry.world.meta.StatUnit
+import tmi.util.Utils
 
 fun interface AmountFormatter {
   companion object{
@@ -25,9 +25,21 @@ fun interface AmountFormatter {
     }
 
     @JvmStatic
+    fun unitTimedFormatter() = AmountFormatter{ f ->
+      val (value, unit) = Utils.unitTimed(f)
+
+      (if (value > 1000) UI.formatAmount((value).toLong())
+      else Strings.autoFixed(value, 2)) + unit
+    }
+
+    @Deprecated(
+      message = "standardized function name to unitTimedFormatter",
+      replaceWith = ReplaceWith("unitTimedFormatter()")
+    )
+    @JvmStatic
     fun persecFormatter() = AmountFormatter{ f ->
       (if (f*60 > 1000) UI.formatAmount((f*60).toLong())
-      else Strings.autoFixed(f*60, 2)) + "/" + StatUnit.seconds.localized()
+      else Strings.autoFixed(f*60, 2)) + "[gray]/sec"
     }
   }
 
