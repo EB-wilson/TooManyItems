@@ -880,7 +880,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     localToDescendantCoordinates(container, vec1.set(x, y))
 
     card.build()
-    card.pack()
     card.setPosition(vec1.x, vec1.y, Align.center)
 
     card.gridAlign(cardAlign)

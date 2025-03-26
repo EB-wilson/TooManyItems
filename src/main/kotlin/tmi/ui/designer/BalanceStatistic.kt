@@ -188,8 +188,8 @@ class BalanceStatistic(private val ownerView: DesignerView) {
 
   fun resultInputs() = inputs.values().filter { it.amount > ZERO }
   fun resultOutputs() = outputs.values().filter { it.amount > ZERO }
-  fun resultMissing() = missing.values().filter { it.amount > ZERO }
-  fun resultRedundant() = redundant.values().filter { it.amount > ZERO }
+  fun resultMissing() = missing.values().filter { it.amount > ZERO }.sortedBy { -it.amount }
+  fun resultRedundant() = redundant.values().filter { it.amount > ZERO }.sortedBy { -it.amount }
   fun resultGlobalInputs() = globalInputs.values().filter { it.amount > ZERO }
   fun resultGlobalOutputs() = globalOutputs.values().filter { it.amount > ZERO }
   fun resultBuildMaterials() = buildMaterials.values().filter { it.amount > ZERO }

@@ -135,6 +135,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     private set
 
   fun build() {
+    margin(0f)
     add(pane).center().fill()
     buildCard()
   }
@@ -188,6 +189,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   override fun layout() {
     super.layout()
+    pack()
     linkerIns.forEach { it.adsorption(it.getX(Align.center), it.getY(Align.center), this) }
     linkerOuts.forEach { it.adsorption(it.getX(Align.center), it.getY(Align.center), this) }
   }
