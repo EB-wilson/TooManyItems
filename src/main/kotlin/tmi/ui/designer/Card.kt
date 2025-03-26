@@ -19,6 +19,7 @@ import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.IntMap
 import arc.struct.ObjectSet
+import arc.struct.Seq
 import arc.util.Align
 import arc.util.io.Reads
 import arc.util.io.Writes
@@ -33,6 +34,7 @@ import tmi.util.vec1
 
 abstract class Card(val ownerDesigner: DesignerView) : Table() {
   companion object {
+    private val seq: Seq<ItemLinker> = Seq()
     private val tmp = Vec2()
 
     @JvmStatic
@@ -70,12 +72,15 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   val pane: Table = object : Table(Consts.darkGrayUIAlpha) {
     override fun drawBackground(x: Float, y: Float) {
-      if (ownerDesigner.newSet === this@Card) {
+      if (ownerDesigner.isEmphasize(this@Card)) {
         Lines.stroke(Scl.scl(5f))
         Draw.color(Pal.accentBack, parentAlpha)
-        Lines.rect(x - Scl.scl(45f), y - Scl.scl(45f), getWidth() + 2*Scl.scl(40f), getHeight() + 2*Scl.scl(40f))
+
+        val pad = if (isFold) 0f else Scl.scl(40f)
+
+        Lines.rect(x - pad - Scl.scl(5f), y - pad - Scl.scl(5f), getWidth() + 2*pad, getHeight() + 2*pad)
         Draw.color(Pal.accent, parentAlpha)
-        Lines.rect(x - Scl.scl(40f), y - Scl.scl(40f), getWidth() + 2*Scl.scl(40f), getHeight() + 2*Scl.scl(40f))
+        Lines.rect(x - pad, y - pad, getWidth() + 2*pad, getHeight() + 2*pad)
         Draw.color()
       }
       super.drawBackground(x, y)
@@ -121,11 +126,6 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
       linkerOuts.forEach { it.updateLinks() }
     }
 
-  val panePos: Vec2
-    get() = Vec2(pane.x, pane.y)
-  val paneSize: Vec2
-    get() = Vec2(pane.width, pane.height)
-
   var foldIcon: Drawable? = null
   val foldColor: Color = Color.white.cpy()
   val iconColor: Color = Color.white.cpy()
@@ -135,7 +135,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     private set
 
   fun build() {
-    add(pane).center().fill().pad(100f)
+    add(pane).center().fill()
     buildCard()
   }
 
@@ -175,7 +175,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
   }
 
   fun hitLinker(x: Float, y: Float): ItemLinker? {
-    for (linker in SchematicDesignerDialog.seq.clear().addAll(linkerIns).addAll(linkerOuts)) {
+    for (linker in seq.clear().addAll(linkerIns).addAll(linkerOuts)) {
       if (x > linker.x
         && x < linker.x + linker.width
         && y > linker.y

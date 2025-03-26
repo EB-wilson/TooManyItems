@@ -170,7 +170,7 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
     pane.table(Consts.grayUI) { t ->
       t.center()
       t.hovered {
-        if (ownerDesigner.newSet == this) ownerDesigner.newSet = null
+        ownerDesigner.removeEmphasize(this)
       }
 
       t.center().table(Consts.darkGrayUI) { top ->
@@ -483,6 +483,7 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
     recipe.productions.values().forEach { stack ->
       val linker = linkerOuts.find { it.item == stack.item }
 
+      var total = 0f
       linker?.links?.forEach { other, ent ->
         if (!other.isNormalized) {
           balanceValid = false
@@ -490,10 +491,12 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
           return
         }
 
-        balanceAmount = balanceAmount.coerceAtLeast(
-          ceil(((if (other.links.size == 1) 1f else ent.rate)*other.expectAmount)/(stack.amount * efficiency)).toInt()
-        )
+        total += ((if (other.links.size == 1) 1f else ent.rate)*other.expectAmount)
       }
+
+      balanceAmount = balanceAmount.coerceAtLeast(
+        ceil(total/(stack.amount * efficiency)).toInt()
+      )
     }
   }
 

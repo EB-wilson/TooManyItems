@@ -46,7 +46,7 @@ open class PumpParser : ConsumerParser<Pump>() {
           ownerBlock = content.getWrap()
         ).setEff(Recipe.zeroEff)
 
-        r.addProductionPersec(drop.liquidDrop.getWrap(), content.pumpAmount)
+        r.addProductionPersec(drop.liquidDrop.getWrap(), content.pumpAmount*content.size*content.size) //WTF?
         registerCons(r, *content.consumers)
         r
       }]

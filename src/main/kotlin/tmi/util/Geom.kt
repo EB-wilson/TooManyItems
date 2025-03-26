@@ -1,7 +1,7 @@
 package tmi.util
 
 import arc.math.Angles
-import arc.util.Align
+import arc.math.geom.Vec2
 
 object Geom {
   fun angleToD4Integer(x: Float, y: Float, width: Float, height: Float) = angleToD4Integer(
@@ -24,5 +24,15 @@ object Geom {
       a > 180 + c && a < 360 - c -> 3
       else -> 0
     }
+  }
+
+  fun getRectNearest(res: Vec2, x: Float, y: Float, botLeft: Vec2, topRight: Vec2): Vec2 {
+    val centX = (botLeft.x + topRight.x) / 2
+    val centY = (botLeft.y + topRight.y) / 2
+
+    res.x = if (x < centX) botLeft.x else topRight.x
+    res.y = if (y < centY) botLeft.y else topRight.y
+
+    return res
   }
 }

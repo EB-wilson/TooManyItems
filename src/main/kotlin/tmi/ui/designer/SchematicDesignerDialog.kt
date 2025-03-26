@@ -1,3 +1,5 @@
+@file:Suppress("DuplicatedCode")
+
 package tmi.ui.designer
 
 import arc.ApplicationCore
@@ -48,7 +50,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
       Reflect.get(ApplicationCore::class.java, Core.app.listeners.find { it is ApplicationCore }, "modules")
     }
 
-    val seq: Seq<ItemLinker> = Seq()
     const val FI_HEAD: Int = -0x315240ff
 
     fun useKeyboard(): Boolean {
@@ -391,11 +392,29 @@ open class SchematicDesignerDialog : BaseDialog("") {
     //stat.add(Core.bundle["dialog.calculator.statistic"])
     balance = stat.image(Consts.balance).size(32f).scaling(Scaling.fit).get()
 
+    var but: Button? = null
     stat.image().color(Color.darkGray).width(2f).growY().pad(0f).padLeft(6f)
-    stat.button({ t ->
+    but = stat.button({ t ->
       fastStatistic = t.table().minWidth(220f).maxWidth(500f).fillX().get().left()
       t.image(Icon.downOpenSmall).size(36f).scaling(Scaling.fit).padLeft(4f)
     }, Styles.clearNonei){
+      if (currPage == null) return@button
+
+      if (staticTable?.visible == true){
+        staticTable?.visible = false
+      }
+
+      showMenu(but!!, Align.bottomLeft, Align.topLeft) { pane ->
+        pane.table(Consts.darkGrayUIAlpha) { buildFastStatPane(it) }
+          .fillX()
+          .fillY()
+          .maxHeight(Core.graphics.height*0.7f/Scl.scl())
+      }
+    }.fillX().marginLeft(8f).get()
+
+    stat.image().color(Color.darkGray).width(2f).growY().pad(0f).padRight(6f)
+
+    stat.button(Icon.listSmall, Styles.clearNonei, 36f){
       if (currPage == null) return@button
 
       val tab = staticTable?: return@button
@@ -407,13 +426,102 @@ open class SchematicDesignerDialog : BaseDialog("") {
         tab.visible = true
         buildStatisticTable()
       }
-    }.fillX().marginLeft(8f)
-
-    stat.image().color(Color.darkGray).width(2f).growY().pad(0f).padRight(6f)
-
-    stat.button(Icon.listSmall, Styles.clearNonei, 36f){
-
     }.margin(4f)
+  }
+
+  private fun buildFastStatPane(table: Table) {
+    val currStat = currPage?.view?.statistic?: return
+
+    table.table { left ->
+      left.top().table(Consts.darkGrayUI) { top ->
+        top.table {
+          it.image(Icon.cancelSmall).scaling(Scaling.fit).size(26f).padLeft(4f)
+          it.add(Core.bundle["dialog.calculator.statMissing"])
+            .growX().pad(4f).color(Pal.accent)
+        }.growX().fillY().pad(6f)
+        top.row()
+        top.image().color(Pal.accent).height(4f).growX()
+      }.growX().fillY()
+      left.row()
+      left.pane(Styles.smallPane) { p ->
+        buildFastStatItems(p, currStat.resultMissing(), true)
+      }.growX().fillY().pad(4f)
+    }.growY().fillX()
+    table.image().color(Color.gray).width(2f).growY()
+    table.table { right ->
+      right.top().table(Consts.darkGrayUIAlpha) { top ->
+        top.table {
+          it.image(Icon.uploadSmall).scaling(Scaling.fit).size(26f).padLeft(4f)
+          it.add(Core.bundle["dialog.calculator.statOutputs"])
+            .growX().pad(4f).color(Pal.accent)
+        }.growX().fillY().pad(6f)
+        top.row()
+        top.image().color(Pal.accent).height(4f).growX()
+      }.growX().fillY()
+      right.row()
+      right.pane(Styles.smallPane) { p ->
+        buildFastStatItems(p, currStat.resultRedundant(), false)
+      }.growX().fillY().pad(4f)
+    }.growY().fillX()
+    table.row()
+    table.image().color(Color.gray).colspan(3).height(2f).growX()
+    table.row()
+    table.table {
+      it.add(Core.bundle["dialog.calculator.clickFocus"]).color(Color.lightGray).pad(6f)
+    }.colspan(3).growX().fillY()
+  }
+
+  private fun buildFastStatItems(
+    pane: Table,
+    list: List<RecipeItemStack<*>>,
+    isMissing: Boolean
+  ) {
+    val currPage = currPage?.view?: return
+    val currStat = currPage.statistic
+    var lastFocus: Card? = null
+
+    list.forEach {
+      val cards =
+        if (isMissing) currStat.resultMissingIndex(it.item)
+        else currStat.resultRedundantIndex(it.item)
+      var i = 0
+
+      pane.button({ item ->
+        item.left().defaults().left().fillY().padTop(4f).padBottom(4f)
+        item.image(it.item.icon).scaling(Scaling.fit).size(32f).pad(5f)
+        item.table { info ->
+          info.left().defaults().left().growX()
+          info.add(it.item.localizedName).padLeft(12f).labelAlign(Align.left).color(Pal.accent)
+          info.row()
+          info.add(it.getAmount()).padLeft(12f).labelAlign(Align.left)
+            .color(Color.crimson.takeIf { isMissing }?:Pal.heal)
+        }.pad(5f).growX()
+      }, Styles.cleart){
+        var card = cards[i]
+        i = (i + 1)%cards.size
+
+        if (card == lastFocus){
+          card = cards[i]
+          i = (i + 1)%cards.size
+        }
+
+        lastFocus = card
+        currPage.focusTo(card)
+      }.growX().fillY().padBottom(4f).get().also { tab ->
+        tab.addListener(object : InputListener(){
+          override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
+            if (fromActor == null || tab.isAscendantOf(fromActor)) return
+            cards.forEach { c -> currPage.setEmphasize(c) }
+          }
+
+          override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Element?) {
+            if (toActor == null || tab.isAscendantOf(toActor)) return
+            currPage.clearEmphasize()
+          }
+        })
+      }
+      pane.row()
+    }
   }
 
   private fun buildStatisticTable(){

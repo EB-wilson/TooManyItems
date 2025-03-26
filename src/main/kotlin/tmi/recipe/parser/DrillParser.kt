@@ -7,18 +7,17 @@ import arc.struct.Seq
 import arc.util.Strings
 import mindustry.Vars
 import mindustry.core.UI
-import mindustry.type.*
+import mindustry.type.Item
 import mindustry.world.Block
 import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.environment.OreBlock
 import mindustry.world.blocks.production.Drill
 import mindustry.world.consumers.Consume
 import mindustry.world.consumers.ConsumeLiquidBase
-import mindustry.world.meta.StatUnit
 import tmi.recipe.Recipe
-import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
 import tmi.util.Consts.markerTile
+import tmi.util.Utils
 
 open class DrillParser : ConsumerParser<Drill>() {
   protected var itemDrops: ObjectSet<Floor> = ObjectSet()
@@ -62,11 +61,10 @@ open class DrillParser : ConsumerParser<Drill>() {
                 .setBooster()
                 .setOptional()
                 .setFormat { f ->
+                  val (value, unit) = Utils.unitTimed(f)
+
                   """
-                  ${
-                    if (f*60 > 1000) UI.formatAmount((f*60).toLong())
-                    else Strings.autoFixed((f*60), 2)
-                  }/${StatUnit.seconds.localized()}
+                  ${if (value > 1000) UI.formatAmount(value.toLong()) else Strings.autoFixed(value, 2)}$unit
                   [#98ffa9]+${Mathf.round(eff*100)}%
                   """.trimIndent()
                 }

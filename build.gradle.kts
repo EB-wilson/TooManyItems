@@ -13,10 +13,7 @@ val modOutputDir = properties["modOutputDir"] as? String
 
 val sdkRoot: String? = System.getenv("ANDROID_HOME")
 
-//version of SDK you will be using
-val minSdkAPI = 34
-
-val buildDir = layout.buildDirectory.get().asFile.path
+val buildDir = layout.buildDirectory.get()
 val projectName = project.name
 
 plugins {
@@ -60,7 +57,6 @@ repositories {
     maven { url = uri("https://raw.githubusercontent.com/Zelaux/MindustryRepo/master/repository") }
     maven { url = uri("https://www.jitpack.io") }
 }
-
 
 dependencies {
     compileOnly("com.github.Anuken.Arc:arc-core:$arcVersion")
@@ -111,7 +107,7 @@ tasks {
                     setOf(File(platformRoot, "android.jar"))
                 ).joinToString(" ") { "--classpath $it" }
 
-              //dex and desugar files - this requires d8 in your PATH
+                //dex and desugar files - this requires d8 in your PATH
                 "d8 $dependencies --min-api 14 --output ${project.name}-android.jar ${project.name}-desktop.jar"
                     .execute(File("$buildDir/libs"))
             }

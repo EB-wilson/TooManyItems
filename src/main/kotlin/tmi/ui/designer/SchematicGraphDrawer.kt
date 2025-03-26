@@ -123,8 +123,7 @@ object SchematicGraphDrawer {
     padding: Float
   ): Element {
     val linker = view.foldLinkers[card]
-    val paneSize = card.paneSize.scl(cardScl)
-    val dh = paneSize.y + padding + linker.height
+    val dh = card.width + padding + linker.height
 
     return object: Element(){
       override fun draw() {
@@ -133,7 +132,7 @@ object SchematicGraphDrawer {
         val dx: Float
         val dy: Float
         when(side) {
-          Side.LEFT -> { dx = x + width - paneSize.x; dy = y }
+          Side.LEFT -> { dx = x + width - card.width; dy = y }
           Side.RIGHT -> { dx = x; dy = y + height - dh }
           Side.TOP -> { dx = x; dy = y }
           Side.BOTTOM -> { dx = x; dy = y + height - dh }
@@ -148,7 +147,7 @@ object SchematicGraphDrawer {
       }
 
       override fun getPrefWidth(): Float {
-        return paneSize.x
+        return card.width
       }
 
       override fun getPrefHeight(): Float {
@@ -166,7 +165,6 @@ object SchematicGraphDrawer {
     padding: Float,
   ) {
     val pane = card.pane
-    val paneSize = card.paneSize.scl(cardScl)
 
     val origX = pane.x
     val origY = pane.y
@@ -179,8 +177,8 @@ object SchematicGraphDrawer {
     foldLinker.parent = null
     pane.x = 0f
     pane.y = 0f
-    foldLinker.x = x + paneSize.x/2 - foldLinker.width/2
-    foldLinker.y = y + paneSize.y + padding
+    foldLinker.x = x + card.width*cardScl/2 - foldLinker.width/2
+    foldLinker.y = y + card.height*cardScl + padding
 
     card.singleRend()
     pane.invalidate()

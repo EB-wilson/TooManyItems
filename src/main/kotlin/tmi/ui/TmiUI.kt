@@ -19,13 +19,11 @@ import arc.util.Align
 import arc.util.Log
 import arc.util.Tmp
 import mindustry.Vars
-import mindustry.content.Items
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.invoke
-import tmi.recipe.RecipeParser.Companion.getWrap
 import tmi.recipe.types.RecipeItem
 import tmi.ui.designer.*
 import tmi.util.CombinedKeys
@@ -520,7 +518,7 @@ object TmiUI {
           v.container.stageToLocalCoordinates(vec)
           l.forEach { it.moveBy(vec.x, vec.y) }
           v.pushHandle(AddCardsHandle(v, l))
-          v.newSet = null
+          v.clearEmphasize()
         },
         group = "edit",
         valid = { _, _, _, _ -> !clipboardEmpty() }

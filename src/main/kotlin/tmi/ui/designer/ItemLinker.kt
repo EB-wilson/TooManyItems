@@ -246,37 +246,26 @@ class ItemLinker @JvmOverloads internal constructor(
   }
 
   fun adsorption(posX: Float, posY: Float, targetCard: Card): Boolean {
-    val panePos = targetCard.panePos
-    val paneSize = targetCard.paneSize
+    val cardWidth = targetCard.width
+    val cardHeight = targetCard.height
 
-    if (((posX < panePos.x || posX > panePos.x + paneSize.x)
-      && (posY < panePos.y || posY > panePos.y + paneSize.y))
+    if (((posX < 0f || posX > cardWidth)
+      && (posY < 0f || posY > cardHeight))
     ) return false
 
     dir = Geom.angleToD4Integer(
-      posX - panePos.x - paneSize.x/2,
-      posY - panePos.y - paneSize.y/2,
+      posX - cardWidth/2,
+      posY - cardHeight/2,
       targetCard.width,
       targetCard.height
     )
 
+    val off = getHeight()/1.5f
     when(dir){
-      0 -> {
-        val offX = paneSize.x/2 + getWidth()/1.5f
-        setPosition(panePos.x + paneSize.x/2 + offX, posY, Align.center)
-      }
-      1 -> {
-        val offY = paneSize.y/2 + getHeight()/1.5f
-        setPosition(posX, panePos.y + paneSize.y/2 + offY, Align.center)
-      }
-      2 -> {
-        val offX = -paneSize.x/2 - getWidth()/1.5f
-        setPosition(panePos.x + paneSize.x/2 + offX, posY, Align.center)
-      }
-      3 -> {
-        val offY = -paneSize.y/2 - getHeight()/1.5f
-        setPosition(posX, panePos.y + paneSize.y/2 + offY, Align.center)
-      }
+      0 -> setPosition(cardWidth + off, posY, Align.center)
+      1 -> setPosition(posX, cardHeight + off, Align.center)
+      2 -> setPosition(-off, posY, Align.center)
+      3 -> setPosition(posX, -off, Align.center)
     }
 
     return true
@@ -543,7 +532,9 @@ class ItemLinker @JvmOverloads internal constructor(
             override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Element?)
               { if (toActor != elem) ownerDesigner.showLines = null }
           })
-          elem.clicked(KeyCode.mouseLeft) { ownerDesigner.showFoldPane(link.parentCard) }
+          elem.clicked(KeyCode.mouseLeft) {
+            ownerDesigner.focusTo(link.parentCard)
+          }
 
           linkFoldCtrl.put(link, elem)
         }

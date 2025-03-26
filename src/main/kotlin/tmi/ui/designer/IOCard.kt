@@ -56,7 +56,7 @@ class IOCard(
       t.center()
 
       t.hovered {
-        if (ownerDesigner.newSet == this) ownerDesigner.newSet = null
+        ownerDesigner.removeEmphasize(this)
       }
 
       t.center().table(Consts.darkGrayUI) { top ->

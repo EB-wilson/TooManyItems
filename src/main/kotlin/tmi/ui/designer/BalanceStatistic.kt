@@ -1,9 +1,7 @@
 package tmi.ui.designer
 
 import arc.math.Mathf
-import arc.struct.ObjectIntMap
-import arc.struct.ObjectSet
-import arc.struct.OrderedMap
+import arc.struct.*
 import tmi.TooManyItems
 import tmi.forEach
 import tmi.recipe.Recipe
@@ -26,6 +24,9 @@ class BalanceStatistic(private val ownerView: DesignerView) {
   private val redundant = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
   private val missing = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
 
+  private val missingIndex = ObjectMap<RecipeItem<*>, OrderedSet<Card>>()
+  private val redundantIndex = ObjectMap<RecipeItem<*>, OrderedSet<Card>>()
+
   private val globalOutputs = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
   private val globalInputs = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
 
@@ -38,11 +39,16 @@ class BalanceStatistic(private val ownerView: DesignerView) {
     redundant.clear()
     missing.clear()
 
+    missingIndex.clear()
+    redundantIndex.clear()
+
     inputTypes.clear()
     outputTypes.clear()
 
     globalInputs.values().forEach { it.amount = 0f }
     globalOutputs.values().forEach { it.amount = 0f }
+
+    buildMaterials.clear()
   }
 
   fun setGlobal(input: Iterable<RecipeItem<*>>, output: Iterable<RecipeItem<*>>) {
@@ -149,34 +155,47 @@ class BalanceStatistic(private val ownerView: DesignerView) {
     cardIOs.forEach { io ->
       io.eachOut { s, rs ->
         outputTypes.add(s.item)
-        val red = globalOutputs[s.item]?:redundant.get(s.item){
-          RecipeItemStack(s.item, 0f).unitTimedFormat()
+        var red = globalOutputs[s.item]
+
+        if (red == null && s.amount - rs.amount > ZERO){
+          redundantIndex.get(s.item) { OrderedSet() }.add(io.card)
         }
 
+        red = red?:redundant.get(s.item){
+          RecipeItemStack(s.item, 0f).unitTimedFormat()
+        }
         red.amount += Mathf.maxZero(s.amount - rs.amount)
       }
 
       io.eachIn { s, rs ->
         inputTypes.add(s.item)
-        val mis = globalInputs[s.item]?:missing.get(s.item) {
-          RecipeItemStack(s.item, 0f).unitTimedFormat()
+        var mis = globalInputs[s.item]
+
+        if (mis == null && s.amount - rs.amount > ZERO){
+          missingIndex.get(s.item) { OrderedSet() }.add(io.card)
         }
 
+        mis = mis?:missing.get(s.item) {
+          RecipeItemStack(s.item, 0f).unitTimedFormat()
+        }
         mis.amount += Mathf.maxZero(s.amount - rs.amount)
       }
     }
   }
 
-  fun inputTypes(): Set<RecipeItem<*>> = inputTypes.toSet()
-  fun outputTypes(): Set<RecipeItem<*>> = outputTypes.toSet()
+  fun inputTypes() = inputTypes.toSet()
+  fun outputTypes() = outputTypes.toSet()
 
-  fun resultInputs(): List<RecipeItemStack<*>> = inputs.values().filter { it.amount > ZERO }
-  fun resultOutputs(): List<RecipeItemStack<*>> = outputs.values().filter { it.amount > ZERO }
-  fun resultMissing(): List<RecipeItemStack<*>> = missing.values().filter { it.amount > ZERO }
-  fun resultRedundant(): List<RecipeItemStack<*>> = redundant.values().filter { it.amount > ZERO }
-  fun resultGlobalInputs(): List<RecipeItemStack<*>> = globalInputs.values().filter { it.amount > ZERO }
-  fun resultGlobalOutputs(): List<RecipeItemStack<*>> = globalOutputs.values().filter { it.amount > ZERO }
-  fun resultBuildMaterials(): List<RecipeItemStack<*>> = buildMaterials.values().filter { it.amount > ZERO }
+  fun resultInputs() = inputs.values().filter { it.amount > ZERO }
+  fun resultOutputs() = outputs.values().filter { it.amount > ZERO }
+  fun resultMissing() = missing.values().filter { it.amount > ZERO }
+  fun resultRedundant() = redundant.values().filter { it.amount > ZERO }
+  fun resultGlobalInputs() = globalInputs.values().filter { it.amount > ZERO }
+  fun resultGlobalOutputs() = globalOutputs.values().filter { it.amount > ZERO }
+  fun resultBuildMaterials() = buildMaterials.values().filter { it.amount > ZERO }
+
+  fun resultMissingIndex(item: RecipeItem<*>) = missingIndex[item].toList()
+  fun resultRedundantIndex(item: RecipeItem<*>) = redundantIndex[item].toList()
 
   @Suppress("UNCHECKED_CAST")
   fun allBlocks(): List<RecipeItemStack<*>> = allRecipes.map {

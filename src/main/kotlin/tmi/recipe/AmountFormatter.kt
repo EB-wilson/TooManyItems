@@ -29,7 +29,7 @@ fun interface AmountFormatter {
       val (value, unit) = Utils.unitTimed(f)
 
       (if (value > 1000) UI.formatAmount((value).toLong())
-      else Strings.autoFixed(value, 2)) + unit
+      else Strings.autoFixed(value, 1)) + unit
     }
 
     @Deprecated(
@@ -39,7 +39,7 @@ fun interface AmountFormatter {
     @JvmStatic
     fun persecFormatter() = AmountFormatter{ f ->
       (if (f*60 > 1000) UI.formatAmount((f*60).toLong())
-      else Strings.autoFixed(f*60, 2)) + "[gray]/sec"
+      else Strings.autoFixed(f*60, 1)) + "[gray]/sec"
     }
   }
 
