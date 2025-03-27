@@ -123,19 +123,20 @@ object SchematicGraphDrawer {
     padding: Float
   ): Element {
     val linker = view.foldLinkers[card]
-    val dh = card.width + padding + linker.height
+    val dh = card.height*cardScl + padding + linker.height
 
     return object: Element(){
+      val mh = card.height + padding + linker.height
       override fun draw() {
         validate()
 
         val dx: Float
         val dy: Float
         when(side) {
-          Side.LEFT -> { dx = x + width - card.width; dy = y }
-          Side.RIGHT -> { dx = x; dy = y + height - dh }
+          Side.LEFT -> { dx = x + width - card.width*cardScl; dy = y }
+          Side.RIGHT -> { dx = x; dy = y + height - mh }
           Side.TOP -> { dx = x; dy = y }
-          Side.BOTTOM -> { dx = x; dy = y + height - dh }
+          Side.BOTTOM -> { dx = x; dy = y + height - mh }
         }
         drawFoldCard(
           card,
@@ -147,7 +148,7 @@ object SchematicGraphDrawer {
       }
 
       override fun getPrefWidth(): Float {
-        return card.width
+        return card.width*cardScl
       }
 
       override fun getPrefHeight(): Float {
@@ -164,37 +165,37 @@ object SchematicGraphDrawer {
     y: Float,
     padding: Float,
   ) {
-    val pane = card.pane
-
-    val origX = pane.x
-    val origY = pane.y
+    val origPar = card.parent
     val origLinPar = foldLinker.parent
+    val origX = card.x
+    val origY = card.y
     val origLinX = foldLinker.x
     val origLinY = foldLinker.y
     val origTrans = Tmp.m1.set(Draw.trans())
 
-    pane.parent = null
     foldLinker.parent = null
-    pane.x = 0f
-    pane.y = 0f
+    card.x = 0f
+    card.y = 0f
     foldLinker.x = x + card.width*cardScl/2 - foldLinker.width/2
     foldLinker.y = y + card.height*cardScl + padding
 
     card.singleRend()
-    pane.invalidate()
+    card.invalidate()
     Draw.trans(Tmp.m2.setToTranslation(x, y).scale(cardScl, cardScl))
-    pane.draw()
+    card.isTransform = false
+    card.draw()
+    card.isTransform = true
     Draw.trans(origTrans)
-    pane.invalidate()
+    card.invalidate()
 
     foldLinker.invalidate()
     foldLinker.draw()
     foldLinker.invalidate()
 
-    pane.parent = card
+    card.parent = origPar
     foldLinker.parent = origLinPar
-    pane.x = origX
-    pane.y = origY
+    card.x = origX
+    card.y = origY
     foldLinker.x = origLinX
     foldLinker.y = origLinY
   }
@@ -248,7 +249,7 @@ object SchematicGraphDrawer {
     buff.resize(imageWidth, imageHeight)
     buff.begin(Pal.darkerGray)
     Draw.proj(camera)
-    view.container.draw()
+    view.drawToImage()
     Draw.flush()
     buff.end()
 
@@ -260,8 +261,6 @@ object SchematicGraphDrawer {
     view.panned = pan
     Core.scene.viewport.worldWidth = scW
     Core.scene.viewport.worldHeight = scH
-
-    view.container.draw()
 
     return buff
   }

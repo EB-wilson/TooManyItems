@@ -143,7 +143,9 @@ class ItemLinker @JvmOverloads internal constructor(
 
   fun checkLinking() {
     hover = null
-    val card = ownerDesigner.hitCard(hovering.x, hovering.y, false)
+    val card = ownerDesigner.hitCard(hovering.x, hovering.y, false) { c ->
+      c.inputTypes().contains(item)
+    }?: ownerDesigner.hitCard(hovering.x, hovering.y, false)
 
     linkFoldCtrl.values().forEach { it.linesColor.set(Pal.accent) }
     if (card != null && card != parent) {
@@ -151,7 +153,7 @@ class ItemLinker @JvmOverloads internal constructor(
 
       hoverValid = card.checkLinking(this)
 
-      var linker = card.linkerIns.find { l -> l!!.item === item }
+      var linker = card.linkerIns.find { l -> l.item === item }
 
       if (linker == null) linker = card.hitLinker(hovering.x, hovering.y)
       if (linker != null) {
@@ -340,7 +342,6 @@ class ItemLinker @JvmOverloads internal constructor(
         if (pointer != 0 || button != KeyCode.mouseLeft) return
 
         (parent as Card).rise()
-        ownerDesigner.moveLock(true)
 
         setOrigin(Align.center)
 
@@ -397,7 +398,6 @@ class ItemLinker @JvmOverloads internal constructor(
           showProportionConfigure()
         }
 
-        ownerDesigner.moveLock(false)
         resetHov()
         temp = null
         timing = false

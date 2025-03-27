@@ -524,6 +524,30 @@ object TmiUI {
         valid = { _, _, _, _ -> !clipboardEmpty() }
       ),
       ViewTab(
+        title = Core.bundle["dialog.calculator.switchToComp"],
+        icon = Icon.diagonalSmall,
+        clicked = { _, _, v, _ ->
+          hideMenu()
+          v.pushHandle(SwitchSimplifiedHandle(v, v.selects.toList(), false))
+        },
+        group = "cards",
+        filter = { _, _, v, _ ->
+          v.selects.all { it.isSimplified }
+        }
+      ),
+      ViewTab(
+        title = Core.bundle["dialog.calculator.switchToSimple"],
+        icon = Icon.diagonalSmall,
+        clicked = { _, _, v, _ ->
+          hideMenu()
+          v.pushHandle(SwitchSimplifiedHandle(v, v.selects.toList(), true))
+        },
+        group = "cards",
+        filter = { _, _, v, _ ->
+          v.selects.all { !it.isSimplified }
+        }
+      ),
+      ViewTab(
         title = Core.bundle["dialog.calculator.unAlignSize"],
         icon = Icon.diagonalSmall,
         clicked = { _, _, v, _ ->

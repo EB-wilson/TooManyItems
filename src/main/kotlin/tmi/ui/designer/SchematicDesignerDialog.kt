@@ -82,6 +82,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
   private var staticTable: Table? = null
 
   private var rebuildStat: Runnable? = null
+  private var rebuildGlobalIO: Runnable? = null
 
   private val menuTable: Table = object : Table() {
     init {
@@ -201,6 +202,8 @@ open class SchematicDesignerDialog : BaseDialog("") {
       override fun handle(event: SceneEvent?): Boolean {
         if (event is StatisticEvent) {
           updateStatistic()
+          rebuildStat?.run()
+          rebuildGlobalIO?.run()
           return true
         }
         return false
@@ -629,7 +632,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
   private fun buildGlobalConfig(table: Table) {
     val currStat = currPage?.view?: return
     val stat = currStat.statistic
-    var rebuild: Runnable? = null
 
     fun buildStatGlobalSelection(
       pane: Table,
@@ -656,7 +658,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
               currStat.globalOutput.remove(item)
             }){
               currStat.statistic()
-              rebuild!!.run()
+              rebuildGlobalIO!!.run()
               rebuildStat!!.run()
             }
           }.margin(4f)
@@ -665,7 +667,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
       }
     }
 
-    rebuild = Runnable{
+    rebuildGlobalIO = Runnable{
       table.clearChildren()
       table.table { input ->
         input.table { p -> p.top().pane {
@@ -677,10 +679,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
           showMenu(tabIn!!, Align.topLeft, Align.bottomLeft) { selection ->
             val l = stat.inputTypes().filter { !currStat.globalInput.contains(it) }
             TmiUI.buildItems(selection.table(Consts.padDarkGrayUIAlpha).fill().get(), Seq.with(l)) { item ->
-              if (!currStat.globalInput.remove(item)) currStat.globalInput.add(item)
-              currStat.statistic()
-              rebuild!!.run()
-              rebuildStat!!.run()
+              currStat.pushHandle(SetGlobalIOHandle(currStat, item, true, currStat.globalOutput.contains(item)))
               hideMenu()
             }
           }
@@ -699,10 +698,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
           showMenu(tabOut!!, Align.topLeft, Align.bottomLeft) { selection ->
             val l = stat.outputTypes().filter { !currStat.globalOutput.contains(it) }
             TmiUI.buildItems(selection.table(Consts.padDarkGrayUIAlpha).fill().get(), Seq.with(l)) { item ->
-              if (!currStat.globalOutput.remove(item)) currStat.globalOutput.add(item)
-              currStat.statistic()
-              rebuild!!.run()
-              rebuildStat!!.run()
+              currStat.pushHandle(SetGlobalIOHandle(currStat, item, false, currStat.globalOutput.contains(item)))
               hideMenu()
             }
           }
@@ -710,7 +706,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
       }.width(Core.graphics.width*0.25f/Scl.scl()).growY()
     }
 
-    rebuild.run()
+    rebuildGlobalIO!!.run()
   }
 
   private fun buildStatBuildMaterials(table: Table) {
@@ -1258,7 +1254,7 @@ data class ToolTab(
   ) : this(desc, Func<DesignerView?, Drawable> { icon }, checked, action)
 }
 
-data class MenuTab internal constructor (
+data class MenuTab(
   val title: String,
   val tabName: String,
   val icon: Drawable,

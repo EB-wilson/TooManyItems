@@ -5,6 +5,7 @@ import arc.files.Fi
 import arc.graphics.Color
 import arc.graphics.GL30
 import arc.graphics.Gl
+import arc.graphics.Texture
 import arc.graphics.g2d.TextureRegion
 import arc.graphics.gl.FrameBuffer
 import arc.math.Mathf
@@ -30,7 +31,7 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
   private var exportFile: Fi? = null
   private var foldPaneSide: Side = Side.LEFT
 
-  private var imageScale = 1f
+  private var imageScale = 1f/Scl.scl()
   private var cardScale = 0.7f
   private var boundX = 0f
   private var boundY = 0f
@@ -41,6 +42,9 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
   init {
     titleTable.clear()
     buildInner()
+
+    cardContainerBuffer.texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
+    foldCardsBuffer.texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
   }
 
   private fun buildInner() {
@@ -93,7 +97,7 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
                     "dialog.calculator.exportPrev",
                     cardContainerBuffer.width,
                     cardContainerBuffer.height,
-                    Mathf.round(imageScale*100)
+                    Mathf.round(Scl.scl(imageScale)*100)
                   )
                 )
               }
@@ -108,7 +112,7 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
                 "dialog.calculator.exportPrev",
                 cardContainerBuffer.width,
                 cardContainerBuffer.height,
-                Mathf.round(imageScale*100)
+                Mathf.round(Scl.scl(imageScale)*100)
               )
             )
           }
@@ -127,7 +131,7 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
             s.add(Core.bundle["dialog.calculator.exportBoundX"])
             s.add("").update { l -> l.setText(boundX.toInt().toString() + "px") }
               .width(80f).padLeft(5f).color(Color.lightGray).right()
-            s.slider(0f, 300f, 1f, boundX) { f ->
+            s.slider(0f, Mathf.floor(Scl.scl(350f)).toFloat(), 1f, boundX) { f ->
               boundX = f
               contUpdated = true
               foldUpdated = true
@@ -136,7 +140,7 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
             s.add(Core.bundle["dialog.calculator.exportBoundY"])
             s.add("").update { l -> l.setText(boundY.toInt().toString() + "px") }
               .width(80f).padLeft(5f).color(Color.lightGray)
-            s.slider(0f, 300f, 1f, boundY) { f ->
+            s.slider(0f, Mathf.floor(Scl.scl(350f)).toFloat(), 1f, boundY) { f ->
               boundY = f
               contUpdated = true
               foldUpdated = true
@@ -151,7 +155,7 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
             var scale = 0.25f
             while (scale <= 2f) {
               n++
-              val fs = scale
+              val fs = scale/Scl.scl()
               scl.button(Mathf.round(scale*100).toString() + "%", Styles.flatTogglet) {
                 imageScale = fs
                 contUpdated = true
@@ -204,11 +208,11 @@ class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transpare
         file.add(Core.bundle["dialog.calculator.exportFile"])
         file.add("").color(Color.lightGray).ellipsis(true).growX()
           .update { l -> l.setText(if (exportFile == null) Core.bundle["misc.unset"] else exportFile!!.absolutePath()) }
-        file.button(Core.bundle["misc.select"], Styles.cleart) {
+        file.button({ it.add(Core.bundle["misc.select"]).pad(6f).padLeft(12f).padRight(12f) }, Styles.cleart) {
           Vars.platform.showFileChooser(false, "png") { f ->
             exportFile = f
           }
-        }.size(60f, 42f)
+        }
       }.growY().fillX()
       t.row()
       t.table { buttons ->

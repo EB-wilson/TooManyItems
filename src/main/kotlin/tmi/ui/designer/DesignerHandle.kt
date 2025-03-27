@@ -482,3 +482,46 @@ class SetFoldIconInfHandle(
     }
   }
 }
+
+class SwitchSimplifiedHandle(
+  ownerView: DesignerView,
+  private val cards: List<Card>,
+  private val toSimplified: Boolean
+): DesignerHandle(ownerView){
+  override fun handle() {
+    cards.forEach {
+      it.switchSimplified(toSimplified)
+    }
+  }
+
+  override fun quash() {
+    cards.forEach {
+      it.switchSimplified(!toSimplified)
+    }
+  }
+}
+
+class SetGlobalIOHandle(
+  ownerView: DesignerView,
+  private val item: RecipeItem<*>,
+  private val isInput: Boolean,
+  private val removing: Boolean
+): DesignerHandle(ownerView){
+  override fun handle() {
+    val set = (if (isInput) ownerView.globalInput else ownerView.globalOutput)
+
+    if (removing) set.remove(item)
+    else set.add(item)
+
+    ownerView.statistic()
+  }
+
+  override fun quash() {
+    val set = (if (isInput) ownerView.globalInput else ownerView.globalOutput)
+
+    if (removing) set.add(item)
+    else set.remove(item)
+
+    ownerView.statistic()
+  }
+}

@@ -1,12 +1,11 @@
 package tmi.ui.designer
 
 import arc.Core
-import arc.Graphics
 import arc.func.Cons
-import arc.func.Prov
 import arc.graphics.Color
 import arc.input.KeyCode
 import arc.scene.event.Touchable
+import arc.scene.style.TextureRegionDrawable
 import arc.scene.ui.CheckBox
 import arc.scene.ui.TextField
 import arc.scene.ui.layout.Table
@@ -153,164 +152,177 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
       addOut(linker)
     }
 
-    val outStep = pane.width/linkerOuts.size
+    val outStep = width/linkerOuts.size
     val baseOff = outStep/2
 
     linkerOuts.forEachIndexed { i, linker ->
       linker.pack()
-      val offY = pane.height/2 + linker.height/1.5f
+      val offY = linker.height/1.5f
       val offX = baseOff + i*outStep
 
-      linker.setPosition(pane.x + offX, pane.y + pane.height/2 + offY, Align.center)
+      linker.setPosition(offX, height + offY, Align.center)
       linker.dir = 1
     }
   }
 
-  override fun buildCard() {
-    pane.table(Consts.grayUI) { t ->
-      t.center()
-      t.hovered {
-        ownerDesigner.removeEmphasize(this)
-      }
-
-      t.center().table(Consts.darkGrayUI) { top ->
-        top.touchablility = Prov { if (ownerDesigner.editLock) Touchable.disabled else Touchable.enabled }
-        top.add().size(24f).pad(4f)
-
-        top.hovered { Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand) }
-        top.exited { Core.graphics.restoreCursor() }
-        top.addCaptureListener(moveListener(top))
-        top.addEventBlocker()
-      }.fillY().growX().get()
-      t.row()
-      t.table { inner ->
-        ownerDesigner.setMoveLocker(inner)
-        inner.table { inf ->
-          inf.left().add("").growX()
-            .update { l -> l.setText(
-              Core.bundle.format("dialog.calculator.recipeMulti", if (balanceValid) mul else "--" )
-            ) }
-            .left().pad(6f).padLeft(12f).align(Align.left)
-          inf.add(Core.bundle.format("dialog.calculator.config")).padLeft(30f)
-          inf.button(Icon.pencil, Styles.clearNonei, 32f) { over!!.visible = true }.margin(4f)
-          inf.row()
-          inf.left().add("").colspan(3).growX().update { l ->
-            l.setText(
-              Core.bundle.format(
-                "dialog.calculator.recipeEff",
-                (if (efficiency == 1f) "" else if (efficiency > 1) "[#98ffa9]" else "[red]") + Strings.autoFixed(
-                  efficiency*100,
-                  1
-                )
+  override fun buildCard(inner: Table) {
+    inner.table { tab ->
+      tab.table { inf ->
+        inf.image(Icon.boxSmall).size(32f).pad(6f).padRight(0f)
+        inf.left().add("").growX()
+          .update { l -> l.setText(
+            Core.bundle.format("dialog.calculator.recipeMulti", if (balanceValid) mul else "--" )
+          ) }
+          .left().pad(6f).padLeft(12f).align(Align.left)
+        inf.button(Icon.settings, Styles.clearNonei, 32f) { over.visible = true }.margin(4f).get().also {
+          it.visible { ownerDesigner.imageGenerating }
+          it.addEventBlocker()
+        }
+        inf.row()
+        inf.left().add("").colspan(3).growX().update { l ->
+          l.setText(
+            Core.bundle.format(
+              "dialog.calculator.recipeEff",
+              (if (efficiency == 1f) "" else if (efficiency > 1) "[#98ffa9]" else "[red]") + Strings.autoFixed(
+                efficiency*100,
+                1
               )
             )
-          }.left().pad(6f).padLeft(12f).align(Align.left)
-        }.growX()
+          )
+        }.left().pad(6f).padLeft(12f).align(Align.left)
+      }.growX()
 
-        inner.row()
-        inner.table { i -> i.add(recipeView).fill() }
-          .center().grow().pad(36f).padTop(12f)
-        inner.fill { over ->
-          this.over = over
-          over.visible = false
-          over.table(Consts.darkGrayUIAlpha) { table ->
-            rebuildConfig = {
-              calculateEfficiency()
-              table.clearChildren()
+      tab.row()
+      tab.table { i -> i.add(recipeView).fill() }
+        .center().grow().pad(36f).padTop(12f)
+      tab.fill { over ->
+        this.over = over
+        over.visible = false
+        over.touchable = Touchable.enabled
+        over.table(Consts.darkGrayUIAlpha) { table ->
+          table.visible { !ownerDesigner.imageGenerating }
 
-              table.top()
-              table.table(Consts.grayUI) { b ->
-                b.table(Consts.darkGrayUIAlpha) { pane ->
-                  pane.add(Core.bundle["dialog.calculator.config"]).growX().padLeft(10f)
-                  pane.button(Icon.cancel, Styles.clearNonei, 32f) { over.visible = false }.margin(4f)
-                }.growX()
+          rebuildConfig = {
+            calculateEfficiency()
+            table.clearChildren()
+
+            table.top()
+            table.table(Consts.grayUI) { b ->
+              b.table(Consts.darkGrayUIAlpha) { pane ->
+                pane.add(Core.bundle["dialog.calculator.config"]).growX().padLeft(10f)
+                pane.button(Icon.cancel, Styles.clearNonei, 32f) { over.visible = false }.margin(4f)
               }.growX()
-              table.row()
-              table.table { r ->
-                r.left().defaults().left().padBottom(4f)
+            }.growX()
+            table.row()
+            table.table { r ->
+              r.left().defaults().left().padBottom(4f)
 
-                r.add(Core.bundle["calculator.config.efficiencyScl"])
-                r.table { inp ->
-                  inp.field(Strings.autoFixed(effScale*100, 1), TextField.TextFieldFilter.floatsOnly) { i ->
+              r.table { li ->
+                li.add(Core.bundle["calculator.config.efficiencyScl"])
+                li.table { inp ->
+                  inp.right().field(Strings.autoFixed(effScale*100, 1), TextField.TextFieldFilter.floatsOnly) { i ->
                     try {
                       val setArgsHandle = checkHandle()
-                      setArgsHandle.effScale = 0f.takeIf { i.isEmpty() }?: (i.toFloat()/100)
+                      setArgsHandle.effScale = 0f.takeIf { i.isEmpty() } ?: (i.toFloat()/100)
                       setArgsHandle.handle()
-                    } catch (ignored: Throwable) { }
-                  }.growX().get().setAlignment(Align.right)
+                    } catch (ignored: Throwable) {
+                    }
+                  }.growX().right().maxWidth(160f).get().setAlignment(Align.right)
                   inp.add("%").color(Color.gray)
-                }.growX().padLeft(20f)
-                r.row()
+                }.growX().padLeft(50f)
+              }.growX().fillY()
+              r.row()
 
-                r.add(Core.bundle["calculator.config.optionalMats"])
-                r.table { inner ->
+              r.table { li ->
+                li.add(Core.bundle["calculator.config.optionalMats"])
+                li.table { inner ->
                   inner.right().button(Icon.settingsSmall, Styles.clearNonei, 24f) {
                     buildOptSetter(inner)
                   }.right().fill().margin(4f).get().addEventBlocker()
                 }.growX()
-                r.row()
-                r.pane { mats ->
-                  rebuildOptionals = {
-                    mats.clearChildren()
-                    mats.left().top().defaults().left()
-                    if (optionalSelected.isEmpty) {
-                      mats.add(Core.bundle["misc.empty"], Styles.outlineLabel).pad(6f).color(Color.gray)
-                    }
-                    else {
-                      for (item in optionalSelected) {
-                        mats.table { i ->
-                          i.left().defaults().left()
-                          i.image(item!!.icon).size(32f).scaling(Scaling.fit)
-                          i.add(item.localizedName).padLeft(4f)
-                        }.growX().margin(6f)
-                        mats.add("").growX().padLeft(4f).update { l ->
-                          val stack = recipe.materials[item]!!
-                          val am = stack.amount*mul*(effScale.takeIf { stack.isBooster }?:multiplier)*60
-                          l.setText((UI.formatAmount(am.toLong()).takeIf { am > 1000 }?: Strings.autoFixed(am, 1)) + "/s")
-                        }.labelAlign(Align.right)
-                        mats.row()
-                      }
+              }.growX().fillY()
+
+              r.row()
+              r.pane { mats ->
+                rebuildOptionals = {
+                  mats.clearChildren()
+                  mats.left().top().defaults().left()
+                  if (optionalSelected.isEmpty) {
+                    mats.add(Core.bundle["misc.empty"], Styles.outlineLabel).pad(6f).color(Color.gray)
+                  }
+                  else {
+                    for (item in optionalSelected) {
+                      mats.table { i ->
+                        i.left().defaults().left()
+                        i.image(item!!.icon).size(32f).scaling(Scaling.fit)
+                        i.add(item.localizedName).padLeft(4f)
+                      }.growX().margin(6f)
+                      mats.add("").growX().padLeft(4f).update { l ->
+                        val stack = recipe.materials[item]!!
+                        val am = stack.amount*mul*(effScale.takeIf { stack.isBooster }?:multiplier)*60
+                        l.setText((UI.formatAmount(am.toLong()).takeIf { am > 1000 }?: Strings.autoFixed(am, 1)) + "/s")
+                      }.labelAlign(Align.right)
+                      mats.row()
                     }
                   }
-                  rebuildOptionals()
-                }.colspan(2).fillY().minHeight(40f).growX().scrollX(false).left()
+                }
+                rebuildOptionals()
+              }.fillY().minHeight(40f).growX().scrollX(false).left()
 
-                r.row()
-                r.add(Core.bundle["calculator.config.attributes"])
-                r.table { inner ->
+              r.row()
+              r.table { li ->
+                li.add(Core.bundle["calculator.config.attributes"])
+                li.table { inner ->
                   inner.right().button(Icon.settingsSmall, Styles.clearNonei, 24f) {
                     buildAttrSetter(inner)
                   }.right().fill().margin(4f).get().addEventBlocker()
-                }.growX()
-                r.row()
-                r.pane { attr ->
-                  rebuildAttrs = {
-                    attr.clearChildren()
-                    attr.left().top().defaults().left()
-                    if (!environments.hasAttrs()) {
-                      attr.add(Core.bundle["misc.empty"], Styles.outlineLabel).pad(6f).color(Color.gray)
-                    }
-                    else {
-                      environments.eachAttribute { item, f ->
-                        attr.table { i ->
-                          i.left().defaults().left()
-                          i.image(item!!.icon).size(32f).scaling(Scaling.fit)
-                          i.add(item.localizedName).padLeft(4f)
-                          i.add("x" + f!!.toInt(), Styles.outlineLabel).pad(6f).color(Color.lightGray)
-                        }.fill().margin(6f)
-                        attr.row()
-                      }
+                }.growX().fillY()
+              }.growX().fillY()
+
+              r.row()
+              r.pane { attr ->
+                rebuildAttrs = {
+                  attr.clearChildren()
+                  attr.left().top().defaults().left()
+                  if (!environments.hasAttrs()) {
+                    attr.add(Core.bundle["misc.empty"], Styles.outlineLabel).pad(6f).color(Color.gray)
+                  }
+                  else {
+                    environments.eachAttribute { item, f ->
+                      attr.table { i ->
+                        i.left().defaults().left()
+                        i.image(item!!.icon).size(32f).scaling(Scaling.fit)
+                        i.add(item.localizedName).padLeft(4f)
+                        i.add("x" + f!!.toInt(), Styles.outlineLabel).pad(6f).color(Color.lightGray)
+                      }.fill().margin(6f)
+                      attr.row()
                     }
                   }
-                  rebuildAttrs()
-                }.colspan(2).minHeight(40f).fillY().growX().scrollX(false).left()
-              }.margin(10f).fillY().growX().left()
-            }
-            rebuildConfig()
-          }.grow()
-        }
-      }.grow()
+                }
+                rebuildAttrs()
+              }.minHeight(40f).fillY().growX().scrollX(false).left()
+            }.margin(10f).fillY().growX().left()
+          }
+          rebuildConfig()
+        }.grow()
+
+        over.addEventBlocker()
+      }
     }.grow()
+  }
+
+  override fun buildSimpleCard(inner: Table) {
+    inner.table { inf ->
+      inf.image(Icon.boxSmall).size(32f).pad(6f).padRight(0f)
+      inf.left().add("").growX()
+        .update { l -> l.setText(
+          Core.bundle.format("dialog.calculator.recipeMulti", if (balanceValid) mul else "--" )
+        ) }
+        .left().pad(6f).padLeft(12f).align(Align.left)
+    }.growX()
+    inner.row()
+    inner.image(recipe.ownerBlock?.icon?.let { TextureRegionDrawable(it) }?:Icon.none)
+      .grow().minSize(120f).maxSize(360f).scaling(Scaling.fit).pad(45f)
   }
 
   private fun setDefAttribute() {

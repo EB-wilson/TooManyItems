@@ -1,8 +1,10 @@
 package tmi.ui.designer
 
 import arc.Core
+import arc.Graphics
 import arc.func.Cons
 import arc.func.Func2
+import arc.func.Prov
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
@@ -10,10 +12,7 @@ import arc.input.KeyCode
 import arc.math.Mathf
 import arc.math.geom.Vec2
 import arc.scene.Element
-import arc.scene.event.DragListener
-import arc.scene.event.ElementGestureListener
-import arc.scene.event.EventListener
-import arc.scene.event.InputEvent
+import arc.scene.event.*
 import arc.scene.style.Drawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
@@ -29,6 +28,7 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.set
 import tmi.ui.TmiUI
+import tmi.ui.addEventBlocker
 import tmi.util.Consts
 import tmi.util.vec1
 
@@ -70,44 +70,15 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     }
   }
 
-  val pane: Table = object : Table(Consts.darkGrayUIAlpha) {
-    override fun drawBackground(x: Float, y: Float) {
-      if (ownerDesigner.isEmphasize(this@Card)) {
-        Lines.stroke(Scl.scl(5f))
-        Draw.color(Pal.accentBack, parentAlpha)
-
-        val pad = if (isFold) 0f else Scl.scl(40f)
-
-        Lines.rect(x - pad - Scl.scl(5f), y - pad - Scl.scl(5f), getWidth() + 2*pad, getHeight() + 2*pad)
-        Draw.color(Pal.accent, parentAlpha)
-        Lines.rect(x - pad, y - pad, getWidth() + 2*pad, getHeight() + 2*pad)
-        Draw.color()
-      }
-      super.drawBackground(x, y)
-    }
-
-    override fun draw() {
-      if (!inStage) return
-      super.draw()
-    }
-
-    override fun getPrefWidth(): Float {
-      if (!isSizeAlign) return super.getPrefWidth()
-
-      val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
-      return Mathf.ceil(super.getPrefWidth()/gridSize)*gridSize
-    }
-
-    override fun getPrefHeight(): Float {
-      if (!isSizeAlign) return super.getPrefHeight()
-
-      val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
-      return Mathf.ceil(super.getPrefHeight()/gridSize)*gridSize
-    }
-  }.margin(12f)
-
   val linkerOuts = ObjectSet<ItemLinker>()
   val linkerIns = ObjectSet<ItemLinker>()
+
+  protected val pane: Table = Table(Consts.grayUI)
+  protected val details = Table()
+  protected val simple = Table()
+
+  var isSimplified = false
+    private set
 
   protected var observeUpdated = false
   protected var allUpdate = false
@@ -136,8 +107,98 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   fun build() {
     margin(0f)
-    add(pane).center().fill()
-    buildCard()
+
+    touchable = Touchable.enabled
+    add(object : Table(Consts.darkGrayUIAlpha, { t ->
+      t.center()
+
+      t.hovered {
+        ownerDesigner.removeEmphasize(this)
+      }
+
+      t.center().table(Consts.darkGrayUI) { top ->
+        top.touchablility = Prov { if (ownerDesigner.editLock) Touchable.disabled else Touchable.enabled }
+        top.add().size(24f).pad(4f)
+
+        top.hovered { Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand) }
+        top.exited { Core.graphics.restoreCursor() }
+        top.addCaptureListener(moveListener(top))
+        top.addEventBlocker()
+      }.fillY().growX().get()
+
+      t.row()
+      t.add(pane).grow().center()
+    }){
+      override fun drawBackground(x: Float, y: Float) {
+        if (ownerDesigner.isEmphasize(this@Card)) {
+          Lines.stroke(Scl.scl(5f))
+          Draw.color(Pal.accentBack, parentAlpha)
+
+          val pad = if (isFold) 0f else Scl.scl(40f)
+
+          Lines.rect(x - pad - Scl.scl(5f), y - pad - Scl.scl(5f), getWidth() + 2*pad, getHeight() + 2*pad)
+          Draw.color(Pal.accent, parentAlpha)
+          Lines.rect(x - pad, y - pad, getWidth() + 2*pad, getHeight() + 2*pad)
+          Draw.color()
+        }
+        super.drawBackground(x, y)
+      }
+
+      override fun getPrefWidth(): Float {
+        if (!isSizeAlign) return super.getPrefWidth()
+
+        val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
+        return Mathf.ceil(super.getPrefWidth()/gridSize)*gridSize
+      }
+
+      override fun getPrefHeight(): Float {
+        if (!isSizeAlign) return super.getPrefHeight()
+
+        val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
+        return Mathf.ceil(super.getPrefHeight()/gridSize)*gridSize
+      }
+
+      override fun draw() {
+        if (!inStage) return
+        super.draw()
+      }
+    }).center().fill().margin(12f)
+
+    buildCard(details)
+    buildSimpleCard(simple)
+
+    pane.add(details)
+  }
+
+  fun switchSimplified(toSimplified: Boolean){
+    if (toSimplified != isSimplified){
+      isSimplified = toSimplified
+
+      if (toSimplified) {
+        pane.clearChildren()
+        pane.add(simple).grow().fill()
+      }
+      else {
+        pane.clearChildren()
+        pane.add(details).grow().fill()
+      }
+
+      pack()
+    }
+  }
+
+  override fun setSize(width: Float, height: Float) {
+    val rateX = width/this.width
+    val rateY = height/this.height
+
+    super.setSize(width, height)
+
+    seq.clear().addAll(linkerIns).addAll(linkerOuts).forEach { l ->
+      l.setPosition(l.x*rateX, l.y)
+      l.setPosition(l.x, l.y*rateY)
+
+      l.adsorption(l.getX(Align.center), l.getY(Align.center), this)
+    }
   }
 
   fun singleRend(){
@@ -149,10 +210,10 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
       ownerDesigner.selects.clear()
       ownerDesigner.selects.add(this)
 
-      val pos = localToAscendantCoordinates(ownerDesigner, vec1.set(pane.x, pane.y))
+      val pos = localToAscendantCoordinates(ownerDesigner, vec1.setZero())
       ownerDesigner.removeCard(this, false)
       ownerDesigner.addChild(this)
-      setPosition(pos.x - pane.x * scaleX, pos.y - pane.y * scaleY)
+      setPosition(pos.x, pos.y)
     }
     else {
       ownerDesigner.removeCard(this, false)
@@ -225,7 +286,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
   override fun draw() {
     if (aligning) {
       Draw.reset()
-      Consts.darkGrayUIAlpha.draw(x + alignPos.x, y + alignPos.y, pane.width, pane.height)
+      Consts.darkGrayUIAlpha.draw(x + alignPos.x, y + alignPos.y, width, height)
     }
     Draw.mixcol(
       if (removing) Color.crimson else Pal.accent, if (removing || ownerDesigner.selects.contains(
@@ -261,7 +322,8 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   abstract fun calculateBalance()
 
-  protected abstract fun buildCard()
+  protected abstract fun buildCard(inner: Table)
+  protected abstract fun buildSimpleCard(inner: Table)
 
   open fun onObserveUpdated(){
     linkerIns.forEach{l ->
@@ -292,12 +354,11 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
       override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
         if (pointer != 0 || button != KeyCode.mouseLeft || ownerDesigner.isSelecting) return
         enabled = true
-        ownerDesigner.moveLock(true)
         this@Card.removing = false
         ownerDesigner.selects.each { e -> e!!.removing = false }
         rise()
 
-        localToAscendantCoordinates(ownerDesigner, beginPos.set(pane.getX(Align.center), pane.getY(Align.center)))
+        localToAscendantCoordinates(ownerDesigner, beginPos.set(width/2f, height/2f))
       }
 
       override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
@@ -305,7 +366,6 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
         val align = ownerDesigner.cardAlign
 
         enabled = false
-        ownerDesigner.moveLock(false)
 
         tmp.set(element.x, element.y)
         element.parent.localToAscendantCoordinates(ownerDesigner, tmp)
@@ -322,7 +382,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
             else ownerDesigner.alignFoldCard(this@Card)
           }
           else {
-            val v = localToAscendantCoordinates(ownerDesigner, vec1.set(pane.getX(Align.center), pane.getY(Align.center)))
+            val v = localToAscendantCoordinates(ownerDesigner, vec1.set(width/2f, height/2f))
 
             setPosition(v.x, v.y, Align.center)
             ownerDesigner.pushHandle(FoldCardHandle(
@@ -393,7 +453,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
             e.aligning = align != -1
             if (e.aligning) {
               e.alignPos(align, e.alignPos)
-              e.parentToLocalCoordinates(e.alignPos.add(e.pane.x, e.pane.y))
+              e.parentToLocalCoordinates(e.alignPos)
             }
           }
         }
@@ -401,7 +461,7 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
           aligning = align != -1
           if (aligning) {
             alignPos(align, alignPos)
-            parentToLocalCoordinates(alignPos.add(pane.x, pane.y))
+            parentToLocalCoordinates(alignPos)
           }
         }
 
@@ -416,20 +476,17 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
   }
 
   fun adjustSize(alignGrid: Boolean) {
-    isSizeAlign = alignGrid
-    if (alignGrid) {
+    if (isSizeAlign != alignGrid) {
+      isSizeAlign = alignGrid
       invalidate()
-      validate()
-    }
-    else {
-      pane.pack()
-    }
-    pack()
 
-    gridAlign(ownerDesigner.cardAlign)
+      pack()
 
-    for (linker in linkerIns.toSeq().addAll(linkerOuts)) {
-      linker!!.adsorption(linker.x + linker.width/2, linker.y + linker.height/2, this)
+      gridAlign(ownerDesigner.cardAlign)
+
+      for (linker in linkerIns.toSeq().addAll(linkerOuts)) {
+        linker!!.adsorption(linker.x + linker.width/2, linker.y + linker.height/2, this)
+      }
     }
   }
 
@@ -442,17 +499,11 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   fun alignPos(align: Int, out: Vec2): Vec2 {
     val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
-    var ex = this@Card.x + pane.getX(align)
-    var ey = this@Card.y + pane.getY(align)
+    var ex = getX(align)
+    var ey = getY(align)
 
     ex = Mathf.round(ex/gridSize)*gridSize
     ey = Mathf.round(ey/gridSize)*gridSize
-
-    if ((align and Align.left) != 0) ex -= pane.x
-    else if ((align and Align.right) != 0) ex += getWidth() - pane.x - pane.width
-
-    if ((align and Align.bottom) != 0) ey -= pane.y
-    else if ((align and Align.top) != 0) ey += getHeight() - pane.y - pane.height
 
     if ((align and Align.right) != 0) ex -= width
     else if ((align and Align.left) == 0) ex -= width/2

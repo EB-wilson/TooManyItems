@@ -79,6 +79,9 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   val globalInput = OrderedSet<RecipeItem<*>>()
   val globalOutput = OrderedSet<RecipeItem<*>>()
 
+  var imageGenerating: Boolean = false
+    private set
+
   private val emphasizes = ObjectSet<Card>()
 
   private val shownCards = ObjectSet<Card>()
@@ -111,6 +114,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   val container: Group = object : Group() {
     override fun act(delta: Float) {
       super.act(delta)
+
+      if (parent == null) return
 
       setPosition(panX + parent.width/2f, panY + parent.height/2f, Align.center)
     }
@@ -799,23 +804,6 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     setEmphasize(ioCard)
   }
 
-  fun setMoveLocker(inner: Element) {
-    inner.addListener(object : InputListener() {
-      override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode): Boolean {
-        moveLock(true)
-        return true
-      }
-
-      override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
-        moveLock(false)
-      }
-    })
-  }
-
-  fun moveLock(lock: Boolean) {
-    this.lock = lock
-  }
-
   fun checkCardClip(card: Card): Boolean {
     if (card.isFold) return foldShown
 
@@ -942,12 +930,26 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
   }
 
-  fun eachCard(x: Float, y: Float, inner: Boolean, fold: Boolean = true, sorting: Boolean = false, cons: Cons<Card>) {
+  fun eachCard(
+    x: Float, y: Float,
+    inner: Boolean,
+    fold: Boolean = true,
+    sorting: Boolean = false,
+    filter: Boolf<Card>? = null,
+    cons: Cons<Card>
+  ) {
     Tmp.r1.set(x, y, 0f, 0f)
-    eachCard(Tmp.r1, inner, fold, sorting, cons)
+    eachCard(Tmp.r1, inner, fold, sorting, filter, cons)
   }
 
-  fun eachCard(range: Rect, inner: Boolean, fold: Boolean = true, sorting: Boolean = false, cons: Cons<Card>) {
+  fun eachCard(
+    range: Rect,
+    inner: Boolean,
+    fold: Boolean = true,
+    sorting: Boolean = false,
+    filter: Boolf<Card>? = null,
+    cons: Cons<Card>
+  ) {
     val sortList = if (sorting) Seq<Pair<Card, Vec2>>() else null
 
     val list = if (fold) Seq.withArrays(cards, foldCards) else cards
@@ -959,7 +961,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       val wy = v2.y
 
       rect1.set(ox, oy, wx - ox, wy - oy)
-      if (range.contains(rect1) || (!inner && range.overlaps(rect1))) {
+      if ((range.contains(rect1) || (!inner && range.overlaps(rect1))) && filter?.get(card) != false) {
         if (sorting) {
           val near = Geom.getRectNearest(Vec2(), x, y, v1, v2)
           sortList!!.add(card to near)
@@ -1237,6 +1239,12 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     return res
   }
 
+  fun drawToImage(){
+    imageGenerating = true
+    container.draw()
+    imageGenerating = false
+  }
+
   override fun draw() {
     super.draw()
     if (isSelecting) {
@@ -1261,7 +1269,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
       override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
         enable = selectMode || button == KeyCode.mouseLeft
         if (enable) {
-          moveLock(true)
+          lock = true
           lastSelected.clear()
           lastSelected.addAll(selects)
 
@@ -1275,7 +1283,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
       override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
         if ((selectMode || button == KeyCode.mouseLeft)) {
-          moveLock(false)
+          lock = false
 
           if (enable && !panned) {
             val selecting = hitCard(x, y, true)
@@ -1452,7 +1460,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
           first = false
 
           group.forEach { tab ->
-            m.button(tab.title, tab.icon, Styles.cleart, 14f) {
+            m.button(tab.title, tab.icon?:Consts.transparent, Styles.cleart, 14f) {
               tab.clicked.run { parentDialog.accept(x, y, this@DesignerView, selecting) }
             }.margin(8f).get().apply {
               labelCell.padLeft(6f).get().setAlignment(Align.left)
@@ -1522,7 +1530,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
 data class ViewTab(
   val title: String,
-  val icon: Drawable,
+  val icon: Drawable? = null,
   val clicked: ViewAcceptor<Unit>,
   val filter: ViewAcceptor<Boolean> = ViewAcceptor { _, _, _, _ -> true },
   val valid: ViewAcceptor<Boolean> = ViewAcceptor { _, _, _, _ -> true },

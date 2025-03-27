@@ -1,11 +1,8 @@
 package tmi.ui.designer
 
 import arc.Core
-import arc.Graphics
-import arc.func.Prov
 import arc.graphics.Color
 import arc.scene.Element
-import arc.scene.event.Touchable
 import arc.scene.ui.Button
 import arc.scene.ui.TextField
 import arc.scene.ui.layout.Table
@@ -22,7 +19,6 @@ import tmi.forEach
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI
-import tmi.ui.addEventBlocker
 import tmi.util.Consts
 import tmi.util.Utils
 
@@ -51,50 +47,36 @@ class IOCard(
     super.act(delta)
   }
 
-  override fun buildCard() {
-    pane.table(Consts.grayUI) { t ->
-      t.center()
+  override fun buildCard(inner: Table) {
+    inner.table { m ->
+      m.image(if (isInput) Icon.download else Icon.upload).scaling(Scaling.fit).size(26f).padRight(6f)
+      m.add(Core.bundle[if (isInput) "dialog.calculator.input" else "dialog.calculator.output"]).growX()
+        .labelAlign(Align.left).pad(12f)
+    }
+    inner.row()
+    inner.add(this.inner).center().grow().pad(24f).padTop(24f)
 
-      t.hovered {
-        ownerDesigner.removeEmphasize(this)
-      }
-
-      t.center().table(Consts.darkGrayUI) { top ->
-        top.touchablility = Prov { if (ownerDesigner.editLock) Touchable.disabled else Touchable.enabled }
-        top.add().size(24f).pad(4f)
-
-        top.hovered { Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand) }
-        top.exited { Core.graphics.restoreCursor() }
-        top.addCaptureListener(moveListener(top))
-        top.addEventBlocker()
-      }.fillY().growX().get()
-      t.row()
-      t.table { m ->
-        m.image(if (isInput) Icon.download else Icon.upload).scaling(Scaling.fit).size(26f).padRight(6f)
-        m.add(Core.bundle[if (isInput) "dialog.calculator.input" else "dialog.calculator.output"]).growX()
-          .labelAlign(Align.left).pad(12f)
-      }
-      t.row()
-      t.add(inner).center().grow().pad(24f).padTop(24f)
-
-      if (isInput) {
-        t.row()
-        t.button(Core.bundle["dialog.calculator.addItem"], Icon.addSmall, Styles.cleart, 24f) {
-          ownerDesigner.parentDialog.showMenu(inner, Align.bottom, Align.top) { list ->
-            list.table(Consts.darkGrayUIAlpha) { items ->
-              val l = TooManyItems.itemsManager.list
-                .removeAll { e -> !TooManyItems.recipesManager.anyMaterial(e) }
-              TmiUI.buildItems(items, l, { i, b -> b.setDisabled { this.items.containsKey(i) } }) { item ->
-                ownerDesigner.pushHandle(IOCardItemHandle(ownerDesigner, this, item, false))
-                ownerDesigner.parentDialog.hideMenu()
-              }
-            }.margin(8f)
-          }
-        }.growX().fillY().margin(8f).marginTop(10f).marginBottom(10f)
-      }
-    }.grow()
+    if (isInput) {
+      inner.row()
+      inner.button(Core.bundle["dialog.calculator.addItem"], Icon.addSmall, Styles.cleart, 24f) {
+        ownerDesigner.parentDialog.showMenu(this.inner, Align.bottom, Align.top) { list ->
+          list.table(Consts.darkGrayUIAlpha) { items ->
+            val l = TooManyItems.itemsManager.list
+              .removeAll { e -> !TooManyItems.recipesManager.anyMaterial(e) }
+            TmiUI.buildItems(items, l, { i, b -> b.setDisabled { this.items.containsKey(i) } }) { item ->
+              ownerDesigner.pushHandle(IOCardItemHandle(ownerDesigner, this, item, false))
+              ownerDesigner.parentDialog.hideMenu()
+            }
+          }.margin(8f)
+        }
+      }.growX().fillY().margin(8f).marginTop(10f).marginBottom(10f).get().visible { !ownerDesigner.imageGenerating }
+    }
 
     buildInner()
+  }
+
+  override fun buildSimpleCard(inner: Table) {
+
   }
 
   private fun buildInner() {
@@ -121,7 +103,7 @@ class IOCard(
                   )
                 }?: IOCardItemHandle(ownerDesigner, this, item.item, true)
               )
-            }.margin(4f)
+            }.margin(4f).get().visible { !ownerDesigner.imageGenerating }
           }
           t.image(item.item.icon).scaling(Scaling.fit).size(42f).pad(4f)
           t.add(item.item.localizedName).growX().left().pad(5f)
