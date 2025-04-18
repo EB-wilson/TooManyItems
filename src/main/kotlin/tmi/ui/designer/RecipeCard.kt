@@ -1,6 +1,7 @@
 package tmi.ui.designer
 
 import arc.Core
+import arc.Graphics
 import arc.func.Cons
 import arc.graphics.Color
 import arc.input.KeyCode
@@ -19,6 +20,7 @@ import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.core.UI
 import mindustry.gen.Icon
+import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.TooManyItems
@@ -39,6 +41,7 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
   var rebuildConfig = {}
   var rebuildOptionals = {}
   var rebuildAttrs = {}
+  var rebuildSimAttrs = {}
 
   val environments: EnvParameter = EnvParameter()
   val optionalSelected: OrderedSet<RecipeItem<*>> = OrderedSet()
@@ -175,7 +178,7 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
           ) }
           .left().pad(6f).padLeft(12f).align(Align.left)
         inf.button(Icon.settings, Styles.clearNonei, 32f) { over.visible = true }.margin(4f).get().also {
-          it.visible { ownerDesigner.imageGenerating }
+          it.visible { !ownerDesigner.imageGenerating }
           it.addEventBlocker()
         }
         inf.row()
@@ -322,7 +325,45 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
     }.growX()
     inner.row()
     inner.image(recipe.ownerBlock?.icon?.let { TextureRegionDrawable(it) }?:Icon.none)
-      .grow().minSize(120f).maxSize(360f).scaling(Scaling.fit).pad(45f)
+      .grow().minSize(100f).maxSize(350f).scaling(Scaling.fit).pad(40f).padBottom(25f).padTop(25f)
+      .get().also {
+        it.hovered {
+          it.color.set(Color.lightGray)
+          Core.graphics.cursor(Graphics.Cursor.SystemCursor.hand)
+        }
+        it.exited {
+          it.color.set(Color.white)
+          Core.graphics.restoreCursor()
+        }
+        it.clicked { TmiUI.recipesDialog.show(recipe.ownerBlock) }
+        it.addEventBlocker()
+      }
+    inner.row()
+    inner.add(recipe.ownerBlock?.localizedName?:"???", Styles.outlineLabel).padBottom(8f).color(Pal.accent)
+    inner.row()
+
+    inner.table { cont ->
+      rebuildSimAttrs = {
+        cont.clearChildren()
+        if (environments.hasAttrs()) {
+          cont.table(Tex.paneTop) { t ->
+            var n = 0
+            environments.eachAttribute{ i, f ->
+              if (n++.mod(3) == 0 && n != 0) t.row()
+              t.stack(
+                Table{ t ->
+                  t.left().image(i.icon).left().scaling(Scaling.fit).pad(4f).size(40f)
+                },
+                Table{ t ->
+                  t.bottom().left().add("" + f.toInt(), Styles.outlineLabel)
+                }
+              ).fill().pad(4f)
+            }
+          }.fillY().growX()
+        }
+      }
+      rebuildSimAttrs()
+    }.fillY().growX()
   }
 
   private fun setDefAttribute() {

@@ -56,7 +56,7 @@ import kotlin.math.min
 class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   companion object{
     private val tmpLinkers: Seq<ItemLinker> = Seq()
-    private const val SHD_REV = 10
+    private const val SHD_REV = 11
   }
 
   var currAlignIcon: Drawable = Icon.none
@@ -608,7 +608,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     }
 
     val checkLinking = fun() {
-      val v = elem.localToAscendantCoordinates(this@DesignerView, vec1.set(hover))
+      val v = elem.localToAscendantCoordinates(this@DesignerView, vec4.set(hover))
       val card = hitCard(v.x, v.y, inner = false, fold = false)
 
       if (hoveringCard != null && hoveringCard != card) resetPan()
@@ -807,8 +807,8 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   fun checkCardClip(card: Card): Boolean {
     if (card.isFold) return foldShown
 
-    val v1 = container.localToAscendantCoordinates(this, vec2.set(card.x, card.y))
-    val v2 = container.localToAscendantCoordinates(this, vec3.set(card.x, card.y).add(card.width, card.height))
+    val v1 = container.localToAscendantCoordinates(this, vec2.set(card.x - Scl.scl(120f), card.y - Scl.scl(120f)))
+    val v2 = container.localToAscendantCoordinates(this, vec3.set(card.x, card.y).add(card.width + Scl.scl(120f), card.height + Scl.scl(120f)))
 
     return v1.x < width && v2.x > x
         && v1.y < height && v2.y > y
@@ -1111,12 +1111,18 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
 
     clearEmphasize()
 
-    val bound = getBound()
-    val cx = bound.x + bound.width/2f
-    val cy = bound.y + bound.height/2f
+    if (cards.any()) {
+      val bound = getBound()
+      val cx = bound.x + bound.width/2f
+      val cy = bound.y + bound.height/2f
 
-    panX = -cx
-    panY = -cy
+      panX = -cx
+      panY = -cy
+    }
+    else {
+      panX = 0f
+      panY = 0f
+    }
   }
 
   fun writeCards(write: Writes) {
@@ -1507,7 +1513,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     val v1 = Vec2(Float.MAX_VALUE, Float.MAX_VALUE)
     val v2 = v1.cpy().scl(-1f)
     for (card in cards) {
-      v1.x = min(v1.x, card!!.x)
+      v1.x = min(v1.x, card.x)
       v1.y = min(v1.y, card.y)
 
       v2.x = max(v2.x, (card.x + card.width))
@@ -1524,6 +1530,18 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
     balanceObserving.remove(card)
     if (balanceObserving.isEmpty) {
       statistic()
+    }
+  }
+
+  fun newsetLinkers() {
+    cards.forEach {
+      it.linkerIns.forEach { l -> l.newSetId() }
+      it.linkerOuts.forEach { l -> l.newSetId() }
+    }
+
+    foldCards.forEach {
+      it.linkerIns.forEach { l -> l.newSetId() }
+      it.linkerOuts.forEach { l -> l.newSetId() }
     }
   }
 }

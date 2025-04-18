@@ -426,6 +426,7 @@ class SetRecipeArgsHandle(
     target.calculateEfficiency()
     target.observeUpdate()
     target.rebuildAttrs()
+    target.rebuildSimAttrs()
     target.rebuildOptionals()
   }
 
@@ -442,6 +443,7 @@ class SetRecipeArgsHandle(
     target.calculateEfficiency()
     target.observeUpdate()
     target.rebuildAttrs()
+    target.rebuildSimAttrs()
     target.rebuildOptionals()
   }
 }

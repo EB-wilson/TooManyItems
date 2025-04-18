@@ -100,7 +100,7 @@ class CombineKeyTree<Rec>{
       if (ctrlDown){
         tempMap.putAll(ctrlBindings)
         if (altDown){
-          tempMap.putAll(ctrlShiftBindings)
+          tempMap.putAll(altCtrlBindings)
           if (shiftDown) tempMap.putAll(altCtrlShiftBindings)
         }
         else if (shiftDown) tempMap.putAll(ctrlShiftBindings)

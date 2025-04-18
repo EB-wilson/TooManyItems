@@ -111,12 +111,12 @@ class EnvParameter {
     return !attributes.isEmpty
   }
 
-  fun eachInputs(cons: Cons2<RecipeItem<*>?, Float?>) {
-    inputs.each { e: ObjectFloatMap.Entry<RecipeItem<*>?> -> cons[e.key, e.value] }
+  fun eachInputs(cons: Cons2<RecipeItem<*>, Float>) {
+    inputs.each { e: ObjectFloatMap.Entry<RecipeItem<*>> -> cons[e.key, e.value] }
   }
 
-  fun eachAttribute(cons: Cons2<RecipeItem<*>?, Float?>) {
-    attributes.each { e: ObjectFloatMap.Entry<RecipeItem<*>?> -> cons[e.key, e.value] }
+  fun eachAttribute(cons: Cons2<RecipeItem<*>, Float>) {
+    attributes.each { e: ObjectFloatMap.Entry<RecipeItem<*>> -> cons[e.key, e.value] }
   }
 
   fun copy(): EnvParameter{

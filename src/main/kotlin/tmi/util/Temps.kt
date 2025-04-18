@@ -16,6 +16,7 @@ val rect3 = Rect()
 val vec1 = Vec2()
 val vec2 = Vec2()
 val vec3 = Vec2()
+val vec4 = Vec2()
 
 val drawable1 = TextureRegionDrawable()
 val drawable2 = TextureRegionDrawable()

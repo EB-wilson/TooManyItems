@@ -2,7 +2,6 @@ package tmi.recipe
 
 import arc.Core
 import arc.func.Boolf
-import arc.func.Boolp
 import arc.func.Func
 import arc.graphics.g2d.TextureRegion
 import arc.struct.ObjectIntMap
@@ -56,7 +55,7 @@ class RecipeItemManager {
     override val typeID: Int = item.contentType.ordinal
     override val name: String = item.name
     override val localizedName: String = item.localizedName
-    override val icon: TextureRegion = item.uiIcon
+    override val icon: TextureRegion = item.uiIcon?:throw IllegalStateException("Item $name no icon")
     override val hidden = false
     override val locked = !item.unlockedNow()
     override val hasDetails = true
@@ -77,7 +76,7 @@ class RecipeItemManager {
 
   companion object {
     private val ERROR = object : SingleItemMark("<error>") {
-      override val icon = Core.atlas.find("error")
+      override val icon get() = Core.atlas.find("error")
       override val hidden = true
     }
 

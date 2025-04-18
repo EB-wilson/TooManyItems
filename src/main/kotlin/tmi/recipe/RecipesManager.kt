@@ -14,7 +14,7 @@ import tmi.util.Consts
 private val errorRecipe = Recipe(
   recipeType = RecipeType.factory,
   ownerBlock = TooManyItems.itemsManager.getByName<String>("error")
-)
+).also { it.complete() }
 
 /**全局配方管理器，以单例模式运行，用于管理和查询所有已加载的配方和分组，同时[RecipeParser]也通过添加到该对象以生效 */
 open class RecipesManager {

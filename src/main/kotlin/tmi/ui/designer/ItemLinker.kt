@@ -43,8 +43,11 @@ class ItemLinker @JvmOverloads internal constructor(
   val parentCard: Card,
   val item: RecipeItem<*>,
   val isInput: Boolean,
-  val id: Long = Rand(System.nanoTime()).nextLong()
+  id: Long = Rand(System.nanoTime()).nextLong()
 ) : Table() {
+  var id = id
+    private set
+
   val ownerDesigner = parentCard.ownerDesigner
   var expectAmount = 0f
 
@@ -490,6 +493,10 @@ class ItemLinker @JvmOverloads internal constructor(
     links.keys().forEach { it.linksUpdated = true }
   }
 
+  fun newSetId() {
+    id = Rand(System.nanoTime()).nextLong()
+  }
+
   override fun act(delta: Float) {
     super.act(delta)
 
@@ -573,15 +580,22 @@ class ItemLinker @JvmOverloads internal constructor(
 
   override fun draw() {
     updateLinkPos()
-    super.draw()
 
-    Draw.reset()
-    Lines.stroke(Scl.scl(4f), lineColor)
-    Draw.alpha(parentAlpha)
-    for (link in links.keys()) {
-      if (!link.isInput || link.parentCard.isFold) continue
+    val inStage = parentCard.inStage
+    if (inStage) {
+      super.draw()
+    }
 
-      drawLinkLine(link.linkPos, link.dir)
+    if (!isInput) {
+      Draw.reset()
+      Lines.stroke(Scl.scl(4f), lineColor)
+      Draw.alpha(parentAlpha)
+
+      for (link in links.keys()) {
+        if (link.parentCard.isFold || !(link.parentCard.inStage || inStage)) continue
+
+        drawLinkLine(link.linkPos, link.dir)
+      }
     }
 
     val c = if (linking)

@@ -27,6 +27,8 @@ import tmi.invoke
 import tmi.recipe.types.RecipeItem
 import tmi.ui.designer.*
 import tmi.util.CombinedKeys
+import tmi.util.Consts
+import tmi.util.vec4
 
 object TmiUI {
   private val alignTable = intArrayOf(
@@ -182,15 +184,30 @@ object TmiUI {
         setClipboard(currPage!!.view.selects.toList())
       },
       MenuTab(
+        Core.bundle["misc.clip"], "edit", Consts.clip,
+        valid = { currPage != null && currPage!!.view.selects.any() },
+        group = "clipboard",
+        keyBind = CombinedKeys(KeyCode.controlLeft, KeyCode.x),
+      ){
+        hideMenu()
+        val l = currPage!!.view.selects.toList()
+        setClipboard(l)
+        currPage!!.view.pushHandle(RemoveCardHandle(currPage!!.view, l))
+      },
+      MenuTab(
         Core.bundle["misc.paste"], "edit", Icon.copySmall,
         valid = { currPage != null && !clipboardEmpty() },
         group = "clipboard",
         keyBind = CombinedKeys(KeyCode.controlLeft, KeyCode.v),
       ){
         hideMenu()
-        currPage!!.view.apply { pushHandle(
-          AddCardsHandle(this, getClipboard().toList())
-        ) }
+        vec4.set(clipboardCenter.add(45f, -45f))
+        val v = currPage!!.view
+        val l = getClipboard().toList()
+        v.stageToLocalCoordinates(vec4)
+        l.forEach { it.moveBy(vec4.x, vec4.y) }
+        v.pushHandle(AddCardsHandle(v, l))
+        v.clearEmphasize()
       },
       MenuTab(
         Core.bundle["misc.addCard"], "edit",
@@ -248,6 +265,28 @@ object TmiUI {
       ){
         hideMenu()
         currPage!!.view.selects.addAll(currPage!!.view.cards)
+      },
+      MenuTab(
+        Core.bundle["dialog.calculator.switchToComp"], "edit",
+        group = "handle",
+        valid = { currPage != null && !currPage!!.view.selects.any { !it.isSimplified } },
+        keyBind = CombinedKeys(KeyCode.altLeft, KeyCode.a)
+      ){
+        hideMenu()
+        currPage!!.view.apply {
+          pushHandle(SwitchSimplifiedHandle(this, selects.toList(), false))
+        }
+      },
+      MenuTab(
+        Core.bundle["dialog.calculator.switchToSimple"], "edit",
+        group = "handle",
+        valid = { currPage != null && !currPage!!.view.selects.any { it.isSimplified } },
+        keyBind = CombinedKeys(KeyCode.altLeft, KeyCode.s)
+      ){
+        hideMenu()
+        currPage!!.view.apply {
+          pushHandle(SwitchSimplifiedHandle(this, selects.toList(), true))
+        }
       },
       MenuTab(
         Core.bundle["misc.alignSize"], "edit", Icon.resizeSmall,
@@ -532,7 +571,7 @@ object TmiUI {
         },
         group = "cards",
         filter = { _, _, v, _ ->
-          v.selects.all { it.isSimplified }
+          v.selects.any() && v.selects.all { it.isSimplified }
         }
       ),
       ViewTab(
@@ -544,7 +583,7 @@ object TmiUI {
         },
         group = "cards",
         filter = { _, _, v, _ ->
-          v.selects.all { !it.isSimplified }
+          v.selects.any() && v.selects.all { !it.isSimplified }
         }
       ),
       ViewTab(

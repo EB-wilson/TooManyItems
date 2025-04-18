@@ -93,6 +93,7 @@ object Consts {
   val balance: Drawable by lazy { Core.atlas.getDrawable("tmi-balance") }
   val inbalance: Drawable by lazy { Core.atlas.getDrawable("tmi-inbalance") }
   val time: Drawable by lazy { Core.atlas.getDrawable("tmi-time") }
+  val clip: Drawable by lazy { Core.atlas.getDrawable("tmi-clip") }
 
   val side_bottom: Drawable by lazy { Core.atlas.getDrawable("tmi-side_bottom") }
   val side_top: Drawable by lazy { Core.atlas.getDrawable("tmi-side_top") }

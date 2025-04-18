@@ -68,6 +68,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
   var removeArea: Table? = null
     private set
 
+  val clipboardCenter: Vec2 = Vec2()
   private var clipboard: ByteArray = byteArrayOf() // serialize view
 
   private val pages = Seq<ViewPage>()
@@ -761,7 +762,6 @@ open class SchematicDesignerDialog : BaseDialog("") {
       var n = 0
       curr.statistic.resultMissing().forEach{ s ->
         if (n++ > 6) return@forEach
-        Regex("(!\\[\\w*]\\()/docs/public/")
         stack(
           Table{ t ->
             t.left().image(s.item.icon).left().scaling(Scaling.fit).pad(4f).size(26f)
@@ -1124,6 +1124,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
       tempView.cards.add(it) // not use 'addCard' because can not exchange parent
     }
     tempView.writeCards(writes)
+    tempView.getBound().getCenter(clipboardCenter)
     clipboard = output.toByteArray()
   }
 
@@ -1131,6 +1132,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
     val tempView = DesignerView(this)
     val reads = Reads(DataInputStream(ByteArrayInputStream(clipboard)))
     tempView.readCards(reads)
+    tempView.newsetLinkers()
     tempView.standardization()
     return tempView.cards.toList().plus(tempView.foldCards)
   }

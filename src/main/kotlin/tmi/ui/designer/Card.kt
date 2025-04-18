@@ -82,7 +82,9 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
 
   protected var observeUpdated = false
   protected var allUpdate = false
-  protected var inStage = false
+
+  var inStage = false
+    private set
 
   abstract val balanceValid: Boolean
 
@@ -167,7 +169,8 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     buildCard(details)
     buildSimpleCard(simple)
 
-    pane.add(details)
+    if (isSimplified) pane.add(simple)
+    else pane.add(details)
   }
 
   fun switchSimplified(toSimplified: Boolean){
@@ -518,12 +521,14 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
   abstract fun copy(): Card
 
   open fun write(write: Writes){
+    write.bool(isSimplified)
     write.i(foldIcon?.let { Consts.foldCardIcons.indexOf(foldIcon) }?:-1)
     write.f(foldColor.toFloatBits())
     write.f(iconColor.toFloatBits())
     write.f(backColor.toFloatBits())
   }
   open fun read(read: Reads, ver: Int){
+    if (ver >= 11) isSimplified = read.bool()
     if (ver >= 5){
       foldIcon = read.i().takeIf { it > -1 }?.let { Consts.foldCardIcons[it] }
       foldColor.abgr8888(read.f())
