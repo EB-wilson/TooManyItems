@@ -22,7 +22,7 @@ plugins {
 }
 
 group = "com.github.EB-wilson"
-version = "2.6"
+version = "2.7"
 
 run { "java SyncBundles.java $version".execute() }
 
