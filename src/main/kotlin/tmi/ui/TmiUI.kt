@@ -137,7 +137,7 @@ object TmiUI {
       MenuTab(
         Core.bundle["misc.export"], "file",
         group = "export",
-        valid = { currPage != null },
+        valid = { currPage != null && (currPage!!.view.cards.any() || currPage!!.view.foldCards.any()) },
         subTabs = arrayOf(
           MenuTab(Core.bundle["misc.exportImg"], "file", Icon.imageSmall){
             ExportDialog(this.currPage!!.view).show()
@@ -149,7 +149,7 @@ object TmiUI {
       MenuTab(
         Core.bundle["misc.settings"], "file", Icon.settingsSmall,
         group = "settings",
-        valid = { /*currPage != null*/ false },
+        valid = { false },
       ){
         hideMenu()
         //TODO

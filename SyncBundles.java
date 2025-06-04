@@ -15,6 +15,7 @@ public class SyncBundles{
     Properties info = new Properties(new File("bundleInfo.properties"));
     String sourceLocale = info.get("source");
     String bundlesDir = info.get("bundlesDir").replace("/", File.separator);
+    String modName = info.get("modName");
     Properties loc = new Properties();
     loc.read(info.getOrigin("targetLocales").replace("[", "").replace("]", "").replace(SEP + System.lineSeparator(), System.lineSeparator()));
     String[] locales = new String[loc.map.size()*2];
@@ -29,7 +30,7 @@ public class SyncBundles{
     Properties sourceBundle = new Properties();
     sourceBundle.read(source);
 
-    handleHeader(sourceBundle, sourceLocale, args);
+    handleHeader(sourceBundle, modName, sourceLocale, args);
 
     sourceBundle.write(source);
     for(int i = 0; i < locales.length; i += 2){
@@ -37,15 +38,15 @@ public class SyncBundles{
       File file = new File(bundlesDir, "bundle" + (locale.isBlank() ? "": "_" + locale) + ".properties");
       Properties bundle = new Properties(sourceBundle, mark);
       if(file.exists()) bundle.read(file);
-      handleHeader(bundle, locale, args);
+      handleHeader(bundle, modName, locale, args);
       bundle.write(file);
     }
   }
 
-  public static void handleHeader(Properties source, String locTag, String... args){
-    source.put("mod.updateDate", DateFormat.getDateInstance(DateFormat.DEFAULT, Locale.forLanguageTag(locTag.replace("_", "-"))).format(new Date()), 0);
+  public static void handleHeader(Properties source, String name, String locTag, String... args){
+    source.put(name + ".mod.updateDate", DateFormat.getDateInstance(DateFormat.DEFAULT, Locale.forLanguageTag(locTag.replace("_", "-"))).format(new Date()), 0);
 
-    source.put("mod.version", args[0], 0);
+    source.put(name + ".mod.version", args[0], 0);
   }
 
   public static class Properties{

@@ -6,8 +6,8 @@ import java.io.StringReader
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
-val mindustryVersion = "v147.1"
-val arcVersion = "v147.1"
+val mindustryVersion = "v149"
+val arcVersion = "v149"
 
 val modOutputDir = properties["modOutputDir"] as? String
 
@@ -54,6 +54,7 @@ publishing {
 repositories {
     mavenLocal()
     mavenCentral()
+    maven ("https://maven.xpdustry.com/mindustry")
     maven { url = uri("https://raw.githubusercontent.com/Zelaux/MindustryRepo/master/repository") }
     maven { url = uri("https://www.jitpack.io") }
 }

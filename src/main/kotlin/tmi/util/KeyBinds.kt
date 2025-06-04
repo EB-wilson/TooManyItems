@@ -1,34 +1,28 @@
 package tmi.util
 
-import arc.Core
-import arc.Input
-import arc.func.Cons
+import arc.input.KeyBind
 import arc.input.KeyCode
-import arc.scene.event.InputEvent
-import arc.scene.event.InputListener
-import arc.struct.Seq
 
 class KeyBinds {
-  @JvmField
-  var hotKey = KeyCode.controlLeft
+  val hotKey = KeyBind.add("tmi_hot_key", KeyCode.controlLeft, "tmi")
 
   fun load() {
-    hotKey = KeyCode.byOrdinal(Core.settings.getInt("tmi_hotkey", KeyCode.controlLeft.ordinal))
+    hotKey.load()
   }
 
   fun reset(name: String?) {
     when (name) {
-      "hot_key" -> hotKey = KeyCode.controlLeft
+      "hot_key" -> hotKey.resetToDefault()
     }
     save()
   }
 
   fun save() {
-    Core.settings.put("tmi_hotkey", hotKey.ordinal)
+    hotKey.save()
   }
 
   fun resetAll() {
-    hotKey = KeyCode.controlLeft
+    hotKey.resetToDefault()
     save()
   }
 }

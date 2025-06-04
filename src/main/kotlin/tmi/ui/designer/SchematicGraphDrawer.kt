@@ -61,6 +61,8 @@ object SchematicGraphDrawer {
     targetHeight: Float
   ): Table {
     val res = Table()
+    if (view.foldCards.isEmpty) return res
+
     res.add(Core.bundle["dialog.calculator.foldedCards"]).pad(16f).growX().fillY()
     res.row()
     res.image().color(Color.black).growX().height(4f).padBottom(8f)

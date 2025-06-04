@@ -6,11 +6,13 @@ import arc.func.Cons
 import arc.func.Prov
 import arc.graphics.Color
 import arc.input.KeyCode
-import arc.scene.Element
-import arc.scene.event.*
-import arc.scene.ui.*
+import arc.scene.event.DragListener
+import arc.scene.event.InputEvent
+import arc.scene.event.InputListener
+import arc.scene.ui.Dialog
+import arc.scene.ui.ImageButton
+import arc.scene.ui.ScrollPane
 import arc.scene.ui.layout.Scl
-import arc.scene.ui.layout.Stack
 import arc.scene.ui.layout.Table
 import arc.util.Align
 import arc.util.Time
@@ -21,39 +23,14 @@ import mindustry.ui.Styles
 import mindustry.ui.dialogs.ContentInfoDialog
 import tmi.TooManyItems
 import tmi.invoke
-import tmi.util.Consts
 import tmi.util.CombinedKeys
+import tmi.util.Consts
 
 object EntryAssigner {
-  private var tmiEntry: ImageButton? = null
+  lateinit var tmiEntry: ImageButton
+    private set
 
   fun assign() {
-    run {
-      //hot key bind
-      val pane = Vars.ui.controls.cont.children.find { e: Element? -> e is ScrollPane } as ScrollPane
-      val stack = pane.widget as Stack
-      val table = stack.children[0] as Table
-      table.removeChild(table.children[table.children.size - 1])
-      table.row()
-
-      table.add(Core.bundle["dialog.recipes.title"]).color(Color.gray).colspan(4).pad(10f).padBottom(4f).row()
-      table.image().color(Color.gray).fillX().height(3f).pad(6f).colspan(4).padTop(0f).padBottom(10f).row()
-
-      createKeybindTable(
-        table,
-        Core.bundle["keybind.tmi.name"],
-        { TooManyItems.binds.hotKey.toString() },
-        { TooManyItems.binds.hotKey = it[0] },
-        { TooManyItems.binds.reset("hot_key") },
-        false
-      )
-
-      table.button("@settings.reset") {
-        Core.keybinds.resetToDefaults()
-        TooManyItems.binds.resetAll()
-      }.colspan(4).padTop(4f).fill()
-    }
-
     run { //content information entry
       Vars.ui.database.buttons.button(Core.bundle["recipes.open"], Consts.tmi, 38f) {
         TmiUI.recipesDialog.currentSelect = null
@@ -88,7 +65,9 @@ object EntryAssigner {
           tmiEntry = this
           setSize(Scl.scl(60f))
 
-          visibility = Boolp { Core.settings.getBool("tmi_button", true) }
+          visibility = Boolp {
+            !Core.scene.hasDialog() && Core.settings.getBool("tmi_button", true)
+          }
 
           setPosition(
             Core.settings.getFloat("tmi_button_x", 0f),
@@ -114,14 +93,12 @@ object EntryAssigner {
             override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
               if (!isDragging) TmiUI.recipesDialog.show()
               else {
-                Core.settings.put("tmi_button_x", tmiEntry!!.x)
-                Core.settings.put("tmi_button_y", tmiEntry!!.y)
+                Core.settings.put("tmi_button_x", tmiEntry.x)
+                Core.settings.put("tmi_button_y", tmiEntry.y)
               }
               super.touchUp(event, x, y, pointer, button.ordinal)
             }
           })
-
-          Vars.ui.hudGroup.addChild(tmiEntry)
         }
       })
     }
