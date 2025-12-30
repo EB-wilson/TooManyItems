@@ -6,8 +6,8 @@ import java.io.StringReader
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
-val mindustryVersion = "v153"
-val arcVersion = "v153"
+val mindustryVersion = "v154"
+val arcVersion = "v154"
 
 val modOutputDir = properties["modOutputDir"] as? String
 
