@@ -7,7 +7,6 @@ import arc.math.geom.Vec2
 import arc.scene.Group
 import arc.scene.ui.layout.Scl
 import arc.struct.Seq
-import arc.util.Time
 import tmi.recipe.types.BuildingRecipe
 import tmi.recipe.types.CollectingRecipe
 import tmi.recipe.types.FactoryRecipe
@@ -15,7 +14,6 @@ import tmi.recipe.types.GeneratorRecipe
 import tmi.ui.RecipeNode
 import tmi.ui.RecipeView
 import tmi.ui.RecipeView.LineMeta
-import kotlin.reflect.KVisibility
 
 /**配方表类型，用于描述一个配方如何被显示或者计算等 */
 abstract class RecipeType {
@@ -43,7 +41,7 @@ abstract class RecipeType {
    *
    * @return 表示该布局的长宽尺寸的二元向量
    */
-  abstract fun initial(recipe: Recipe): Vec2
+  abstract fun initial(recipe: Recipe, noOptional: Boolean): Vec2
 
   /**为参数传入的[RecipeNode]设置坐标以完成布局 */
   abstract fun layout(recipeNode: RecipeNode)

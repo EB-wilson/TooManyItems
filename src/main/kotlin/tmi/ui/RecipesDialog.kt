@@ -167,7 +167,8 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
 
     //TODO: not usable yet
     if (Core.settings.getBool("tmi_enable_preview")) buttons.button(Core.bundle["dialog.recipes.designer"], Icon.book) {
-      TmiUI.schematicDesigner.show()
+      //TmiUI.schematicDesigner.show()
+      TmiUI.recipeGraph.show()
       hide()
     }
 
@@ -458,7 +459,7 @@ open class RecipesDialog : BaseDialog(Core.bundle["dialog.recipes.title"]) {
     val recipeViews = Seq<RecipeView>()
     if (recipes != null) {
       for (recipe in recipes) {
-        val view = RecipeView(recipe, { i, _, m -> setCurrSelecting(i.item, m) })
+        val view = RecipeView(recipe, false, { i, _, m -> setCurrSelecting(i.item, m) })
         recipeViews.add(view)
       }
     }

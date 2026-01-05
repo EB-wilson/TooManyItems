@@ -82,7 +82,8 @@ class ModAPI {
 
       val modMeta = if (mod.root.child("mod.json").exists()) mod.root.child("mod.json")
       else if (mod.root.child("mod.hjson").exists()) mod.root.child("mod.hjson")
-      else if (mod.root.child("plugin.json").exists()) mod.root.child("plugin.json") else mod.root.child("plugin.hjson")
+      else if (mod.root.child("plugin.json").exists()) mod.root.child("plugin.json")
+      else mod.root.child("plugin.hjson")
 
       if (!modMeta.exists()) return
 

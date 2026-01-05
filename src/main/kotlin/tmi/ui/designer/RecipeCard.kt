@@ -54,7 +54,7 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
 
   lateinit var over: Table
 
-  val recipeView: RecipeView = RecipeView(recipe, { i, t, m ->
+  val recipeView: RecipeView = RecipeView(recipe, false, { i, t, m ->
     Time.run(0f){ ownerView.parentDialog.hideMenu() }
 
     TmiUI.recipesDialog.toggle = Cons { recipe ->

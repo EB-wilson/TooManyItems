@@ -92,7 +92,7 @@ class BuildingRecipe : RecipeType() {
     }
   }
 
-  override fun initial(recipe: Recipe): Vec2 {
+  override fun initial(recipe: Recipe, noOptional: Boolean): Vec2 {
     build = recipe.ownerBlock!!.item as Block
     time = recipe.craftTime
 

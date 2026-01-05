@@ -82,7 +82,7 @@ open class FactoryRecipe : RecipeType() {
     view.addChild(optionals)
   }
 
-  override fun initial(recipe: Recipe): Vec2 {
+  override fun initial(recipe: Recipe, noOptional: Boolean): Vec2 {
     time = recipe.craftTime
 
     consPos.clear()
@@ -90,10 +90,10 @@ open class FactoryRecipe : RecipeType() {
     optPos.setZero()
     blockPos.setZero()
 
-    val mats: List<RecipeItemStack<*>> =
-      recipe.materials.values().filter { e -> !e.optionalCons }
-    val opts: List<RecipeItemStack<*>> =
-      recipe.materials.values().filter { e -> e.optionalCons }
+    val mats = recipe.materials.values().filter { e -> !e.optionalCons }
+    val opts =
+      if (noOptional) listOf()
+      else recipe.materials.values().filter { e -> e.optionalCons }
     val materialNum = mats.size
     val productionNum = recipe.productions.size
     hasOptionals = opts.isNotEmpty()
@@ -140,7 +140,7 @@ open class FactoryRecipe : RecipeType() {
     offY += NODE_SIZE
     if (productionNum > 0) {
       offY += ROW_PAD
-      val seq: List<RecipeItemStack<*>> = recipe.productions.values().toList()
+      val seq = recipe.productions.values().toList()
       handleNode(seq, prodPos, offProdX, offY, doubleOutput, true)
     }
 
@@ -184,21 +184,21 @@ open class FactoryRecipe : RecipeType() {
     var res: Float
     if (isDouble) {
       val n = Mathf.ceil(num/2f)
-      bound.x = max(bound.x.toDouble(),
-                    (NODE_SIZE*n + 2*ITEM_PAD*(n - 1) + (1 - num%2)*(NODE_SIZE/2 + ITEM_PAD/2)).also {
-                      res = it
-                    }
-                      .toDouble()
-      ).toFloat()
+      bound.x = max(
+        bound.x,
+        (NODE_SIZE*n + 2*ITEM_PAD*(n - 1) + (1 - num%2)*(NODE_SIZE/2 + ITEM_PAD/2)).also {
+          res = it
+        }
+      )
       bound.y += NODE_SIZE*2 + ITEM_PAD
     }
     else {
       bound.x = max(
-        bound.x.toDouble(),
+        bound.x,
         (NODE_SIZE*num + ITEM_PAD*(num - 1)).also {
           res = it
-        }.toDouble()
-      ).toFloat()
+        }
+      )
       bound.y += NODE_SIZE
     }
 

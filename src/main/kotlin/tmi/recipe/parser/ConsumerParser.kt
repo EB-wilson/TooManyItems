@@ -20,18 +20,18 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
 
   protected fun registerCons(recipe: Recipe, handle: Cons<RecipeItemStack<*>>, vararg cons: Consume) {
     for (consume in cons) {
-      for (entry in vanillaConsParser) {
+      for (entry in consumerParsers) {
         if (entry.key[consume]) entry.value[recipe, consume, handle]
       }
     }
   }
 
   companion object {
-    protected var vanillaConsParser: ObjectMap<Boolf<Consume>, Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>> =
+    protected var consumerParsers: ObjectMap<Boolf<Consume>, Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>> =
       ObjectMap()
 
     fun registerVanillaConsParser(type: Boolf<Consume>, handle: Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>) {
-      vanillaConsParser.put(type, handle)
+      consumerParsers.put(type, handle)
     }
 
     fun registerVanillaConsumeParser() {

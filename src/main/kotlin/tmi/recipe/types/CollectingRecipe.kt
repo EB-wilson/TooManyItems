@@ -28,7 +28,7 @@ open class CollectingRecipe : FactoryRecipe() {
     buildTime(view, label.height)
   }
 
-  override fun initial(recipe: Recipe): Vec2 {
+  override fun initial(recipe: Recipe, noOptional: Boolean): Vec2 {
     time = recipe.craftTime
 
     consPos.clear()
@@ -36,10 +36,10 @@ open class CollectingRecipe : FactoryRecipe() {
     optPos.setZero()
     blockPos.setZero()
 
-    val mats: List<RecipeItemStack<*>> =
-      recipe.materials.values().filter { e -> !e.optionalCons }
-    val opts: List<RecipeItemStack<*>> =
-      recipe.materials.values().filter { e -> e.optionalCons }
+    val mats = recipe.materials.values().filter { e -> !e.optionalCons }
+    val opts =
+      if (noOptional) listOf()
+      else recipe.materials.values().filter { e -> e.optionalCons }
     hasOptionals = opts.isNotEmpty()
     val materialNum = mats.size
     val productionNum = recipe.productions.size
@@ -84,7 +84,7 @@ open class CollectingRecipe : FactoryRecipe() {
     offY += NODE_SIZE
     if (productionNum > 0) {
       offY += ROW_PAD
-      val seq: List<RecipeItemStack<*>> = recipe.productions.values().toList()
+      val seq = recipe.productions.values().toList()
       handleNode(seq, prodPos, offProdX, offY)
     }
 

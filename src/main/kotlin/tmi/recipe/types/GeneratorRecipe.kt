@@ -38,7 +38,7 @@ class GeneratorRecipe : FactoryRecipe() {
     buildTime(view, label.height)
   }
 
-  override fun initial(recipe: Recipe): Vec2 {
+  override fun initial(recipe: Recipe, noOptional: Boolean): Vec2 {
     time = recipe.craftTime
 
     consPos.clear()
@@ -46,7 +46,9 @@ class GeneratorRecipe : FactoryRecipe() {
     blockPos.setZero()
 
     val mats = recipe.materials.values().filter { e -> !e.optionalCons }
-    val opts = recipe.materials.values().filter { e -> e.optionalCons }
+    val opts =
+      if (noOptional) listOf()
+      else recipe.materials.values().filter { e -> e.optionalCons }
     val prod = arrayListOf<RecipeItemStack<*>>()
     val powers = arrayListOf<RecipeItemStack<*>>()
     for (item in recipe.productions.values()) {
