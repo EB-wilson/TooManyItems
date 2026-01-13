@@ -51,7 +51,9 @@ object EntryAssigner {
             val t = ta.children[0] as Table
 
             t.button(Consts.tmi, Styles.clearNonei, 38f) {
-              TmiUI.recipesDialog.show(TooManyItems.itemsManager.getItem(content))
+              TmiUI.recipesDialog.showWith {
+                setCurrSelecting(TooManyItems.itemsManager.getItem(content))
+              }
               hide()
             }.padLeft(12f).margin(6f)
           }

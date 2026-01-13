@@ -235,10 +235,10 @@ object TmiUI {
             hideMenu()
 
             val view = currPage!!.view
-            recipesDialog.toggle = Cons { r ->
-              recipesDialog.hide()
-              view.addRecipe(r).gridAlign(view.cardAlign)
-            }
+            //recipesDialog.toggle = Cons { r ->
+            //  recipesDialog.hide()
+            //  view.addRecipe(r).gridAlign(view.cardAlign)
+            //}
             recipesDialog.show()
           },
           MenuTab(
@@ -442,10 +442,10 @@ object TmiUI {
   private fun setDefaultViewSideTools() {
     schematicDesigner.sideToolTabs.addAll(
       ToolTab(Core.bundle["dialog.calculator.add"], Icon.add) { v, _ ->
-        recipesDialog.toggle = Cons { r ->
-          recipesDialog.hide()
-          v?.addRecipe(r)
-        }
+        //recipesDialog.toggle = Cons { r ->
+        //  recipesDialog.hide()
+        //  v?.addRecipe(r)
+        //}
         recipesDialog.show()
       },
       ToolTab(Core.bundle["misc.undo"], Icon.undo) { v, _ -> v?.undoHistory() },
@@ -637,11 +637,11 @@ object TmiUI {
         icon = Icon.bookSmall,
         clicked = { x, y, v, _ ->
           hideMenu()
-          recipesDialog.toggle = Cons { r ->
-            recipesDialog.hide()
-            v.localToDescendantCoordinates(v.container, vec.set(x, y))
-            v.alignCard(v.addRecipe(r), vec.x, vec.y, v.cardAlign)
-          }
+          //recipesDialog.toggle = Cons { r ->
+          //  recipesDialog.hide()
+          //  v.localToDescendantCoordinates(v.container, vec.set(x, y))
+          //  v.alignCard(v.addRecipe(r), vec.x, vec.y, v.cardAlign)
+          //}
           recipesDialog.show()
         }
       ),

@@ -4,25 +4,15 @@ import arc.Core
 import arc.graphics.g2d.TextureRegion
 
 abstract class RecipeItem<T> protected constructor(@JvmField val item: T) : Comparable<RecipeItem<*>> {
-  @Suppress("DEPRECATION") open val ordinal: Int get() = ordinal()
-  @Suppress("DEPRECATION") open val typeOrdinal: Int get() = typeOrdinal()
-  @Suppress("DEPRECATION") open val typeID: Int get() = typeID()
-  @Suppress("DEPRECATION") open val name: String get() = name()
-  @Suppress("DEPRECATION") open val localizedName: String get() = localizedName()
-  @Suppress("DEPRECATION") open val icon: TextureRegion get() = icon()
-  @Suppress("DEPRECATION") open val hidden: Boolean get() = hidden()
-  @Suppress("DEPRECATION") open val hasDetails: Boolean get() = hasDetails()
-  @Suppress("DEPRECATION") open val locked: Boolean get() = locked()
-
-  @Deprecated("Use property", ReplaceWith("this.ordinal")) open fun ordinal() = -1
-  @Deprecated("Use property", ReplaceWith("this.typeOrdinal")) open fun typeOrdinal() = -1
-  @Deprecated("Use property", ReplaceWith("this.typeID")) open fun typeID() = -1
-  @Deprecated("Use property", ReplaceWith("this.name")) open fun name() = ""
-  @Deprecated("Use property", ReplaceWith("this.localizedName")) open fun localizedName() = ""
-  @Deprecated("Use property", ReplaceWith("this.icon")) open fun icon(): TextureRegion = Core.atlas.find("error")
-  @Deprecated("Use property", ReplaceWith("this.hidden")) open fun hidden() = false
-  @Deprecated("Use property", ReplaceWith("this.hasDetails")) open fun hasDetails() = false
-  @Deprecated("Use property", ReplaceWith("this.locked")) open fun locked() = false
+  abstract val ordinal: Int
+  abstract val typeOrdinal: Int
+  abstract val typeID: Int
+  abstract val name: String
+  abstract val localizedName: String
+  abstract val icon: TextureRegion
+  abstract val hidden: Boolean
+  abstract val hasDetails: Boolean
+  abstract val locked: Boolean
 
   open fun displayDetails() {}
 
@@ -34,6 +24,10 @@ abstract class RecipeItem<T> protected constructor(@JvmField val item: T) : Comp
     }
 
     return n
+  }
+
+  override fun toString(): String {
+    return "($item)"
   }
 
   override fun equals(other: Any?): Boolean {

@@ -102,11 +102,6 @@ class RecipeView @JvmOverloads constructor(
     val vertices: FloatSeq = FloatSeq()
     var color: Prov<Color> = Prov { Color.white }
 
-    fun setVertices(vararg vert: Float) {
-      vertices.clear()
-      vertices.addAll(*vert)
-    }
-
     fun addVertex(x: Float, y: Float) {
       vertices.add(x, y)
     }

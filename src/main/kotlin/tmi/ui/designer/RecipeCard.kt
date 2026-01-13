@@ -57,44 +57,44 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
   val recipeView: RecipeView = RecipeView(recipe, false, { i, t, m ->
     Time.run(0f){ ownerView.parentDialog.hideMenu() }
 
-    TmiUI.recipesDialog.toggle = Cons { recipe ->
-      TmiUI.recipesDialog.hide()
-      val card = ownerView.addRecipe(recipe)
-      if (Core.input.keyDown(TooManyItems.binds.hotKey)) {
-        if (t == NodeType.MATERIAL) {
-          val linker = card.linkerOuts.find { e -> e.item == i.item }!!
-          var other = linkerIns.find { e -> e.item == i.item }
-          if (other == null) {
-            other = ItemLinker(this, i.item, true)
-            other.pack()
-            addIn(other)
-
-            val fo = other
-            Core.app.post {
-              fo.adsorption(getWidth()/2, 10f, this)
-            }
-          }
-
-          linker.linkTo(other)
-        }
-        else if (t == NodeType.PRODUCTION) {
-          val linker = linkerOuts.find { e -> e.item == i.item }!!
-          var other = card.linkerIns.find { e -> e.item == i.item }
-
-          if (other == null) {
-            other = ItemLinker(this, i.item, true)
-            other.pack()
-            card.addIn(other)
-
-            val fo = other
-            Core.app.post {
-              fo.adsorption(card.getWidth()/2, 10f, card)
-            }
-          }
-          linker.linkTo(other)
-        }
-      }
-    }
+    //TmiUI.recipesDialog.toggle = Cons { recipe ->
+    //  TmiUI.recipesDialog.hide()
+    //  val card = ownerView.addRecipe(recipe)
+    //  if (Core.input.keyDown(TooManyItems.binds.hotKey)) {
+    //    if (t == NodeType.MATERIAL) {
+    //      val linker = card.linkerOuts.find { e -> e.item == i.item }!!
+    //      var other = linkerIns.find { e -> e.item == i.item }
+    //      if (other == null) {
+    //        other = ItemLinker(this, i.item, true)
+    //        other.pack()
+    //        addIn(other)
+//
+    //        val fo = other
+    //        Core.app.post {
+    //          fo.adsorption(getWidth()/2, 10f, this)
+    //        }
+    //      }
+//
+    //      linker.linkTo(other)
+    //    }
+    //    else if (t == NodeType.PRODUCTION) {
+    //      val linker = linkerOuts.find { e -> e.item == i.item }!!
+    //      var other = card.linkerIns.find { e -> e.item == i.item }
+//
+    //      if (other == null) {
+    //        other = ItemLinker(this, i.item, true)
+    //        other.pack()
+    //        card.addIn(other)
+//
+    //        val fo = other
+    //        Core.app.post {
+    //          fo.adsorption(card.getWidth()/2, 10f, card)
+    //        }
+    //      }
+    //      linker.linkTo(other)
+    //    }
+    //  }
+    //}
     TmiUI.recipesDialog.show()
     TmiUI.recipesDialog.setCurrSelecting(i.item, m!!)
   }){ node ->
@@ -335,7 +335,9 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
           it.color.set(Color.white)
           Core.graphics.restoreCursor()
         }
-        it.clicked { TmiUI.recipesDialog.show(recipe.ownerBlock) }
+        it.clicked { TmiUI.recipesDialog.showWith {
+          setCurrSelecting(recipe.ownerBlock)
+        } }
         it.addEventBlocker()
       }
     inner.row()

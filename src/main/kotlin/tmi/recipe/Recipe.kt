@@ -145,11 +145,6 @@ class Recipe @JvmOverloads constructor(
     return efficiencyFunc.calculateMultiple(this, parameter)
   }
 
-  @Deprecated("Block must be provided val in constructor", replaceWith = ReplaceWith("constructor parameter"), DeprecationLevel.ERROR)
-  fun setBlock(block: RecipeItem<*>?): Recipe = this
-  @Deprecated("Time must be provided val in constructor", replaceWith = ReplaceWith("constructor parameter"), DeprecationLevel.ERROR)
-  fun setTime(time: Float): Recipe = this
-
   fun setEff(func: EffFunc) = this.also { efficiencyFunc = func }
   fun setSubInfo(builder: Cons<Table>) = this.also { subInfoBuilder = builder }
   fun prependSubInfo(appendBuilder: Cons<Table>) = this.also {
@@ -167,23 +162,16 @@ class Recipe @JvmOverloads constructor(
     }
   }
 
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterialFloat(item, amount)"), DeprecationLevel.ERROR)
-  fun addMaterial(item: RecipeItem<*>, amount: Float) = addMaterialFloat(item, amount)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterialInt(item, amount)"), DeprecationLevel.ERROR)
-  fun addMaterial(item: RecipeItem<*>, amount: Int) = addMaterialInteger(item, amount)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addMaterial(item, amount)"), DeprecationLevel.ERROR)
-  fun addMaterialRaw(item: RecipeItem<*>, amount: Float) = addMaterial(item, amount as Number)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProductionFloat(item, amount)"), DeprecationLevel.ERROR)
-  fun addProduction(item: RecipeItem<*>, amount: Float) = addProductionFloat(item, amount)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProductionInteger(item, amount)"), DeprecationLevel.ERROR)
-  fun addProduction(item: RecipeItem<*>, amount: Int) = addProductionInteger(item, amount)
-  @Deprecated("Utility function naming has been standardize to addXxxxFfff", replaceWith = ReplaceWith("addProduction(item, amount)"))
-  fun addProductionRaw(item: RecipeItem<*>, amount: Float) = addProduction(item, amount as Number)
-
+  //handles
   fun addMaterial(item: RecipeItem<*>, amount: Number) =
     RecipeItemStack(item, amount.toFloat()).also { materials[item] = it }
+  fun addMaterial(stack: RecipeItemStack<*>){ materials.put(stack.item, stack) }
   fun addProduction(item: RecipeItem<*>, amount: Number) =
     RecipeItemStack(item, amount.toFloat()).also { productions[item] = it }
+  fun addProduction(stack: RecipeItemStack<*>){ productions.put(stack.item, stack) }
+
+  fun getMaterial(item: RecipeItem<*>): RecipeItemStack<*>? = materials[item]
+  fun getProduction(item: RecipeItem<*>): RecipeItemStack<*>? = materials[item]
 
   //utils
   fun addMaterialInteger(item: RecipeItem<*>, amount: Int) =
@@ -254,6 +242,10 @@ class Recipe @JvmOverloads constructor(
   override fun hashCode(): Int {
     if (!completed) throw IllegalStateException("Recipe is not completed")
     return hash
+  }
+
+  override fun toString(): String {
+    return "recipe(type: $recipeType block: $ownerBlock, time: $craftTime){materials: ${materials.orderedKeys()}, productions: ${productions.orderedKeys()}}"
   }
 
   interface EffFunc {

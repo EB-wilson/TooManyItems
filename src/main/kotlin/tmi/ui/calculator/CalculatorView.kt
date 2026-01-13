@@ -1,8 +1,6 @@
 package tmi.ui.calculator
 
 import arc.graphics.Color
-import arc.graphics.g2d.Draw
-import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
 import arc.input.KeyCode
 import arc.math.Mathf
@@ -13,6 +11,7 @@ import arc.scene.event.ElementGestureListener
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
 import arc.scene.event.Touchable
+import arc.scene.ui.Button
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
@@ -21,8 +20,12 @@ import arc.util.Align
 import mindustry.content.Blocks
 import mindustry.content.Items
 import mindustry.content.Liquids
+import mindustry.gen.Icon
 import tmi.TooManyItems.Companion.itemsManager
 import tmi.TooManyItems.Companion.recipesManager
+import tmi.recipe.types.RecipeItem
+import tmi.ui.RecipesDialog
+import tmi.ui.TmiUI
 import tmi.ui.calculator.RecipeGraphElement.*
 import kotlin.math.max
 import kotlin.math.min
@@ -31,11 +34,16 @@ class CalculatorView: Table() {
   var padding = 24f
   var layerMargin = 160f
 
-  private val graph = RecipeGraph()
-  private var layers = arrayOf<Seq<RecipeGraphNode>>()
+  var graph = RecipeGraph()
+    set(value) {
+      field = value
+      updateGraph()
+    }
+
+  private var layers: Array<Seq<RecipeGraphLayout.Node>> = arrayOf()
 
   private val tabList = Seq<RecipeGraphElement>()
-  private val nodeToTab = ObjectMap<RecipeGraphNode, RecipeGraphElement>()
+  private val nodeToTab = ObjectMap<RecipeGraphLayout.Node, RecipeGraphElement>()
   private val linkLines = Seq<LinkLine>()
   private val layerCenter = Seq<Float>()
 
@@ -43,27 +51,15 @@ class CalculatorView: Table() {
   private var panX: Float = 0f
   private var panY: Float = 0f
 
-  val container: Group = object : Group() {
-    override fun act(delta: Float) {
-      super.act(delta)
-
-      setPosition(panX + zoom.width/2f, panY + zoom.height/2f, Align.center)
-    }
-
+  private val graphView: Group = object : Group() {
     override fun childrenChanged() {
       invalidate()
     }
 
     override fun layout() {
-      // Validate children separately from sizing actors to ensure actors without a cell are validated.
       val children = getChildren()
 
       children.forEach { it.validate() }
-
-      //nodeToTab.removeAll { it.key.isLineMark }
-      layers = graph.generateLayers{
-        nodeToTab.put(it, LineMark(it))
-      }
 
       layoutRecipeTabs()
       layoutLinkLines()
@@ -78,11 +74,10 @@ class CalculatorView: Table() {
     override fun draw() {
       validate()
       drawLines()
-
       super.draw()
     }
 
-    fun drawLines(){
+    private fun drawLines(){
       Lines.stroke(Scl.scl(5f), Color.gray)
       linkLines.forEach { line ->
         val from = line.from
@@ -110,6 +105,55 @@ class CalculatorView: Table() {
       }
     }
   }
+  private val tabSelectors = object : Group() {
+    var selecting: RecipeItem<*>? = null
+      private set
+
+    init {
+      visible = false
+      touchable = Touchable.childrenOnly
+    }
+
+    fun hide(){
+      selecting = null
+      visible = false
+    }
+
+    fun show(node: RecipeGraphNode, item: RecipeItem<*>): Boolean {
+      val validNodes = tabList
+        .filterIsInstance<RecipeTab>()
+        .filter { it.node.recipe.productions.containsKey(item) }
+
+      selecting = item
+      visible = true
+
+      clearChildren()
+      validNodes.forEach { tabs ->
+        val select = Button()
+        select.clicked {
+          node.setInput(item, tabs.node.targetNode)
+          updateGraph()
+          hide()
+        }
+        select.setBounds(tabs.x, tabs.y, tabs.width, tabs.height)
+        addChild(select)
+      }
+
+      return validNodes.any()
+    }
+  }
+  val container = object : Group() {
+    override fun act(delta: Float) {
+      super.act(delta)
+
+      setPosition(panX + zoom.width/2f, panY + zoom.height/2f, Align.center)
+    }
+
+    override fun draw() {
+      validate()
+      super.draw()
+    }
+  }
 
   val zoom: Group = object : Group() {
     init {
@@ -124,30 +168,37 @@ class CalculatorView: Table() {
   }
 
   init {
-    val t1 = RecipeTab(recipesManager.getRecipesByFactory(itemsManager.getItem(Blocks.surgeSmelter)).first())
-    val t2 = RecipeTab(recipesManager.getRecipesByFactory(itemsManager.getItem(Blocks.siliconCrucible)).first())
-    val t3 = RecipeTab(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.coal)).first())
-    val t4 = RecipeTab(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.pyratite)).first())
-    val t5 = RecipeTab(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.copper)).first())
-    val t6 = RecipeTab(recipesManager.getRecipesByProduction(itemsManager.getItem(Liquids.slag)).first())
-    val t7 = RecipeTab(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.lead))[3])
+    val t1 = RecipeGraphNode(recipesManager.getRecipesByFactory(itemsManager.getItem(Blocks.surgeSmelter)).first())
+    val t2 = RecipeGraphNode(recipesManager.getRecipesByFactory(itemsManager.getItem(Blocks.siliconCrucible)).first())
+    val t3 = RecipeGraphNode(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.coal)).first())
+    val t4 = RecipeGraphNode(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.pyratite)).first())
+    val t5 = RecipeGraphNode(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.copper)).first())
+    val t6 = RecipeGraphNode(recipesManager.getRecipesByProduction(itemsManager.getItem(Liquids.slag)).first())
+    val t7 = RecipeGraphNode(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.lead))[3])
+    val t8 = RecipeGraphNode(recipesManager.getRecipesByProduction(itemsManager.getItem(Items.sand))[2])
 
-    addRecipeTab(t1)
-    addRecipeTab(t2)
-    addRecipeTab(t3)
-    addRecipeTab(t4)
-    addRecipeTab(t5)
-    addRecipeTab(t6)
-    addRecipeTab(t7)
+    graph.addNode(t1)
+    graph.addNode(t2)
+    graph.addNode(t3)
+    graph.addNode(t4)
+    graph.addNode(t5)
+    graph.addNode(t6)
+    graph.addNode(t7)
+    graph.addNode(t8)
 
-    t1.node.setInput(itemsManager.getItem(Items.silicon), t2.node)
-    t1.node.setInput(itemsManager.getItem(Items.copper), t5.node)
-    t1.node.setInput(itemsManager.getItem(Items.lead), t7.node)
-    t1.node.setInput(itemsManager.getItem(Items.titanium), t5.node)
-    t2.node.setInput(itemsManager.getItem(Items.coal), t3.node)
-    t2.node.setInput(itemsManager.getItem(Items.pyratite), t4.node)
-    t4.node.setInput(itemsManager.getItem(Items.coal), t3.node)
-    t5.node.setInput(itemsManager.getItem(Liquids.slag), t6.node)
+    t1.setInput(itemsManager.getItem(Items.silicon), t2)
+    t1.setInput(itemsManager.getItem(Items.copper), t5)
+    t1.setInput(itemsManager.getItem(Items.lead), t7)
+    t1.setInput(itemsManager.getItem(Items.titanium), t5)
+    t2.setInput(itemsManager.getItem(Items.coal), t3)
+    t2.setInput(itemsManager.getItem(Items.pyratite), t4)
+    t2.setInput(itemsManager.getItem(Items.sand), t8)
+    t4.setInput(itemsManager.getItem(Items.coal), t3)
+    t4.setInput(itemsManager.getItem(Items.lead), t7)
+    t4.setInput(itemsManager.getItem(Items.sand), t8)
+    t5.setInput(itemsManager.getItem(Liquids.slag), t6)
+
+    updateGraph()
   }
 
   fun layoutRecipeTabs(){
@@ -178,16 +229,16 @@ class CalculatorView: Table() {
 
     var currY = 0f
     layers.forEach { nodes ->
-      var maxHeight = 0f
+      val layerHeight = nodes.maxOf { nodeToTab[it]?.nodeHeight?: 0f }
 
       nodes.forEach {
         val tab = nodeToTab[it]?: return@forEach
-        tab.nodeY = currY - tab.nodeHeight
-        maxHeight = max(maxHeight, tab.nodeHeight)
+        val diff = layerHeight - tab.nodeHeight
+        tab.nodeY = currY - tab.nodeHeight - diff/2f
       }
 
-      layerCenter.add(currY - maxHeight - (layerMargin + padding)/2f)
-      currY -= maxHeight + layerMargin + padding
+      layerCenter.add(currY - layerHeight - (layerMargin + padding)/2f)
+      currY -= layerHeight + layerMargin + padding
     }
 
     val overlaps = Seq<RecipeGraphElement>()
@@ -300,7 +351,7 @@ class CalculatorView: Table() {
           val linked = nodeToTab[child] ?: return@a
           val from = tab.inputOffset(item).add(tab.nodeX, tab.nodeY)
           val to = linked.outputOffset(item).add(linked.nodeX, linked.nodeY)
-          val line = LinkLine(from, to)
+          val line = LinkLine(item, from, to)
 
           linkList.add(line)
         }
@@ -309,28 +360,48 @@ class CalculatorView: Table() {
       if (!linkList.isEmpty) {
         var sumLineCent = 0f
         val centerY = layerCenter[depth]
-        linkList.sort { (it.from.x + it.to.x)/2f }
+        linkList.sort { it.to.x + if (it.from.x > it.to.x) 1 else -1 }
 
         linkList.forEachIndexed { i, line ->
-          line.centerY = centerY
+          val lineLeft = min(line.from.x, line.to.x) - 0.1
+          var n = 0
+          var sumFrom = 0f
+          var sumTo = 0f
+          var upper = Float.NEGATIVE_INFINITY
+          var lower = Float.POSITIVE_INFINITY
 
-          val lineLeft = min(line.from.x, line.to.x)
           for (r in (i - 1) downTo 0) {
             val checkingLine = linkList[r]
             val checkingRight = max(checkingLine.from.x, checkingLine.to.x)
 
-            if (checkingRight > lineLeft) {
-              if (line.from.x > checkingLine.from.x && line.to.x > checkingLine.to.x
-              && line.to.x > line.from.x && checkingLine.to.x > checkingLine.from.x) {
-                line.centerY = checkingLine.centerY + padding
-              }
-              else /*if (line.from.x < checkingLine.from.x && line.to.x < checkingLine.to.x)*/ {
-                line.centerY = checkingLine.centerY - padding
-              }
+            if (checkingRight < lineLeft) break
 
+            if (checkingLine.item == line.item) {
+              line.centerY = checkingLine.centerY
+              n = -1
               break
             }
+
+            sumFrom += checkingLine.from.x
+            sumTo += checkingLine.to.x
+            upper = max(upper, checkingLine.centerY)
+            lower = min(lower, checkingLine.centerY)
+            n++
           }
+
+          if (n > 0) {
+            val aveFrom = sumFrom/n
+            val aveTo = sumTo/n
+
+            if ((aveTo > aveFrom && line.from.x > aveFrom && line.to.x > aveTo)
+            || (aveTo < aveFrom && line.from.x < aveFrom && line.to.x < aveTo)) {
+              line.centerY = upper + padding
+            }
+            else {
+              line.centerY = lower - padding
+            }
+          }
+          else if (n == 0) line.centerY = centerY
 
           sumLineCent += line.centerY
         }
@@ -347,6 +418,11 @@ class CalculatorView: Table() {
   fun build() {
     clear()
 
+    graphView.setBounds(0f, 0f, 0f, 0f)
+    tabSelectors.setBounds(0f, 0f, 0f, 0f)
+
+    container.addChild(graphView)
+    container.addChild(tabSelectors)
     zoom.addChild(container)
     fill { t -> t.add(zoom).grow() }
 
@@ -355,18 +431,55 @@ class CalculatorView: Table() {
     setZoomListener()
   }
 
-  fun addRecipeTab(recipeTab: RecipeTab){
-    container.addChild(recipeTab)
-    tabList.add(recipeTab)
-    nodeToTab.put(recipeTab.node, recipeTab)
-    graph.addNode(recipeTab.node)
+  fun showRecipeSelector(
+    item: RecipeItem<out Any?>,
+    graphNode: RecipeGraphNode,
+  ) {
+    val existed = if (tabSelectors.selecting != item) tabSelectors.show(graphNode, item) else false
+
+    if (!existed) {
+      tabSelectors.hide()
+
+      TmiUI.recipesDialog.showWith {
+        setCurrSelecting(item, RecipesDialog.Mode.RECIPE, true)
+        callbackRecipe(Icon.tree) { recipe ->
+          val newNode = RecipeGraphNode(recipe)
+
+          graph.addNode(newNode)
+          graphNode.disInput(item)
+          graphNode.setInput(item, newNode)
+          updateGraph()
+
+          hide()
+        }
+      }
+    }
+  }
+  
+  fun updateGraph() {
+    tabList.clear()
+    nodeToTab.clear()
+    graphView.clearChildren()
+
+    layers = RecipeGraphLayout.generateLayout(graph)
+    layers.forEach { layer -> layer.forEach {
+      val elem =
+        if (it is RecipeGraphLayout.LineMark) LineMark(it)
+        else RecipeTab(it as RecipeGraphLayout.RecNode, this)
+      addRecipeTab(elem)
+    } }
   }
 
-  fun removeRecipeTab(recipeTab: RecipeTab){
+  private fun addRecipeTab(recipeTab: RecipeGraphElement){
+    if (recipeTab is RecipeTab) graphView.addChild(recipeTab)
+    tabList.add(recipeTab)
+    nodeToTab.put(recipeTab.node, recipeTab)
+  }
+
+  private fun removeRecipeTab(recipeTab: RecipeGraphElement){
     tabList.remove(recipeTab)
     nodeToTab.remove(recipeTab.node)
-    container.removeChild(recipeTab)
-    graph.removeNode(recipeTab.node)
+    if (recipeTab is RecipeTab) graphView.removeChild(recipeTab)
   }
 
   private fun clamp() {
@@ -429,6 +542,7 @@ class CalculatorView: Table() {
   }
 
   private data class LinkLine(
+    val item: RecipeItem<*>,
     val from: Vec2,
     val to: Vec2,
   ){

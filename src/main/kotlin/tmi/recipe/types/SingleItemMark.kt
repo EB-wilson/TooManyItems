@@ -19,4 +19,6 @@ abstract class SingleItemMark(name: String) : RecipeItem<String>(name) {
   override val name = item
   override val localizedName: String = Core.bundle["tmi.$item"]
   override val hidden = false
+  override val hasDetails = false
+  override val locked = false
 }

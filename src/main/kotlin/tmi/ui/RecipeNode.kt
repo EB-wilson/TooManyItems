@@ -49,7 +49,7 @@ class RecipeNode(
 
     setSize(NODE_SIZE)
 
-    addListener(object : Tooltip(Cons { t: Table -> t.add(stack.item.localizedName, Styles.outlineLabel) }) {
+    addListener(object : Tooltip({ t -> t.add(stack.item.localizedName, Styles.outlineLabel) }) {
       init {
         allowMobile = true
       }

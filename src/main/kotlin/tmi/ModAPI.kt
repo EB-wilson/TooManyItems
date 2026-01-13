@@ -18,7 +18,7 @@ class ModAPI {
   companion object {
     private val recipeNameMap = ObjectMap<String, RecipeType>()
 
-    @Language("Nashorn JS")
+    @Language("JS")
     private const val initJS =
       """
       "use strict";
@@ -43,7 +43,7 @@ class ModAPI {
       const AmountFormatter = Packages.tmi.recipe.AmountFormatter
       """
 
-    @Language("Nashorn JS")
+    @Language("JS")
     private const val afterInit =
       """
       afterInits.forEach(f => f())
@@ -202,6 +202,8 @@ class ModAPI {
         )]
         override val icon = Core.atlas.find(recipeInfos.getString("icon", "error"))
         override val hidden = recipeInfos.getBool("hidden", false)
+        override val hasDetails = recipeInfos.getBool("hasDetails", false)
+        override val locked = recipeInfos.getBool("locked", false)
       })
     }
 
@@ -254,7 +256,6 @@ class ModAPI {
           when (amountFormat) {
             "integer" -> integerFormat(it.craftTime)
             "float" -> floatFormat(it.craftTime)
-            "persecond" -> persecFormat() // deprecated
             "unitTimed" -> unitTimedFormat()
             "rawInt" -> floatFormat()
             "rawFloat" -> floatFormat()

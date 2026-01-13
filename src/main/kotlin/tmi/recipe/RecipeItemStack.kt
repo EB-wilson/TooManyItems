@@ -48,20 +48,6 @@ class RecipeItemStack<T>(
   /**获取经过格式化的表示数量的文本信息 */
   fun getAmount() = amountFormat.format(amount)
 
-  //Deprecated
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("emptyFormat()"), level = DeprecationLevel.ERROR)
-  fun setEmptyFormat() = emptyFormat()
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("floatFormat()"), level = DeprecationLevel.ERROR)
-  @JvmOverloads
-  fun setFloatFormat(mul: Float = 1f) = floatFormat(mul)
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("integerFormat()"), level = DeprecationLevel.ERROR)
-  @JvmOverloads
-  fun setIntegerFormat(mul: Float = 1f) = integerFormat(mul)
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("persecFormat()"), level = DeprecationLevel.ERROR)
-  fun setPersecFormat() = persecFormat()
-  @Deprecated(message = "this is a unstandardized function", replaceWith = ReplaceWith("setAltFormat(format)"), level = DeprecationLevel.ERROR)
-  fun setAltPersecFormat() = setFormat(persecFormatter())
-
   //属性设置的工具方法
   fun setEff(efficiency: Float) = also { this.efficiency = efficiency }
   @JvmOverloads
@@ -83,11 +69,8 @@ class RecipeItemStack<T>(
   @JvmOverloads
   fun integerFormat(mul: Float = 1f) = also { setFormat(integerFormatter(mul)) }
   fun unitTimedFormat() = also { setFormat( unitTimedFormatter()) }
-  @Deprecated(
-    message = "standardized function name to unitTimedFormat",
-    replaceWith = ReplaceWith("unitTimedFormat()")
-  )
-  fun persecFormat() = also { setFormat(persecFormatter()) }
+
+  override fun toString() = "(item: $item amount: ${amountFormat.format(amount)})"
 
   fun copy() = RecipeItemStack(item, amount).also{
     it.amountFormat = amountFormat
