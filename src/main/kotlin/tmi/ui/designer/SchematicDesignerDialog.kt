@@ -44,6 +44,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import kotlin.math.max
 
+@Deprecated("Use recipe calculator")
 open class SchematicDesignerDialog : BaseDialog("") {
   companion object {
     val modules: Array<ApplicationListener> by lazy {
@@ -1242,6 +1243,7 @@ open class SchematicDesignerDialog : BaseDialog("") {
   }
 }
 
+@Deprecated("Use recipe calculator")
 data class ToolTab(
   val desc: String,
   val icon: Func<DesignerView?, Drawable>,
@@ -1256,6 +1258,7 @@ data class ToolTab(
   ) : this(desc, Func<DesignerView?, Drawable> { icon }, checked, action)
 }
 
+@Deprecated("Use recipe calculator")
 data class MenuTab(
   val title: String,
   val tabName: String,
@@ -1287,6 +1290,7 @@ data class MenuTab(
   ): this(title, tabName, icon, group, keyBind, valid, subTabs.toList(), null)
 }
 
+@Deprecated("Use recipe calculator")
 fun interface DesignerReceiver<R>{
   fun SchematicDesignerDialog.accept(): R
 

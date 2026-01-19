@@ -7,9 +7,12 @@ import tmi.recipe.RecipeType
 
 abstract class SingleItemMark(name: String) : RecipeItem<String>(name) {
   init {
-    Time.run(0f){
+    register()
+  }
+
+  open fun register(){
+    Time.runTask(0f) {
       TooManyItems.itemsManager.addItemWrap(name, this)
-      RecipeType.generator.addPower(this)
     }
   }
 

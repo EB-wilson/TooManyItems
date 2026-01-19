@@ -12,6 +12,7 @@ import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import tmi.util.drawable1
 
+@Deprecated("Use recipe calculator")
 open class FoldLink(
   val card: Card,
   val linker: ItemLinker?,

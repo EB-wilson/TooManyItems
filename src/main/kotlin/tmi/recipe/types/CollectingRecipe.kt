@@ -1,128 +1,156 @@
 package tmi.recipe.types
 
 import arc.Core
-import arc.math.geom.Vec2
-import arc.scene.Group
-import arc.scene.ui.Label
+import arc.graphics.Color
+import arc.graphics.g2d.Draw
+import arc.graphics.g2d.Fill
+import arc.graphics.g2d.Lines
+import arc.graphics.g2d.ScissorStack
+import arc.math.geom.Rect
+import arc.scene.style.BaseDrawable
 import arc.scene.ui.layout.Scl
-import arc.struct.ObjectMap
-import arc.util.Align
-import mindustry.ui.Styles
+import arc.scene.ui.layout.Table
+import arc.util.Time
+import arc.util.Tmp
+import mindustry.graphics.Pal
 import tmi.recipe.Recipe
-import tmi.recipe.RecipeItemStack
-import tmi.set
-import tmi.ui.NODE_SIZE
+import tmi.recipe.RecipeType
+import tmi.ui.CellType
+import tmi.ui.RecipeView
+import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 
-open class CollectingRecipe : FactoryRecipe() {
-  override val id = 2
+open class CollectingRecipe : RecipeType() {
+  override fun RecipeView.BuilderScope.buildRecipeView(
+    view: Table,
+    recipe: Recipe,
+  ) {
+    val mats = min(4, ceil(sqrt(normalCons.size.toFloat())).toInt())
+    val prods = min(4, ceil(sqrt(productions.size.toFloat())).toInt())
 
-  override fun buildView(view: Group) {
-    val label = Label(Core.bundle["misc.collecting"], Styles.outlineLabel)
-    label.layout()
+    val m = max(mats, prods)*92f
+    val p = if (powerCons.any()) 100f else 0f
 
-    label.setPosition(blockPos.x + NODE_SIZE/2 + ITEM_PAD + label.prefWidth/2, blockPos.y, Align.center)
-    view.addChild(label)
+    view.table { main ->
+      main.table { mat ->
+        mat.right()
 
-    buildOpts(view)
-    buildTime(view, label.height)
-  }
+        mat.table { powers ->
+          powerCons.forEach {
+            powers.itemCell(CellType.MATERIAL, *it.toTypedArray()).size(80f).pad(6f)
+          }
+        }.padRight(8f)
 
-  override fun initial(recipe: Recipe, noOptional: Boolean): Vec2 {
-    time = recipe.craftTime
+        mat.table { matTab ->
+          normalCons.forEachIndexed { i, group ->
+            if (i > 0 && i%mats == 0) matTab.row()
+            matTab.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
+          }
+        }
+      }.width(m + p)
+      main.table { center ->
+        val rect = Rect()
 
-    consPos.clear()
-    prodPos.clear()
-    optPos.setZero()
-    blockPos.setZero()
+        center.fill { x, y, width, height ->
+          val d = ((Time.globalTime%180f)/180f)*width + 8
+          val v1 = Tmp.v1.set(x - 8, y)
+          val v2 = Tmp.v2.set(v1).add(d, height)
+          val trans = Draw.trans()
+          Core.scene.viewport.calculateScissors(
+            trans,
+            Tmp.r1.set(v1.x, v1.y, v2.x - v1.x, v2.y - v1.y),
+            rect
+          )
+        }
 
-    val mats = recipe.materials.values().filter { e -> !e.optionalCons }
-    val opts =
-      if (noOptional) listOf()
-      else recipe.materials.values().filter { e -> e.optionalCons }
-    hasOptionals = opts.isNotEmpty()
-    val materialNum = mats.size
-    val productionNum = recipe.productions.size
+        if (normalCons.any() || boosterCons.any()){
+          center.table { booster ->
+            booster.bottom()
+            if (boosterCons.any()) {
+              booster.table { b ->
+                boosterCons.forEach { group ->
+                  b.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
+                  b.row()
+                }
+              }
+              booster.row()
+            }
+            booster.image(object: BaseDrawable() {
+              override fun draw(x: Float, y: Float, width: Float, height: Float) {
+                val s = Scl.scl(18f)
 
-    bound.setZero()
+                val centerY = y + height/2f
+                val centerX = x + width/2f
+                val dx = if (normalCons.any()) x else centerX
+                val dw = if (normalCons.any()) width else width - width/2f
+                Lines.stroke(Scl.scl(12f))
 
-    var wOpt = 0f
-    var wMat = 0f
-    var wProd = 0f
+                Draw.color(Color.gray)
+                Lines.line(dx, centerY, dx + dw - s, centerY)
+                if (boosterCons.any()) Lines.line(centerX, centerY, centerX, y + height)
+                Fill.poly(x + width - s, centerY, 3, s, 0f)
 
-    if (hasOptionals) {
-      wOpt = handleBound(opts.size)
-      bound.y += ROW_PAD
-    }
-    if (materialNum > 0) {
-      wMat = handleBound(materialNum)
-      bound.y += ROW_PAD
-    }
-    bound.y += NODE_SIZE
-    if (productionNum > 0) {
-      bound.y += ROW_PAD
-      wProd = handleBound(productionNum)
-    }
+                if (ScissorStack.push(rect)) {
+                  Draw.color(Pal.accent)
+                  Lines.line(dx, centerY, dx + dw - s, centerY)
+                  if (boosterCons.any()) Lines.line(centerX, centerY, centerX, y + height)
+                  Fill.poly(x + width - s, centerY, 3, s, 0f)
+                  ScissorStack.pop()
+                }
+              }
+            }).width(80f).height(32f)
+          }.height(32f)
+        }
+        center.table { i ->
+          i.bottom()
+          i.timeTab().pad(6f)
+          i.row()
+          i.itemCell(CellType.BLOCK, ownerBlock).size(120f).pad(8f)
+        }.height(136f)
+        if (productions.any()) center.image(object: BaseDrawable() {
+          override fun draw(x: Float, y: Float, width: Float, height: Float) {
+            val centerY = y + height/2f
+            val s = Scl.scl(18f)
+            Lines.stroke(Scl.scl(12f))
 
-    val offOptX = (bound.x - wOpt)/2
-    val offMatX = (bound.x - wMat)/2
-    val offProdX = (bound.x - wProd)/2
+            Draw.color(Color.gray)
+            Lines.line(x, y, Tmp.c1.set(Color.gray).a(0f), x, centerY, Tmp.c2.set(Color.gray))
+            Lines.line(x, centerY, x + width - s, centerY)
+            Fill.poly(x + width - s, centerY, 3, s, 0f)
 
-    val centX = bound.x/2f
-    var offY = NODE_SIZE/2
+            if (ScissorStack.push(rect)) {
+              Draw.color(Pal.accent)
+              Lines.line(x, y, Tmp.c1.set(Pal.accent).a(0f), x, centerY, Tmp.c2.set(Pal.accent))
+              Lines.line(x, centerY, x + width - s, centerY)
+              Fill.poly(x + width - s, centerY, 3, s, 0f)
+              ScissorStack.pop()
+            }
+          }
+        }).width(80f).height(80f).pad(8f)
+      }
+      main.table{ prod ->
+        prod.left()
+        productions.forEachIndexed { i, p ->
+          if (i > 0 && i%prods == 0) prod.row()
+          prod.itemCell(CellType.PRODUCTION, p).size(80f).pad(6f)
+        }
+      }.width(m + p)
 
-    if (hasOptionals) {
-      offY = handleNode(opts, consPos, offOptX, offY)
-      optPos[bound.x/2] = offY
-      offY += ROW_PAD
-    }
-    if (materialNum > 0) {
-      offY = handleNode(mats, consPos, offMatX, offY)
-      offY += ROW_PAD
-    }
-    blockPos[centX] = offY
-    offY += NODE_SIZE
-    if (productionNum > 0) {
-      offY += ROW_PAD
-      val seq = recipe.productions.values().toList()
-      handleNode(seq, prodPos, offProdX, offY)
-    }
+      main.row()
 
-    return bound
-  }
+      main.add()
+      main.table { attrs ->
+        attrs.image().color(Pal.accent).growX().height(4f).padTop(4f).padBottom(4f)
+        attrs.row()
 
-  protected fun handleNode(
-    seq: List<RecipeItemStack<*>>,
-    pos: ObjectMap<RecipeItem<*>, Vec2>,
-    offX: Float,
-    offY: Float
-  ): Float {
-    var yOff = offY
-    var dx = NODE_SIZE/2
-    for (element in seq) {
-      pos[element.item] = Vec2(offX + dx, yOff)
-      dx += NODE_SIZE + ITEM_PAD
-    }
-    yOff += NODE_SIZE
-    return yOff
-  }
-
-  protected fun handleBound(num: Int): Float {
-    var res: Float
-
-    bound.x = max(
-      bound.x.toDouble(),
-      (NODE_SIZE*num + ITEM_PAD*(num - 1)).also {
-        res = it
-      }.toDouble()
-    ).toFloat()
-    bound.y += NODE_SIZE
-
-    return res
-  }
-
-  companion object {
-    val ROW_PAD: Float = Scl.scl(60f)
-    val ITEM_PAD: Float = Scl.scl(10f)
+        attrs.table { items ->
+          attributeCons.forEach { attribute ->
+            items.itemCell(CellType.MATERIAL, *attribute.toTypedArray()).size(80f).pad(6f)
+          }
+        }
+      }.growX()
+    }.padTop(24f)
   }
 }

@@ -22,6 +22,7 @@ import tmi.ui.Side
 import tmi.util.Consts
 import kotlin.math.max
 
+@Deprecated("Use recipe calculator")
 class ExportDialog(private val view: DesignerView) : Dialog("", Consts.transparentBack) {
   private val assembledBuffer = FrameBuffer()
   private val cardContainerBuffer = FrameBuffer()

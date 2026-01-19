@@ -55,10 +55,10 @@ open class RecipesManager {
     idMap.put(recipe.hashCode(), recipe)
 
     recipes.add(recipe)
-    for (stack in recipe.materials.values()) {
+    for (stack in recipe.materials) {
       materials.add(stack.item)
     }
-    for (stack in recipe.productions.values()) {
+    for (stack in recipe.productions) {
       productions.add(stack.item)
     }
     if (recipe.ownerBlock != null) blocks.add(recipe.ownerBlock)
@@ -117,7 +117,7 @@ open class RecipesManager {
 
         parsers.forEach a@{ par ->
           if (par == parser) return@a
-          if (par.isTarget(block) && parsers.contains { e -> e.isTarget(block) && e.exclude(parser) })
+          if (par.isTarget(block) && par.exclude(parser) )
             return@t
         }
 
@@ -140,13 +140,13 @@ open class RecipesManager {
   }
 
   /**参数给定的条目是否以输入材料的位置参与至少一个配方 */
-  fun anyMaterial(uc: RecipeItem<*>?): Boolean {
-    return materials.contains(uc)
+  fun anyMaterial(vararg uc: RecipeItem<*>?): Boolean {
+    return uc.any { materials.contains(it) }
   }
 
   /**参数给定的条目是否以产出物的位置参与至少一个配方 */
-  fun anyProduction(uc: RecipeItem<*>?): Boolean {
-    return productions.contains(uc)
+  fun anyProduction(vararg uc: RecipeItem<*>?): Boolean {
+    return uc.any { productions.contains(it) }
   }
 
   /**是否有任意一个配方的方块项与参数给定的方块一致 */

@@ -53,6 +53,7 @@ import java.io.IOException
 import kotlin.math.max
 import kotlin.math.min
 
+@Deprecated("Use recipe calculator")
 class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   companion object{
     private val tmpLinkers: Seq<ItemLinker> = Seq()
@@ -1546,6 +1547,7 @@ class DesignerView(val parentDialog: SchematicDesignerDialog) : Group() {
   }
 }
 
+@Deprecated("Use recipe calculator")
 data class ViewTab(
   val title: String,
   val icon: Drawable? = null,
@@ -1555,6 +1557,7 @@ data class ViewTab(
   val group: String = "normal",
 )
 
+@Deprecated("Use recipe calculator")
 fun interface ViewAcceptor<R>{
   fun SchematicDesignerDialog.accept(
     x: Float, y: Float,

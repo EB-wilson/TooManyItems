@@ -1,11 +1,12 @@
 package tmi.recipe.parser
 
-import arc.math.Mathf
 import arc.struct.Seq
 import mindustry.Vars
 import mindustry.world.Block
 import mindustry.world.blocks.power.ThermalGenerator
 import tmi.recipe.Recipe
+import tmi.recipe.RecipeItemGroup
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.recipe.types.PowerMark
 
@@ -22,26 +23,29 @@ open class ThermalGeneratorParser : ConsumerParser<ThermalGenerator>() {
     val res = Recipe(
       recipeType = RecipeType.generator,
       ownerBlock = content.getWrap()
-    ).setEff(Recipe.zeroEff)
+    ).setBaseEff(0f)
 
     registerCons(res, *content.consumers)
 
-    res.addProductionPersec(PowerMark, content.powerProduction)
+    res.addProductionPersec(PowerMark, content.powerProduction/content.displayEfficiencyScale)
+      .setType(RecipeItemType.POWER)
 
+    val attrGroup = RecipeItemGroup()
     for (block in Vars.content.blocks()) {
       if (content.attribute == null || block.attributes[content.attribute] <= 0) continue
 
-      val eff = content.displayEfficiencyScale*content.size*content.size*block.attributes[content.attribute]
+      val eff = content.size*content.size*block.attributes[content.attribute]
       if (eff <= content.minEfficiency) continue
       res.addMaterial(block.getWrap(), (content.size*content.size) as Number)
-        .setEff(eff)
-        .setAttribute()
-        .setFormat { "[#98ffa9]" + Mathf.round(eff*100) + "%" }
+        .setEff(eff*content.displayEfficiencyScale)
+        .setType(RecipeItemType.ATTRIBUTE)
+        .efficiencyFormat(eff*content.displayEfficiencyScale)
+        .setGroup(attrGroup)
     }
 
     if (content.outputLiquid != null) res.addProductionPersec(
       content.outputLiquid.liquid.getWrap(),
-      content.outputLiquid.amount
+      content.outputLiquid.amount/content.displayEfficiencyScale
     )
 
     return Seq.with(res)

@@ -35,10 +35,12 @@ import tmi.ui.addEventBlocker
 import tmi.util.*
 import kotlin.math.abs
 
+@Deprecated("Use recipe calculator")
 data class LinkEntry(val link: ItemLinker){
   var rate: Float = -1f
 }
 
+@Deprecated("Use recipe calculator")
 class ItemLinker @JvmOverloads internal constructor(
   val parentCard: Card,
   val item: RecipeItem<*>,

@@ -10,6 +10,8 @@ import mindustry.world.Tile
 import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.production.Pump
 import tmi.recipe.Recipe
+import tmi.recipe.RecipeItemGroup
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.util.Consts.markerTile
 import java.lang.reflect.InvocationTargetException
@@ -29,6 +31,8 @@ open class PumpParser : ConsumerParser<Pump>() {
 
   override fun parse(content: Pump): Seq<Recipe> {
     val res = ObjectMap<Liquid, Recipe>()
+    val attrGroup = ObjectMap<Liquid, RecipeItemGroup>()
+
     for (drop in floorDrops) {
       markerTile.setFloor(drop)
       try {
@@ -44,7 +48,7 @@ open class PumpParser : ConsumerParser<Pump>() {
           recipeType = RecipeType.collecting,
           craftTime = content.consumeTime,
           ownerBlock = content.getWrap()
-        ).setEff(Recipe.zeroEff)
+        ).setBaseEff(0f)
 
         r.addProductionPersec(drop.liquidDrop.getWrap(), content.pumpAmount*content.size*content.size) //WTF?
         registerCons(r, *content.consumers)
@@ -52,8 +56,9 @@ open class PumpParser : ConsumerParser<Pump>() {
       }]
 
       recipe!!.addMaterial(drop.getWrap(), (content.size*content.size) as Number)
-        .setAttribute()
+        .setType(RecipeItemType.ATTRIBUTE)
         .emptyFormat()
+        .setGroup(attrGroup.get(drop.liquidDrop){ RecipeItemGroup() })
     }
     return res.values().toSeq()
   }

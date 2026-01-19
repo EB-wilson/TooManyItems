@@ -4,6 +4,7 @@ import arc.struct.Seq
 import mindustry.world.Block
 import mindustry.world.blocks.power.HeaterGenerator
 import tmi.recipe.Recipe
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.recipe.types.HeatMark
 import tmi.recipe.types.PowerMark
@@ -11,7 +12,7 @@ import tmi.recipe.types.PowerMark
 open class HeatGeneratorParser : ConsumerParser<HeaterGenerator>() {
   init {
     excludes.add(GeneratorParser::class.java)
-    excludes.add(ConsGeneratorParser::class.java)
+    excludes.add(ConsumeGeneratorParser::class.java)
   }
 
   override fun isTarget(content: Block): Boolean {
@@ -28,13 +29,17 @@ open class HeatGeneratorParser : ConsumerParser<HeaterGenerator>() {
     registerCons(res, *content.consumers)
 
     res.addProductionPersec(PowerMark, content.powerProduction)
+      .setType(RecipeItemType.POWER)
 
     if (content.heatOutput > 0) {
-      res.addProduction(HeatMark, content.heatOutput as Number).floatFormat()
+      res.addProduction(HeatMark, content.heatOutput as Number)
+        .setType(RecipeItemType.POWER)
+        .floatFormat()
     }
 
     if (content.outputLiquid != null) {
       res.addProductionPersec(content.outputLiquid.liquid.getWrap(), content.outputLiquid.amount)
+        .also { if(content.explodeOnFull) it.setType(RecipeItemType.GARBAGE) }
     }
 
     return Seq.with(res)

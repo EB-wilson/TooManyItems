@@ -9,7 +9,9 @@ import mindustry.world.Block
 import mindustry.world.consumers.*
 import tmi.invoke
 import tmi.recipe.Recipe
+import tmi.recipe.RecipeItemGroup
 import tmi.recipe.RecipeItemStack
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeParser
 import tmi.recipe.types.PowerMark
 
@@ -47,15 +49,18 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
           }
         })
       registerVanillaConsParser(
-        { c -> c is ConsumeItemFilter },
+        { c -> c is ConsumeItemFilter && c !is ConsumeItemExplode },
         { recipe, consume, handle ->
-          val cf = (consume as ConsumeItemFilter)
-          for (item in Vars.content.items().select { i -> cf.filter[i] }) {
+          consume as ConsumeItemFilter
+          val consumeGroup = RecipeItemGroup()
+          for (item in Vars.content.items().select { i -> consume.filter[i] }) {
+            val eff = consume.itemEfficiencyMultiplier(item)
             handle(
               recipe.addMaterialInteger(item.getWrap(), 1)
                 .setOptional(consume.optional)
-                .setAttribute(cf)
-                .setMaxAttr()
+                .setEff(eff)
+                .efficiencyFormat(eff)
+                .setGroup(consumeGroup)
             )
           }
         })
@@ -78,12 +83,17 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
       registerVanillaConsParser(
         { c -> c is ConsumeLiquidFilter },
         { recipe, consume, handle ->
-          val cf = (consume as ConsumeLiquidFilter)
-          for (liquid in Vars.content.liquids().select { i -> cf.filter[i] }) {
-            handle(recipe.addMaterialPersec(liquid.getWrap(), cf.amount)
-              .setOptional(consume.optional)
-              .setAttribute(cf)
-              .setMaxAttr())
+          consume as ConsumeLiquidFilter
+          val consumeGroup = RecipeItemGroup()
+          for (liquid in Vars.content.liquids().select { i -> consume.filter[i] }) {
+            val eff = consume.liquidEfficiencyMultiplier(liquid)
+            handle(
+              recipe.addMaterialPersec(liquid.getWrap(), consume.amount)
+                .setOptional(consume.optional)
+                .setEff(eff)
+                .boostAndConsFormat(eff)
+                .setGroup(consumeGroup)
+            )
           }
         })
 
@@ -106,6 +116,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { recipe, consume, handle ->
           handle(
             recipe.addMaterialPersec(PowerMark, (consume as ConsumePower).usage)
+              .setType(RecipeItemType.POWER)
               .setOptional(consume.optional)
           )
         })

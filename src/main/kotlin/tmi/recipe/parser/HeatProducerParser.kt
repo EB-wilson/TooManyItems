@@ -4,6 +4,7 @@ import arc.struct.Seq
 import mindustry.world.Block
 import mindustry.world.blocks.heat.HeatProducer
 import tmi.recipe.Recipe
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.recipe.types.HeatMark
 
@@ -25,7 +26,9 @@ open class HeatProducerParser : ConsumerParser<HeatProducer>() {
 
     registerCons(res, *content.consumers)
 
-    res.addProduction(HeatMark, content.heatOutput as Number).floatFormat()
+    res.addProduction(HeatMark, content.heatOutput as Number)
+      .setType(RecipeItemType.POWER)
+      .floatFormat()
 
     if (content.outputItems == null) {
       if (content.outputItem != null) res.addProductionInteger(content.outputItem.item.getWrap(), content.outputItem.amount)

@@ -9,6 +9,7 @@ import tmi.recipe.EnvParameter
 import tmi.recipe.types.RecipeItem
 import tmi.util.vec1
 
+@Deprecated("Use recipe calculator")
 abstract class DesignerHandle(val ownerView: DesignerView) {
   val handleTime = Time.globalTime
 
@@ -16,11 +17,13 @@ abstract class DesignerHandle(val ownerView: DesignerView) {
   abstract fun quash()
 }
 
+@Deprecated("Use recipe calculator")
 abstract class ContinuousHandle(ownerView: DesignerView): DesignerHandle(ownerView){
   abstract fun sync()
   open fun post(){}
 }
 
+@Deprecated("Use recipe calculator")
 abstract class TimedHandle(
   ownerView: DesignerView,
   private val maxInterval: Float
@@ -42,6 +45,7 @@ abstract class TimedHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class CombinedHandles(
   ownerView: DesignerView,
   private vararg val handles: DesignerHandle
@@ -55,6 +59,7 @@ class CombinedHandles(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class CardSizeAlignHandle(
   ownerView: DesignerView,
   private val isAlign: Boolean,
@@ -75,6 +80,7 @@ class CardSizeAlignHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class AddCardHandle(
   ownerView: DesignerView,
   private val addedCard: Card
@@ -88,6 +94,7 @@ class AddCardHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class MoveCardHandle(
   ownerView: DesignerView,
   private val movedCards: List<Card>,
@@ -132,6 +139,7 @@ class MoveCardHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class IOCardItemHandle(
   ownerView: DesignerView,
   private val card: IOCard,
@@ -149,6 +157,7 @@ class IOCardItemHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 abstract class CardsHandle(
   ownerView: DesignerView,
   private val handleCards: List<Card>
@@ -203,6 +212,7 @@ abstract class CardsHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class RemoveCardHandle(
   ownerView: DesignerView,
   removeCards: List<Card>
@@ -216,6 +226,7 @@ class RemoveCardHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class AddCardsHandle(
   ownerView: DesignerView,
   addCards: List<Card>
@@ -229,6 +240,7 @@ class AddCardsHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class FoldCardHandle(
   ownerView: DesignerView,
   private val cards: List<Card>,
@@ -273,6 +285,7 @@ class FoldCardHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class AddOutputLinkerHandle(
   ownerView: DesignerView,
   private val addedLinker: ItemLinker,
@@ -287,6 +300,7 @@ class AddOutputLinkerHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class RemoveLinkerHandle(
   ownerView: DesignerView,
   private val linker: ItemLinker
@@ -310,6 +324,7 @@ class RemoveLinkerHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class MoveLinkerHandle(
   ownerView: DesignerView,
   private val movedLinker: ItemLinker
@@ -333,6 +348,7 @@ class MoveLinkerHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class DoLinkHandle(
   ownerView: DesignerView,
   private val from: ItemLinker,
@@ -366,6 +382,7 @@ class DoLinkHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class SetLinkPresentHandle(
   ownerView: DesignerView,
   private val target: ItemLinker,
@@ -388,6 +405,7 @@ class SetLinkPresentHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class StandardizeHandle(
   ownerView: DesignerView,
   private val moveX: Float,
@@ -402,6 +420,7 @@ class StandardizeHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class SetRecipeArgsHandle(
   ownerView: DesignerView,
   private val target: RecipeCard
@@ -448,6 +467,7 @@ class SetRecipeArgsHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class SetFoldIconInfHandle(
   ownerView: DesignerView,
   private val card: Card,
@@ -485,6 +505,7 @@ class SetFoldIconInfHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class SwitchSimplifiedHandle(
   ownerView: DesignerView,
   private val cards: List<Card>,
@@ -503,6 +524,7 @@ class SwitchSimplifiedHandle(
   }
 }
 
+@Deprecated("Use recipe calculator")
 class SetGlobalIOHandle(
   ownerView: DesignerView,
   private val item: RecipeItem<*>,

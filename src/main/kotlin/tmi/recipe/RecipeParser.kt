@@ -15,7 +15,7 @@ abstract class RecipeParser<T : Block> {
   /**该分析器对于参数给定的那个分析器是否是互斥的，该方法返回true会阻止另一个配方分析器分析此方块。
    *
    * 例如一个方块可以被两个分析器分析，但是该分析器与另一个互斥，那么那一个分析器将被跳过而不解释这一方块 */
-  fun exclude(parser: RecipeParser<*>): Boolean {
+  open fun exclude(parser: RecipeParser<*>): Boolean {
     return excludes.contains { e: Class<out RecipeParser<*>> -> e.isAssignableFrom(parser.javaClass) }
   }
 

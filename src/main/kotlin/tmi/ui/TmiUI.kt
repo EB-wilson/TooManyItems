@@ -25,6 +25,7 @@ import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.invoke
 import tmi.recipe.types.RecipeItem
+import tmi.ui.calculator.CalculatorDialog
 import tmi.ui.calculator.CalculatorView
 import tmi.ui.calculator.RecipeGraph
 import tmi.ui.designer.*
@@ -49,17 +50,7 @@ object TmiUI {
   @JvmStatic
   val schematicDesigner by lazy { SchematicDesignerDialog() }
   @JvmStatic
-  val recipeGraph by lazy {
-    object: BaseDialog(""){
-      init {
-        addCloseButton()
-
-        val view = CalculatorView()
-        cont.add(view).grow()
-        view.build()
-      }
-    }
-  }
+  val recipeGraph by lazy { CalculatorDialog() }
 
   fun init() {
     setDefaultMenuTabs()

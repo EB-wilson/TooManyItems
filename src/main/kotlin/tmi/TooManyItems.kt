@@ -60,7 +60,7 @@ class TooManyItems : Mod() {
     recipesManager.registerParser(BeamDrillParser())
     recipesManager.registerParser(SeparatorParser())
     recipesManager.registerParser(GeneratorParser())
-    recipesManager.registerParser(ConsGeneratorParser())
+    recipesManager.registerParser(ConsumeGeneratorParser())
     recipesManager.registerParser(HeatGeneratorParser())
     recipesManager.registerParser(ThermalGeneratorParser())
     recipesManager.registerParser(VariableReactorParser())

@@ -22,6 +22,7 @@ import tmi.ui.TmiUI
 import tmi.util.Consts
 import tmi.util.Utils
 
+@Deprecated("Use recipe calculator")
 class IOCard(
   ownerDesigner: DesignerView,
   val isInput: Boolean

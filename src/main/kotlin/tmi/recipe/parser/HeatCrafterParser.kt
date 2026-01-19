@@ -4,6 +4,7 @@ import arc.struct.Seq
 import mindustry.world.Block
 import mindustry.world.blocks.production.HeatCrafter
 import tmi.recipe.Recipe
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.recipe.types.HeatMark
 
@@ -21,9 +22,11 @@ open class HeatCrafterParser : ConsumerParser<HeatCrafter>() {
       recipeType = RecipeType.factory,
       ownerBlock = content.getWrap(),
       craftTime = content.craftTime,
-    )
+    ).setBaseEff(0f)
 
-    res.addMaterial(HeatMark, content.heatRequirement as Number).floatFormat()
+    res.addMaterial(HeatMark, content.heatRequirement as Number)
+      .setType(RecipeItemType.POWER)
+      .floatFormat()
 
     registerCons(res, *content.consumers)
 

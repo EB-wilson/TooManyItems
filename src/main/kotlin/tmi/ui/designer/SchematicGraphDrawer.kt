@@ -14,6 +14,7 @@ import arc.util.Tmp
 import mindustry.graphics.Pal
 import tmi.ui.Side
 
+@Deprecated("Use recipe calculator")
 object SchematicGraphDrawer {
   fun drawFoldPane(
     view: DesignerView,

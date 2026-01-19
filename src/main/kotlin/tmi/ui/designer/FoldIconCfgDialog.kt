@@ -30,6 +30,7 @@ import tmi.invoke
 import tmi.ui.addEventBlocker
 import tmi.util.Consts
 
+@Deprecated("Use recipe calculator")
 private val list by lazy {
   val res = Seq<FoldIconCfgDialog>()
 
@@ -39,6 +40,7 @@ private val list by lazy {
   res
 }
 
+@Deprecated("Use recipe calculator")
 class FoldIconCfgDialog(
   private val ownerView: DesignerView,
   private val configuringCard: Card

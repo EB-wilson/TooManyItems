@@ -1,14 +1,13 @@
 package tmi.recipe.parser
 
-import arc.math.Mathf
 import arc.struct.Seq
 import mindustry.Vars
 import mindustry.world.Block
 import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.production.AttributeCrafter
 import tmi.recipe.Recipe
-import tmi.recipe.Recipe.Companion.getDefaultEff
-import tmi.recipe.RecipeParser.Companion.getWrap
+import tmi.recipe.RecipeItemGroup
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import kotlin.math.min
 
@@ -26,10 +25,11 @@ open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
       recipeType = RecipeType.factory,
       ownerBlock = content.getWrap(),
       craftTime = content.craftTime,
-    ).setEff(getDefaultEff(content.baseEfficiency))
+    ).setBaseEff(content.baseEfficiency)
 
     registerCons(res, *content.consumers)
 
+    val attrGroup = RecipeItemGroup()
     for (block in Vars.content.blocks()) {
       if (content.attribute == null || block.attributes[content.attribute] <= 0 || (block is Floor && block.isDeep)) continue
 
@@ -39,10 +39,11 @@ open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
       )
 
       res.addMaterial(block.getWrap(), (content.size*content.size) as Number)
-        .setAttribute()
+        .setType(RecipeItemType.ATTRIBUTE)
         .setOptional(content.baseEfficiency > 0.001f)
         .setEff(eff)
-        .setFormat { "[#98ffa9]" + (if (content.baseEfficiency > 0.001f) "+" else "") + Mathf.round(eff*100) + "%" }
+        .efficiencyFormat(content.baseEfficiency, eff)
+        .setGroup(attrGroup)
     }
 
     if (content.outputItems == null) {

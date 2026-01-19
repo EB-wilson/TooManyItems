@@ -83,8 +83,8 @@ class EnvParameter {
   }
 
   fun applyFullRecipe(recipe: Recipe, fillOptional: Boolean, applyAttribute: Boolean, multiplier: Float): EnvParameter {
-    for (stack in recipe.materials.values()) {
-      if (!fillOptional && stack.optionalCons) continue
+    for (stack in recipe.materials) {
+      if (!fillOptional && stack.isOptional) continue
       if (!applyAttribute && stack.isAttribute) continue
 
       inputs.put(stack.item, stack.amount*multiplier)

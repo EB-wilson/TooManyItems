@@ -9,6 +9,7 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.set
 
+@Deprecated("Use recipe calculator")
 class BalanceStatistic(private val ownerView: DesignerView) {
   companion object{
     private const val ZERO = 0.0001f
@@ -121,7 +122,7 @@ class BalanceStatistic(private val ownerView: DesignerView) {
       TooManyItems.recipesManager
         .getRecipesByBuilding(c.recipe.ownerBlock as RecipeItem<*>)
         .firstOpt()?.let { rec ->
-          rec.materials.values().forEach {
+          rec.materials.forEach {
             val stack = buildMaterials.get(it.item) {
               RecipeItemStack(it.item, 0f).integerFormat()
             }

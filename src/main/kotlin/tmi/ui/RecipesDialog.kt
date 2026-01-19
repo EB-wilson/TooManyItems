@@ -2,11 +2,7 @@ package tmi.ui
 
 import arc.Core
 import arc.Graphics
-import arc.func.Boolc
-import arc.func.Boolf
-import arc.func.Cons
-import arc.func.Intc
-import arc.func.Intp
+import arc.func.*
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
@@ -15,7 +11,6 @@ import arc.graphics.g2d.Lines
 import arc.input.KeyCode
 import arc.math.Mathf
 import arc.scene.Element
-import arc.scene.event.ElementGestureListener
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
 import arc.scene.event.Touchable
@@ -45,16 +40,22 @@ import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
 import tmi.ui.RecipesDialog.Mode.*
+import tmi.util.Consts
 import tmi.util.Consts.a_z
 import tmi.util.Consts.grayUIAlpha
 import tmi.util.Consts.padGrayUIAlpha
+import tmi.util.vec1
+import tmi.util.vec2
 import java.text.Collator
 import java.util.*
 import kotlin.math.min
 
-private val nameComparator: Collator = Collator.getInstance(Core.bundle.locale)
 
 open class RecipesDialog : BaseDialog("") {
+  companion object{
+    private val nameComparator: Collator = Collator.getInstance(Core.bundle.locale)
+  }
+
   var sortings: Seq<Sorting> = Seq.with(
     Sorting(
       Core.bundle["misc.defaultSort"],
@@ -128,8 +129,7 @@ open class RecipesDialog : BaseDialog("") {
   private var contentsTable: Table? = null
   private var sortingTab: Table? = null
   private var modeTab: Table? = null
-  private var currZoom: Table? = null
-  private var currView: RecipeView? = null
+  private var mainView: Table? = null
 
   private var _currentSelect: RecipeItem<*>? = null
   var currentSelect: RecipeItem<*>?
@@ -147,19 +147,21 @@ open class RecipesDialog : BaseDialog("") {
   private var _currentMode: Mode? = null
   private var _selectedOnly: Boolean = false
 
+  //Just temporary plan, will have a major change in the future
+  private var _doubleRecipe: Boolean = false
+
   private var _title: String = Core.bundle["dialog.recipes.title"]
 
   private var sorting = sortings.first()
   private val ucSeq = Seq<RecipeItem<*>>()
 
-  private var locked = false
   private var contentSearch = ""
   private var reverse = false
   private var total = 0
   private var fold = 0
   private var pageItems = 0
 
-  private var recipeIndex = 0
+  private var recipePage = 0
   private var itemPages = 0
   private var currPage = 0
 
@@ -194,6 +196,7 @@ open class RecipesDialog : BaseDialog("") {
       recipeCallbackFilter = null
       currentSelect = null
       recipeMode = null
+      _selectedOnly = false
       _title = Core.bundle["dialog.recipes.title"]
       currPage = 0
       lastZoom = -1f
@@ -232,7 +235,7 @@ open class RecipesDialog : BaseDialog("") {
 
         cont.button(Icon.up, Styles.clearNonei, 32f) {
           tab.visible = !tab.visible
-        }.growX().height(40f).update { i: ImageButton ->
+        }.growX().height(40f).update { i ->
           i.style.imageUp = if (tab.visible) Icon.downOpen else Icon.upOpen
           tab.setSize(tab.parent.width, tab.prefHeight)
           tab.setPosition(i.x, i.y + i.prefHeight + 4, Align.bottomLeft)
@@ -241,7 +244,7 @@ open class RecipesDialog : BaseDialog("") {
     }
     else {
       if (_selectedOnly){
-        recipesTable = cont.table(padGrayUIAlpha).grow().maxWidth(Core.graphics.width/2.1f/Scl.scl()).pad(5f).get()
+        recipesTable = cont.table(padGrayUIAlpha).grow().maxWidth(Core.graphics.width/3f/Scl.scl()).pad(5f).get()
         contentsTable = Table()
       }
       else {
@@ -475,7 +478,9 @@ open class RecipesDialog : BaseDialog("") {
     val recipeViews = Seq<RecipeView>()
     if (recipes != null) {
       for (recipe in recipes) {
-        val view = RecipeView(recipe, false, { i, _, m -> setCurrSelecting(i.item, m) })
+        val view = RecipeView(recipe, { i, _, m ->
+          if (!_selectedOnly) setCurrSelecting(i.item, m)
+        })
         recipeViews.add(view)
       }
     }
@@ -485,17 +490,15 @@ open class RecipesDialog : BaseDialog("") {
     recipesTable.clearListeners()
     recipesTable.addListener(object : InputListener() {
       override fun scrolled(event: InputEvent, x: Float, y: Float, amountX: Float, amountY: Float): Boolean {
-        if (locked) {
-          recipeIndex = Mathf.clamp(recipeIndex + (if (amountY > 0) 1 else -1), 0, recipeViews.size - 1)
-          return false
+        val max = if (_doubleRecipe) (recipeViews.size - 1)/2 else recipeViews.size - 1
+        if (amountY < 0 && recipePage > 0) {
+          recipePage--
+          rebuildRecipe()
         }
-        if (currZoom == null) return false
-        currZoom!!.setScale(
-          Mathf.clamp(currZoom!!.scaleX - amountY/10f*currZoom!!.scaleX, 0.25f, 1f).also { lastZoom = it })
-        currZoom!!.setOrigin(Align.center)
-        currZoom!!.isTransform = true
-
-        clamp(currZoom)
+        else if (amountY > 0 && recipePage < max) {
+          recipePage++
+          rebuildRecipe()
+        }
         return true
       }
 
@@ -505,39 +508,24 @@ open class RecipesDialog : BaseDialog("") {
       }
     })
 
-    recipesTable.addCaptureListener(object : ElementGestureListener() {
-      override fun zoom(event: InputEvent, initialDistance: Float, distance: Float) {
-        if (lastZoom < 0) {
-          lastZoom = currZoom!!.scaleX
-        }
-
-        currZoom!!.setScale(Mathf.clamp(distance/initialDistance*lastZoom, 0.25f, 1f))
-        currZoom!!.setOrigin(Align.center)
-        currZoom!!.isTransform = true
-
-        clamp(currZoom)
-      }
-
-      override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
-        lastZoom = currZoom!!.scaleX
-      }
-
-      override fun pan(event: InputEvent, x: Float, y: Float, deltaX: Float, deltaY: Float) {
-        if (locked) return
-        currZoom!!.moveBy(deltaX, deltaY)
-        clamp(currZoom)
-      }
-    })
-
     recipesTable.touchable = Touchable.enabled
 
-    currZoom = Table { main ->
-      recipeIndex = 0
+    val viewTabs = Seq<Table>()
+    mainView = Table{ main ->
+      recipePage = 0
       rebuildRecipe = {
+        viewTabs.clear()
         main.center()
         main.clearChildren()
-        val cur = recipeViews[recipeIndex].also { currView = it }
-        cur.validate()
+        val views = Seq<RecipeView>()
+
+        if (_doubleRecipe) {
+          val page = recipePage*2
+          views.add(recipeViews[page])
+          views.add(if (page + 1 < recipeViews.size) recipeViews[page + 1] else null)
+        }
+        else views.add(recipeViews[recipePage])
+
         val currSel = currentSelect!!
         main.table { modes ->
           modeTab = Table(grayUIAlpha) { ta ->
@@ -561,8 +549,10 @@ open class RecipesDialog : BaseDialog("") {
             init {
               touchable = if (modeTab!!.children.size > 1) Touchable.enabled else Touchable.disabled
 
-              image().scaling(Scaling.fit).size(32f).update { i: Image -> i.drawable = recipeMode!!.icon() }
-              add("").padLeft(4f).update { l: Label -> l.setText(recipeMode!!.localized()) }
+              image(recipeMode!!.icon()).scaling(Scaling.fit).size(32f)
+                .update { i -> i.drawable = recipeMode!!.icon() }
+              add(recipeMode!!.localized()).padLeft(4f)
+                .update { l -> l.setText(recipeMode!!.localized()) }
 
               clicked { modeTab!!.visible = !modeTab!!.visible }
 
@@ -576,12 +566,37 @@ open class RecipesDialog : BaseDialog("") {
           }).margin(8f).fill().get()
         }.fill()
         main.row()
-        main.table().center().fill().get().add(cur).center().fill().pad(20f)
-        main.row()
-        main.table { t ->
-          t.center().defaults().center()
-          cur.recipe.subInfoBuilder?.get(t)
-        }.fill().padTop(8f)
+        main.table{ view ->
+          views.forEach { v ->
+            if (v != null) {
+              view.table { rec ->
+                viewTabs.add(rec)
+                rec.center().add(v).center().fill().pad(20f)
+
+                v.recipe.subInfoBuilder?.also {
+                  rec.row()
+                  rec.table { t ->
+                    t.center().defaults().center()
+                    it.get(t)
+                  }.fill().padTop(8f)
+                }
+
+                if (callback != null && recipeCallbackFilter?.get(v.recipe) ?: true) {
+                  rec.row()
+                  rec.table { bu ->
+                    bu.button(callbackIcon, Styles.clearNonei, 36f) {
+                      callback!![v.recipe]
+                    }.margin(5f).disabled {
+                      return@disabled v.recipe.recipeType == RecipeType.building
+                    }
+                  }.fill()
+                }
+              }.fill().pad(12f)
+            }
+            else view.add().grow()
+            view.row()
+          }
+        }.center().fill().get()
 
         main.addChild(modeTab)
 
@@ -589,10 +604,8 @@ open class RecipesDialog : BaseDialog("") {
 
         main.setSize(main.prefWidth, main.prefHeight)
 
-        var scl = Mathf.clamp((main.parent.width*0.8f)/main.width, 0.25f, 1f)
-        scl =
-          min(scl.toDouble(), Mathf.clamp((main.parent.height*0.8f - Scl.scl(20f))/main.height, 0.25f, 1f).toDouble())
-            .toFloat()
+        var scl = Mathf.clamp((main.parent.width - Scl.scl(12f))/main.width, 0.25f, 1f)
+        scl = min(scl, Mathf.clamp((main.parent.height*0.85f - Scl.scl(20f))/main.height, 0.25f, 1f))
         if (lastZoom <= 0) {
           main.setScale(scl)
         }
@@ -601,7 +614,6 @@ open class RecipesDialog : BaseDialog("") {
         main.isTransform = true
 
         main.setPosition(main.parent.width/2, main.parent.height/2, Align.center)
-        clamp(main)
       }
     }
 
@@ -609,7 +621,7 @@ open class RecipesDialog : BaseDialog("") {
     recipesTable.fill { t ->
       t.table { clip ->
         clip.clip = true
-        clip.addChild(currZoom)
+        clip.addChild(mainView)
       }.grow().pad(8f)
     }
     recipesTable.table { top ->
@@ -633,19 +645,12 @@ open class RecipesDialog : BaseDialog("") {
     recipesTable.row()
     recipesTable.add().grow()
     recipesTable.row()
-    recipesTable.table { bu ->
-      bu.button(callbackIcon, Styles.clearNonei, 36f) {
-        callback!![recipes[recipeIndex]]
-      }.margin(5f).disabled {
-        return@disabled recipes[recipeIndex].recipeType === RecipeType.building
-      }
-    }.visible { callback != null && recipeCallbackFilter?.get(recipes[recipeIndex]) ?: true }
-    recipesTable.row()
     recipesTable.table { butt ->
-      buildPage(butt, { recipeIndex }, { page: Int ->
-        recipeIndex = page
+      val maxPage = if(_doubleRecipe) (recipeViews.size + 1)/2 else recipeViews.size
+      buildPage(butt, { recipePage }, { page ->
+        recipePage = page
         rebuildRecipe()
-      }, { recipeViews.size })
+      }, { maxPage })
     }.pad(8f).growX().fillY()
 
     Core.app.post(rebuildRecipe)
@@ -708,60 +713,11 @@ open class RecipesDialog : BaseDialog("") {
     table.row()
     val slider = table.slider(0f, maxPage.get().toFloat(), 0.001f, 1f) { f -> setPage[Mathf.round(f)] }
       .grow().colspan(5)
-      .update { s: Slider ->
+      .update { s ->
         s.setRange(0f, Mathf.maxZero((maxPage.get() - 1).toFloat()))
         if (!s.isDragging) s.setValue(currPage.get().toFloat())
       }.visible { maxPage.get() > 1 }.pad(4f, 12f, 4f, 12f).get()
     slider.setStyle(pageSlider(maxPage))
-    slider.addListener(object : InputListener() {
-      var touching: Boolean = false
-      var hovering: Boolean = false
-      override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Element?) {
-        hovering = true
-        locked = true
-      }
-
-      override fun exit(event: InputEvent, x: Float, y: Float, pointer: Int, toActor: Element?) {
-        hovering = false
-        if (!touching) locked = false
-      }
-
-      override fun touchDown(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode): Boolean {
-        touching = true
-        locked = true
-        return true
-      }
-
-      override fun touchUp(event: InputEvent, x: Float, y: Float, pointer: Int, button: KeyCode) {
-        touching = false
-        if (!hovering) locked = false
-      }
-    })
-  }
-
-  private fun clamp(currZoom: Table?) {
-    val par = currZoom!!.parent ?: return
-
-    val zoomW = currZoom.width*currZoom.scaleX
-    val zoomH = currZoom.height*currZoom.scaleY
-    val zoomX = currZoom.x + currZoom.width/2
-    val zoomY = currZoom.y + currZoom.height/2
-
-    val originX = par.width/2
-    val originY = par.height/2
-
-    val diffX = zoomX - originX
-    val diffY = zoomY - originY
-    val maxX = if (par.width > zoomW) (par.width - zoomW)/2.1f
-    else (zoomW - par.width)/2f
-
-    val maxY = if (par.height > zoomH) (par.height - zoomH)/2.1f
-    else (zoomH - par.height)/2f
-
-    val cx = Mathf.clamp(diffX, -maxX, maxX)
-    val cy = Mathf.clamp(diffY, -maxY, maxY)
-
-    currZoom.setPosition(originX + cx, originY + cy, Align.center)
   }
 
   private fun buildItem(t: Table, content: RecipeItem<*>) {
@@ -834,32 +790,28 @@ open class RecipesDialog : BaseDialog("") {
           if (clicked > 0 && Time.globalTime - time > 12) clicked = 0
         }
         add(object : Element() {
-          var elemWidth: Float = 0f
-          var elemHeight: Float = 0f
-
-          init {
-            val layout = GlyphLayout.obtain()
-            layout.setText(Fonts.outline, content.localizedName)
-
-            elemWidth = layout.width*Scl.scl()
-            elemHeight = layout.height*Scl.scl()
-
-            layout.free()
-          }
+          val cache = Fonts.outline.newFontCache()
 
           override fun draw() {
             super.draw()
 
-            val backWidth = elemWidth + Scl.scl(12f)
+            val lay = GlyphLayout.obtain()
+            lay.setText(Fonts.outline, content.localizedName)
+            lay.runs.forEach { it.color.a *= alpha }
+
+            val elemWidth = lay.width + Scl.scl(12f)
+            val elemHeight = lay.height
+
+            val backWidth = elemWidth
             val backHeight = height
             Draw.color(Color.lightGray, 0.25f*alpha)
             Fill.rect(x + width/2, y + height/2, backWidth*progress, backHeight)
 
-            Fonts.outline.draw(
-              content.localizedName, x + width/2, y + backHeight/2 + elemHeight/2, Tmp.c1.set(
-                Color.white
-              ).a(alpha), 1f, false, Align.center
-            )
+            cache.clear()
+            cache.addText(lay, x + width/2 - lay.width/2, y + backHeight/2 + elemHeight/2)
+            cache.draw()
+
+            lay.free()
           }
         }).height(35f)
         row()
@@ -896,7 +848,7 @@ open class RecipesDialog : BaseDialog("") {
   fun callbackRecipe(
     buttonIcon: Drawable,
     filter: Boolf<Recipe>? = null,
-    callback: Cons<Recipe>
+    callback: Cons<Recipe>,
   ){
     this.callbackIcon = buttonIcon
     this.recipeCallbackFilter = filter
@@ -906,7 +858,7 @@ open class RecipesDialog : BaseDialog("") {
   fun setCurrSelecting(
     content: RecipeItem<*>?,
     mode: Mode? = null,
-    selectedOnly: Boolean = false
+    selectedOnly: Boolean = false,
   ) {
     if (_currentSelect == content && mode == recipeMode) return
     val old = _currentSelect
@@ -922,6 +874,10 @@ open class RecipesDialog : BaseDialog("") {
 
       Vars.ui.showInfoFade(Core.bundle["dialog.recipes.no_" + (if (mode == RECIPE) "recipe" else "usage")])
     }
+  }
+
+  fun showDoubleRecipe(show: Boolean){
+    _doubleRecipe = show
   }
 
   fun setTitle(title: String) {
@@ -962,58 +918,58 @@ open class RecipesDialog : BaseDialog("") {
 
     abstract fun icon(): Drawable?
   }
-}
 
-private fun pageSlider(counts: Intp): SliderStyle {
-  return object : SliderStyle() {
-    init {
-      background = object : BaseDrawable() {
-        init {
-          minHeight = 40f
-        }
-
-        override fun draw(x: Float, y: Float, width: Float, height: Float) {
-          Lines.stroke(Scl.scl(4f), Color.lightGray)
-          Lines.line(x, y, x + width, y)
-
-          val n = counts.get() - 1
-          val step = counts.get()/10 + 1
-          var i = 0
-          while (i < n) {
-            Lines.line(x + width/n*i, y, x + width/n*i, y + Scl.scl(8f))
-            i += step
+  private fun pageSlider(counts: Intp): SliderStyle {
+    return object : SliderStyle() {
+      init {
+        background = object : BaseDrawable() {
+          init {
+            minHeight = 40f
           }
-          Lines.line(x + width, y, x + width, y + Scl.scl(8f))
-        }
-      }
-      knob = object : BaseDrawable() {
-        init {
-          minHeight = 30f
-        }
 
-        override fun draw(x: Float, y: Float, width: Float, height: Float) {
-          Draw.color(Color.lightGray)
-          Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
-        }
-      }
-      knobOver = object : BaseDrawable() {
-        init {
-          minHeight = 30f
-        }
+          override fun draw(x: Float, y: Float, width: Float, height: Float) {
+            Lines.stroke(Scl.scl(4f), Color.lightGray)
+            Lines.line(x, y, x + width, y)
 
-        override fun draw(x: Float, y: Float, width: Float, height: Float) {
-          Draw.color(Pal.accent)
-          Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
+            val n = counts.get() - 1
+            val step = counts.get()/10 + 1
+            var i = 0
+            while (i < n) {
+              Lines.line(x + width/n*i, y, x + width/n*i, y + Scl.scl(8f))
+              i += step
+            }
+            Lines.line(x + width, y, x + width, y + Scl.scl(8f))
+          }
         }
-      }
-      knobDown = object : BaseDrawable() {
-        init {
-          minHeight = 30f
-        }
+        knob = object : BaseDrawable() {
+          init {
+            minHeight = 30f
+          }
 
-        override fun draw(x: Float, y: Float, width: Float, height: Float) {
-          Draw.color(Color.white)
-          Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
+          override fun draw(x: Float, y: Float, width: Float, height: Float) {
+            Draw.color(Color.lightGray)
+            Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
+          }
+        }
+        knobOver = object : BaseDrawable() {
+          init {
+            minHeight = 30f
+          }
+
+          override fun draw(x: Float, y: Float, width: Float, height: Float) {
+            Draw.color(Pal.accent)
+            Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
+          }
+        }
+        knobDown = object : BaseDrawable() {
+          init {
+            minHeight = 30f
+          }
+
+          override fun draw(x: Float, y: Float, width: Float, height: Float) {
+            Draw.color(Color.white)
+            Fill.poly(x + width/2, y + height, 3, Scl.scl(12f), 30f)
+          }
         }
       }
     }

@@ -9,8 +9,10 @@ import mindustry.Vars
 import mindustry.mod.Mods.LoadedMod
 import mindustry.world.Block
 import org.intellij.lang.annotations.Language
+import tmi.recipe.types.CalculateMethod
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
 
@@ -149,7 +151,10 @@ class ModAPI {
         type: "$recipeTypeName",
         craftTime: "#craftTime",
         ownerBlock: "$ownerBlockName", // default: null
-        effFunc: "default:#base", // default: "default:1.0f"
+        baseEfficiency: "#efficiency", // default: 1.0f
+        normalMethod: "add"/"multiplier"/"min"/"max". // default: "min"
+        attributeMethod: "add"/"multiplier"/"min"/"max". // default: "min"
+        boosterMethod: "add"/"multiplier"/"min"/"max". // default: "min"
         subInfo: "$subInfoBundleName", // default: null
         materials: [
           {
@@ -159,8 +164,7 @@ class ModAPI {
             amountFormat: "none"/"integer"/"float"/"persecond"/"raw", // default: "none"
             efficiency: "#efficiency", // default: 1.0f
             isOptional: boolean, // default: false
-            isAttribute: boolean, // default: false
-            isBooster: boolean, // default: false
+            itemType: "normal"/"attribute"/"booster"/"probability"/"garbage", // default: "normal"
             attributeGroup: "$attributeGroupName", // default: null
             maxAttribute: boolean, // default: false
           },
@@ -208,36 +212,31 @@ class ModAPI {
     }
 
     recipeList?.forEach{ recipeInfo ->
-      val ownerBlock: String? = recipeInfo.getString("ownerBlock")
+      val ownerBlock: String = recipeInfo.getString("ownerBlock")
+
       val subInfo: String? = recipeInfo.getString("subInfo")
+
+      val normalMethod: String? = recipeInfo.getString("normalMethod")
+      val attributeMethod: String? = recipeInfo.getString("attributeMethod")
+      val boosterMethod: String? = recipeInfo.getString("boosterMethod")
 
       val materials = recipeInfo.get("materials")?.asArray()
       val productions = recipeInfo.get("productions")?.asArray()
 
-      val rawEff = recipeInfo.getString("effFunc", "default:1.0f").split(":")
-
       val recipe = Recipe(
         recipeType = getRecipeType(recipeInfo.getString("type")),
         craftTime = recipeInfos.getFloat("craftTime", 0f),
-        ownerBlock = ownerBlock?.let { TooManyItems.itemsManager.getByName<Block>(it) }
-      ).setEff(
-        if (rawEff[0] == "default") Recipe.getDefaultEff(rawEff[1].toFloat())
-        else Recipe.oneEff
-      )
+        ownerBlock = TooManyItems.itemsManager.getByName<Block>(ownerBlock)
+      ).setBaseEff(recipeInfo.getFloat("baseEfficiency", 1f))
 
-      if (subInfo != null) {
-        recipe.setSubInfo { it.add(Core.bundle[subInfo]) }
-      }
+      normalMethod?.also { method -> recipe.setNormalMethod(CalculateMethod.valueOf(method.uppercase())) }
+      attributeMethod?.also { method -> recipe.setAttributeMethod(CalculateMethod.valueOf(method.uppercase())) }
+      boosterMethod?.also { method -> recipe.setBoosterMethod(CalculateMethod.valueOf(method.uppercase())) }
 
-      if (materials != null) recipe.materials.putAll(materials.map {
-        val stack = parseStack(it)(recipe)
-        return@map stack.item to stack
-      })
+      subInfo?.also { info -> recipe.setSubInfo { it.add(Core.bundle[info]) } }
 
-      if (productions != null) recipe.productions.putAll(productions.map {
-        val stack = parseStack(it)(recipe)
-        return@map stack.item to stack
-      })
+      materials?.map { recipe.addMaterial(parseStack(it)(recipe)) }
+      productions?.map { recipe.addProduction(parseStack(it)(recipe)) }
     }
   }
 
@@ -263,10 +262,7 @@ class ModAPI {
           }
           setEff(comp.getFloat("efficiency", 1f))
           setOptional(comp.getBool("isOptional", false))
-          setAttribute(comp.getBool("isAttribute", false))
-          setBooster(comp.getBool("isBooster", false))
-          setAttribute(comp.getString("attributeGroup", null))
-          setMaxAttr(comp.getBool("maxAttribute", false))
+          setType(RecipeItemType.valueOf(comp.getString("itemType", "normal").uppercase()))
         }
     }
   }

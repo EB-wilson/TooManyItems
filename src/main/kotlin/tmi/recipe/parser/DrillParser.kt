@@ -1,12 +1,9 @@
 package tmi.recipe.parser
 
-import arc.math.Mathf
 import arc.struct.ObjectMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
-import arc.util.Strings
 import mindustry.Vars
-import mindustry.core.UI
 import mindustry.type.Item
 import mindustry.world.Block
 import mindustry.world.blocks.environment.Floor
@@ -15,9 +12,10 @@ import mindustry.world.blocks.production.Drill
 import mindustry.world.consumers.Consume
 import mindustry.world.consumers.ConsumeLiquidBase
 import tmi.recipe.Recipe
+import tmi.recipe.RecipeItemGroup
+import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.util.Consts.markerTile
-import tmi.util.Utils
 
 open class DrillParser : ConsumerParser<Drill>() {
   protected var itemDrops: ObjectSet<Floor> = ObjectSet()
@@ -34,6 +32,7 @@ open class DrillParser : ConsumerParser<Drill>() {
 
   override fun parse(content: Drill): Seq<Recipe> {
     val res = ObjectMap<Item, Recipe>()
+    val oreGroup = ObjectMap<Item, RecipeItemGroup>()
 
     for (drop in itemDrops) {
       if (drop is OreBlock) markerTile.setOverlay(drop)
@@ -46,28 +45,23 @@ open class DrillParser : ConsumerParser<Drill>() {
           recipeType = RecipeType.collecting,
           ownerBlock = content.getWrap(),
           craftTime = content.getDrillTime(drop.itemDrop)/content.size/content.size,
-        ).setEff(Recipe.zeroEff)
+        ).setBaseEff(0f)
 
         r.addProductionInteger(drop.itemDrop.getWrap(), 1)
 
         if (content.liquidBoostIntensity != 1f) {
-          registerCons(r, *Seq.with(*content.consumers).select { e: Consume -> !(e.optional && e is ConsumeLiquidBase && e.booster) }.toArray(Consume::class.java))
+          registerCons(r, *Seq.with(*content.consumers).select { e ->
+            !(e.optional && e is ConsumeLiquidBase && e.booster)
+          }.toArray(Consume::class.java))
 
-          val consBase = content.findConsumer<Consume> { f: Consume -> f is ConsumeLiquidBase && f.optional && f.booster }
+          val consBase = content.findConsumer<Consume> { f -> f is ConsumeLiquidBase && f.optional && f.booster }
           if (consBase is ConsumeLiquidBase) {
             registerCons(r, { s ->
               val eff = content.liquidBoostIntensity*content.liquidBoostIntensity
               s!!.setEff(eff)
-                .setBooster()
+                .setType(RecipeItemType.BOOSTER)
                 .setOptional()
-                .setFormat { f ->
-                  val (value, unit) = Utils.unitTimed(f)
-
-                  """
-                  ${if (value > 1000) UI.formatAmount(value.toLong()) else Strings.autoFixed(value, 2)}$unit
-                  [#98ffa9]+${Mathf.round(eff*100)}%
-                  """.trimIndent()
-                }
+                .boostAndConsFormat(eff)
             }, consBase)
           }
         }
@@ -80,8 +74,9 @@ open class DrillParser : ConsumerParser<Drill>() {
       val realDrillTime = content.getDrillTime(drop.itemDrop)
       recipe!!.addMaterial(drop.getWrap(), (content.size*content.size) as Number)
         .setEff(content.drillTime/realDrillTime)
-        .setAttribute()
+        .setType(RecipeItemType.ATTRIBUTE)
         .emptyFormat()
+        .setGroup(oreGroup.get(drop.itemDrop){ RecipeItemGroup() })
     }
 
     return res.values().toSeq()

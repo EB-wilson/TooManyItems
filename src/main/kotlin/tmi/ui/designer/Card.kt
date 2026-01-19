@@ -32,6 +32,7 @@ import tmi.ui.addEventBlocker
 import tmi.util.Consts
 import tmi.util.vec1
 
+@Deprecated("Use recipe calculator")
 abstract class Card(val ownerDesigner: DesignerView) : Table() {
   companion object {
     private val seq: Seq<ItemLinker> = Seq()

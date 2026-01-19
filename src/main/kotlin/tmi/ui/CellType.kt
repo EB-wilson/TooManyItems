@@ -1,6 +1,6 @@
 package tmi.ui
 
-enum class NodeType {
+enum class CellType {
   MATERIAL,
   BLOCK,
   PRODUCTION

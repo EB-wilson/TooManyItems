@@ -24,6 +24,7 @@ import tmi.util.vec1
 import tmi.util.vec2
 import kotlin.math.roundToInt
 
+@Deprecated("Use recipe calculator")
 class PieChartSetter<T>(
   proportionEntries: List<Pair<T, Float>>,
   private val callback: Cons<List<Pair<T, Float>>>,

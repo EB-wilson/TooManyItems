@@ -7,6 +7,8 @@ import tmi.recipe.types.RecipeItem
 
 object RecipeGraphLayout {
   fun generateLayout(graph: RecipeGraph): Array<Seq<Node>> {
+    if (graph.isEmpty()) return emptyArray()
+
     val copyMap = mutableMapOf<RecipeGraphNode, RecNode>()
     val copyList = mutableListOf<Node>()
 
@@ -198,6 +200,11 @@ object RecipeGraphLayout {
   ) : Node() {
     var parent: Node? = null
     var child: Node? = null
+
+    fun getTargetNode(): RecNode = child?.let { if (it is LineMark) it.getTargetNode() else it as RecNode }?:
+      throw IllegalStateException("This line mark was not linked to any recipe node.")
+    fun getOriginNode(): RecNode = parent?.let { if (it is LineMark) it.getOriginNode() else it as RecNode }?:
+      throw IllegalStateException("This line mark was not linked to any recipe node.")
 
     override fun parents() = listOf(parent!!)
     override fun parentsWithItem() = mapOf(stack.item to listOf(parent!!))
