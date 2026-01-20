@@ -35,16 +35,17 @@ import tmi.util.Shapes
 class RecipeItemCell(
   val type: CellType,
   vararg val groupItems: RecipeItemStack<*>,
-  val clickListener: Cons4<RecipeItemCell, RecipeItemStack<*>, CellType, RecipesDialog.Mode>? = null,
+  val clickListener: (RecipeItemCell.(RecipeItemStack<*>, CellType, RecipesDialog.Mode) -> Unit)? = null,
 ) : Button() {
   private var lastTouchedTime = 0f
   private var progress: Float = 0f
   private var alpha: Float = 0f
   private var clicked = 0
   private var itemIndex = 0
-  private var lockedItem: RecipeItem<*>? = null
-
   private var timer = 0f
+
+  var lockedItem: RecipeItem<*>? = null
+    private set
 
   var activity: Boolean = false
   var touched: Boolean = false
@@ -98,7 +99,7 @@ class RecipeItemCell(
 
         if (clickListener != null && Time.globalTime - lastTouchedTime < 12) {
           if (!Vars.mobile || Core.settings.getBool("keyboard")) {
-            if (Core.input.keyDown(TooManyItems.binds.hotKey)) clickListener.get(
+            if (Core.input.keyDown(TooManyItems.binds.hotKey) || lockedItem != null) clickListener(
               this@RecipeItemCell,
               currentItem(),
               type,
@@ -108,7 +109,7 @@ class RecipeItemCell(
               else RecipesDialog.Mode.RECIPE
             )
             else showSelector { stack ->
-              clickListener.get(
+              clickListener(
                 this@RecipeItemCell,
                 stack,
                 type,
@@ -122,14 +123,14 @@ class RecipeItemCell(
           else {
             clicked++
             if (clicked >= 2) {
-              if (Core.input.keyDown(TooManyItems.binds.hotKey)) clickListener.get(
+              if (Core.input.keyDown(TooManyItems.binds.hotKey) || lockedItem != null) clickListener(
                 this@RecipeItemCell,
                 currentItem(),
                 type,
                 RecipesDialog.Mode.USAGE
               )
               else showSelector { stack ->
-                clickListener.get(
+                clickListener(
                   this@RecipeItemCell,
                   stack,
                   type,
@@ -223,14 +224,19 @@ class RecipeItemCell(
   }
 
   fun setLockedItem(item: RecipeItem<*>) {
-    itemIndex = groupItems.indexOfFirst { it.item == lockedItem }
+    val index = groupItems.indexOfFirst { it.item == item }
     if (itemIndex < 0) return
+    itemIndex = index
     lockedItem = item
+
+    rebuild()
   }
 
   fun resetLockedItem(){
     lockedItem = null
     itemIndex = 0
+
+    rebuild()
   }
 
   fun currentItem() = groupItems[itemIndex]
@@ -256,14 +262,14 @@ class RecipeItemCell(
     progress = Mathf.approachDelta(progress, if (stack.item.hasDetails && click != null && touched) 1f else 0f, 1/60f)
 
     if (clickListener != null && Time.globalTime - lastTouchedTime > 12 && clicked == 1) {
-      if (Core.input.keyDown(TooManyItems.binds.hotKey)) clickListener.get(
+      if (Core.input.keyDown(TooManyItems.binds.hotKey) || lockedItem != null) clickListener(
         this,
         currentItem(),
         type,
         RecipesDialog.Mode.RECIPE
       )
       else showSelector { stack ->
-        clickListener.get(
+        clickListener(
           this,
           stack,
           type,
@@ -272,6 +278,10 @@ class RecipeItemCell(
       }
       clicked = 0
     }
+  }
+
+  override fun invalidateHierarchy() {
+    invalidate()
   }
 
   override fun drawBackground(x: Float, y: Float) {

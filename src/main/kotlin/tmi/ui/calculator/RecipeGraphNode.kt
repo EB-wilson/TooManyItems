@@ -2,8 +2,10 @@ package tmi.ui.calculator
 
 import arc.func.Cons2
 import arc.struct.ObjectMap
+import arc.struct.ObjectSet
 import arc.struct.Seq
 import tmi.recipe.Recipe
+import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.set
 
@@ -12,6 +14,7 @@ class RecipeGraphNode(
 ) {
   private val outputs = ObjectMap<RecipeItem<*>, Seq<RecipeGraphNode>>()
   private val inputs = ObjectMap<RecipeItem<*>, RecipeGraphNode>()
+
 
   internal var graphIndex = 0
   internal var graph: RecipeGraph? = null
@@ -22,6 +25,8 @@ class RecipeGraphNode(
 
   var balanceAmount = -1
   var efficiency = 1f
+
+  val attributes = ObjectSet<RecipeItem<*>>()
 
   fun children() = inputs.values().toList()
   fun childrenWithItem() = inputs.map { it.key to it.value }

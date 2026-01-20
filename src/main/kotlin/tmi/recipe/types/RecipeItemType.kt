@@ -21,6 +21,8 @@ enum class RecipeItemType {
   NORMAL,
   /**能量条目，作为材料时该条目用于POWER计算区*/
   POWER,
+  /**特殊条目，由配方类型进行特殊解析，通常不参与常规处理*/
+  SPECIAL,
 
   //Consumes
   /**属性条目，在计算效率时用于ATTRIBUTE计算区*/

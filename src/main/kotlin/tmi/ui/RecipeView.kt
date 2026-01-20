@@ -1,6 +1,12 @@
 package tmi.ui
 
+import arc.Core
 import arc.func.Cons
+import arc.func.Floatp
+import arc.graphics.Color
+import arc.graphics.g2d.Draw
+import arc.graphics.g2d.ScissorStack
+import arc.math.geom.Rect
 import arc.scene.ui.layout.Cell
 import arc.scene.ui.layout.Table
 import arc.scene.ui.layout.WidgetGroup
@@ -8,6 +14,7 @@ import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Strings
+import arc.util.Tmp
 import mindustry.core.UI
 import mindustry.ui.Styles
 import mindustry.world.meta.StatUnit
@@ -122,6 +129,41 @@ class RecipeView @JvmOverloads constructor(
       }
 
       remove()
+    }
+
+    fun Table.clipRect(progress: Floatp): Rect {
+      val rect = Rect()
+
+      fill { x, y, width, height ->
+        val d = progress.get()*width + 8
+        val v1 = Tmp.v1.set(x - 8, y)
+        val v2 = Tmp.v2.set(v1).add(d, height)
+        val trans = Draw.trans()
+        Core.scene.viewport.calculateScissors(
+          trans,
+          Tmp.r1.set(v1.x, v1.y, v2.x - v1.x, v2.y - v1.y),
+          rect
+        )
+      }
+
+      return rect
+    }
+
+    fun drawProgress(
+      rect: Rect,
+      color: Color,
+      colorOver: Color,
+      alpha: Float = 1f,
+      drawCall: Runnable
+    ) {
+      Draw.color(color, alpha)
+      drawCall.run()
+
+      if (ScissorStack.push(rect)) {
+        Draw.color(colorOver, alpha)
+        drawCall.run()
+        ScissorStack.pop()
+      }
     }
   }
 }

@@ -121,6 +121,8 @@ open class RecipesDialog : BaseDialog("") {
       }
     }
 
+  private var filter: Boolf<Recipe>? = null
+
   private var callbackIcon: Drawable = Icon.add
   private var callback: Cons<Recipe>? = null
   private var recipeCallbackFilter: Boolf<Recipe>? = null
@@ -192,6 +194,7 @@ open class RecipesDialog : BaseDialog("") {
       }
     }
     hidden {
+      filter = null
       callback = null
       recipeCallbackFilter = null
       currentSelect = null
@@ -477,6 +480,8 @@ open class RecipesDialog : BaseDialog("") {
 
     val recipeViews = Seq<RecipeView>()
     if (recipes != null) {
+      filter?.also { f -> recipes.removeAll { !f.get(it) } }
+
       for (recipe in recipes) {
         val view = RecipeView(recipe, { i, _, m ->
           if (!_selectedOnly) setCurrSelecting(i.item, m)
@@ -853,6 +858,12 @@ open class RecipesDialog : BaseDialog("") {
     this.callbackIcon = buttonIcon
     this.recipeCallbackFilter = filter
     this.callback = callback
+  }
+
+  fun setFilter(
+    filter: Boolf<Recipe>
+  ){
+    this.filter = filter
   }
 
   fun setCurrSelecting(

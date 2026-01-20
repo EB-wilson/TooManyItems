@@ -1,12 +1,9 @@
 package tmi.recipe.types
 
-import arc.Core
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
-import arc.graphics.g2d.ScissorStack
-import arc.math.geom.Rect
 import arc.scene.style.BaseDrawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
@@ -48,22 +45,10 @@ open class CollectingRecipe : RecipeType() {
             if (i > 0 && i%mats == 0) matTab.row()
             matTab.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
           }
-        }
-      }.width(m + p)
+        }.padRight(8f)
+      }.width(m + p + 16f)
       main.table { center ->
-        val rect = Rect()
-
-        center.fill { x, y, width, height ->
-          val d = ((Time.globalTime%180f)/180f)*width + 8
-          val v1 = Tmp.v1.set(x - 8, y)
-          val v2 = Tmp.v2.set(v1).add(d, height)
-          val trans = Draw.trans()
-          Core.scene.viewport.calculateScissors(
-            trans,
-            Tmp.r1.set(v1.x, v1.y, v2.x - v1.x, v2.y - v1.y),
-            rect
-          )
-        }
+        val rect = center.clipRect{ ((Time.globalTime%180f)/180f) }
 
         if (normalCons.any() || boosterCons.any()){
           center.table { booster ->
@@ -86,27 +71,24 @@ open class CollectingRecipe : RecipeType() {
                 val dx = if (normalCons.any()) x else centerX
                 val dw = if (normalCons.any()) width else width - width/2f
                 Lines.stroke(Scl.scl(12f))
+                val a = Draw.getColorAlpha()
 
-                Draw.color(Color.gray)
-                Lines.line(dx, centerY, dx + dw - s, centerY)
-                if (boosterCons.any()) Lines.line(centerX, centerY, centerX, y + height)
-                Fill.poly(x + width - s, centerY, 3, s, 0f)
-
-                if (ScissorStack.push(rect)) {
-                  Draw.color(Pal.accent)
+                drawProgress(rect, Color.gray, Pal.accent, a) {
                   Lines.line(dx, centerY, dx + dw - s, centerY)
                   if (boosterCons.any()) Lines.line(centerX, centerY, centerX, y + height)
                   Fill.poly(x + width - s, centerY, 3, s, 0f)
-                  ScissorStack.pop()
                 }
               }
             }).width(80f).height(32f)
-          }.height(32f)
+          }.width(80f).height(32f).pad(8f)
         }
         center.table { i ->
           i.bottom()
-          i.timeTab().pad(6f)
-          i.row()
+
+          if (recipe.craftTime > 0) {
+            i.timeTab().pad(6f)
+            i.row()
+          }
           i.itemCell(CellType.BLOCK, ownerBlock).size(120f).pad(8f)
         }.height(136f)
         if (productions.any()) center.image(object: BaseDrawable() {
@@ -115,17 +97,17 @@ open class CollectingRecipe : RecipeType() {
             val s = Scl.scl(18f)
             Lines.stroke(Scl.scl(12f))
 
-            Draw.color(Color.gray)
-            Lines.line(x, y, Tmp.c1.set(Color.gray).a(0f), x, centerY, Tmp.c2.set(Color.gray))
-            Lines.line(x, centerY, x + width - s, centerY)
-            Fill.poly(x + width - s, centerY, 3, s, 0f)
+            val a = Draw.getColorAlpha()
 
-            if (ScissorStack.push(rect)) {
-              Draw.color(Pal.accent)
-              Lines.line(x, y, Tmp.c1.set(Pal.accent).a(0f), x, centerY, Tmp.c2.set(Pal.accent))
+            Draw.color(Color.gray, a)
+
+            drawProgress(rect, Color.gray, Pal.accent, a) {
+              Lines.line(
+                x, y, Tmp.c1.set(Draw.getColor()).a(0f),
+                x, centerY, Draw.getColor()
+              )
               Lines.line(x, centerY, x + width - s, centerY)
               Fill.poly(x + width - s, centerY, 3, s, 0f)
-              ScissorStack.pop()
             }
           }
         }).width(80f).height(80f).pad(8f)
@@ -136,7 +118,7 @@ open class CollectingRecipe : RecipeType() {
           if (i > 0 && i%prods == 0) prod.row()
           prod.itemCell(CellType.PRODUCTION, p).size(80f).pad(6f)
         }
-      }.width(m + p)
+      }.width(m + p + 16f)
 
       main.row()
 

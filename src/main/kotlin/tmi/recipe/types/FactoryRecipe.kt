@@ -56,19 +56,7 @@ open class FactoryRecipe : RecipeType() {
         }
       }.width(w + p)
       main.table { center ->
-        val rect = Rect()
-
-        center.fill { x, y, width, height ->
-          val d = ((Time.globalTime%180f)/180f)*width + 8
-          val v1 = Tmp.v1.set(x - 8, y)
-          val v2 = Tmp.v2.set(v1).add(d, height)
-          val trans = Draw.trans()
-          Core.scene.viewport.calculateScissors(
-            trans,
-            Tmp.r1.set(v1.x, v1.y, v2.x - v1.x, v2.y - v1.y),
-            rect
-          )
-        }
+        val rect = center.clipRect{ ((Time.globalTime%180f)/180f) }
 
         center.itemCell(CellType.BLOCK, ownerBlock)
           .size(80f).pad(8f)
@@ -78,16 +66,11 @@ open class FactoryRecipe : RecipeType() {
             val centerY = y + height/2f
             val s = Scl.scl(24f)
             Lines.stroke(Scl.scl(12f))
+            val a = Draw.getColorAlpha()
 
-            Draw.color(Color.gray)
-            Lines.line(x, centerY, x + width - s, centerY)
-            Fill.poly(x + width - s, centerY, 3, s, 0f)
-
-            if (ScissorStack.push(rect)) {
-              Draw.color(Pal.accent)
+            drawProgress(rect, Color.gray, Pal.accent, a) {
               Lines.line(x, centerY, x + width - s, centerY)
               Fill.poly(x + width - s, centerY, 3, s, 0f)
-              ScissorStack.pop()
             }
           }
         }).minWidth(140f).height(36f).growX().pad(8f).padBottom(0f)
@@ -101,13 +84,10 @@ open class FactoryRecipe : RecipeType() {
             under.table { garb ->
               garb.image(object : BaseDrawable() {
                 override fun draw(x: Float, y: Float, width: Float, height: Float) {
-                  Draw.color(Color.gray)
-                  Fill.rect(x + width/2, y + height/2, width, height)
+                  val a = Draw.getColorAlpha()
 
-                  if (ScissorStack.push(rect)) {
-                    Draw.color(Pal.accent)
+                  drawProgress(rect, Color.gray, Pal.accent, a) {
                     Fill.rect(x + width/2, y + height/2, width, height)
-                    ScissorStack.pop()
                   }
                 }
               }).size(12f, 40f)

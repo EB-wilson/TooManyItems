@@ -98,13 +98,6 @@ open class RecipesManager {
     }
 
     parseRecipes()
-
-    val list = getRecipesByProduction(TooManyItems.itemsManager.getItem(Items.sand))
-      .select{ it.recipeType == RecipeType.collecting }
-
-    list.forEach {
-      println(it.hashCode())
-    }
   }
 
   /**从当前游戏内已装载的所有方块进行分析，搜索合适的[RecipeParser]解释方块以获取配方信息并添加到列表之中。
