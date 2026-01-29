@@ -24,7 +24,13 @@ open class WallCrafterParser : ConsumerParser<WallCrafter>() {
 
     res.addProductionInteger(content.output.getWrap(), 1)
 
-    registerCons(res, *content.consumers)
+    val itemCons = content.itemConsumer
+    registerCons(res, { c, s ->
+      if (c == itemCons){
+        s.amount = s.amount*content.drillTime/content.boostItemUseTime
+        s.integerFormat(content.boostItemUseTime)
+      }
+    }, *content.consumers)
 
     val attrGroup = RecipeItemGroup()
     for (block in Vars.content.blocks()) {

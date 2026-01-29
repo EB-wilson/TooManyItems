@@ -68,6 +68,7 @@ class TooManyItems : Mod() {
     recipesManager.registerParser(HeatProducerParser())
     recipesManager.registerParser(AttributeCrafterParser())
     recipesManager.registerParser(WallCrafterParser())
+    recipesManager.registerParser(BuildingParser())
   }
 
   override fun init() {

@@ -4,17 +4,21 @@ import arc.func.Cons2
 import arc.struct.ObjectMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
+import tmi.recipe.EnvParameter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
+import tmi.recipe.types.RecipeItemType
 import tmi.set
+import tmi.util.Consts.balance
+import kotlin.math.ceil
+import kotlin.math.max
 
 class RecipeGraphNode(
   val recipe: Recipe
 ) {
   private val outputs = ObjectMap<RecipeItem<*>, Seq<RecipeGraphNode>>()
   private val inputs = ObjectMap<RecipeItem<*>, RecipeGraphNode>()
-
 
   internal var graphIndex = 0
   internal var graph: RecipeGraph? = null
@@ -24,9 +28,40 @@ class RecipeGraphNode(
   var targetAmount = 1
 
   var balanceAmount = -1
-  var efficiency = 1f
 
+  var multiplier = 1f
+  var efficiency = 1f
   val attributes = ObjectSet<RecipeItem<*>>()
+  val optionals = ObjectSet<RecipeItem<*>>()
+
+  val envParameter = EnvParameter()
+
+  fun updateEfficiency(){
+    multiplier = recipe.calculateMultiple(envParameter)
+    efficiency = recipe.calculateEfficiency(envParameter, multiplier)
+  }
+
+  fun updateBalance(){
+    if (contextDepth > 0) {
+      var amount = 0
+      parentsWithItem().forEach { (item, parents) ->
+        val out = recipe.getProduction(item)!!
+
+        var requireAmount = 0f
+        parents.forEach { parent ->
+          parent.recipe.getMaterial(item)?.also { stack ->
+            val mul = if (stack.itemType == RecipeItemType.BOOSTER || stack.itemType == RecipeItemType.NORMAL) parent.multiplier else 1f
+            requireAmount += stack.amount*parent.balanceAmount*mul
+          }
+        }
+        val balance = ceil(requireAmount/(out.amount*efficiency)).toInt()
+
+        amount = max(amount, balance)
+      }
+
+      balanceAmount = amount
+    }
+  }
 
   fun children() = inputs.values().toList()
   fun childrenWithItem() = inputs.map { it.key to it.value }
@@ -70,6 +105,10 @@ class RecipeGraphNode(
   }
 
   fun hasInput(item: RecipeItem<*>) = inputs.containsKey(item)
+  fun hasOutput(item: RecipeItem<*>) = outputs.get(item)?.any()?:false
+
+  fun getInput(item: RecipeItem<*>): RecipeGraphNode? = inputs.get(item)
+  fun getOutputs(item: RecipeItem<*>): List<RecipeGraphNode>? = outputs.get(item)?.toList()
 
   fun visit(
     currDepth: Int = 0,

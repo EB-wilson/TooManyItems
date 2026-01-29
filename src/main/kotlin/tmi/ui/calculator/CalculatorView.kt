@@ -1,11 +1,14 @@
 package tmi.ui.calculator
 
 import arc.Core
+import arc.files.Fi
+import arc.func.Boolp
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
 import arc.input.KeyCode
 import arc.math.Mathf
+import arc.math.geom.Rect
 import arc.math.geom.Vec2
 import arc.scene.Element
 import arc.scene.Group
@@ -19,13 +22,27 @@ import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Align
+import arc.util.Log
+import arc.util.Scaling
+import arc.util.io.Reads
+import arc.util.io.Writes
 import mindustry.gen.Icon
 import mindustry.graphics.Pal
+import mindustry.ui.Styles
+import sun.tools.jconsole.Tab
+import tmi.TooManyItems
+import tmi.recipe.AmountFormatter
+import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
+import tmi.recipe.types.RecipeItemType
+import tmi.ui.CellType
 import tmi.ui.RecipeItemCell
 import tmi.ui.RecipesDialog
 import tmi.ui.TmiUI
 import tmi.ui.calculator.RecipeGraphElement.*
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.IOException
 import kotlin.math.max
 import kotlin.math.min
 
@@ -41,6 +58,7 @@ class CalculatorView: Table() {
       field = value
       graphUpdated()
     }
+  var statistic = RecipeStatistic(graph)
 
   private var layers: Array<Seq<RecipeGraphLayout.Node>> = arrayOf()
 
@@ -54,9 +72,14 @@ class CalculatorView: Table() {
   private var panX: Float = 0f
   private var panY: Float = 0f
 
+  private val viewBound = Rect()
   private lateinit var graphView: Group
   private lateinit var container: Group
   private lateinit var zoom: Group
+
+  private lateinit var ioList: Table
+  private lateinit var inputs: Table
+  private lateinit var outputs: Table
 
   private val tabSelectors = object : Group() {
     var selecting: RecipeItem<*>? = null
@@ -98,6 +121,9 @@ class CalculatorView: Table() {
   }
 
   fun layoutRecipeTabs(){
+    val bounds = viewBound
+    bounds.setSize(0f)
+
     val layers = this.layers
     val maxLayerWidth = padding + layers.maxOf { it.sumf{ tab -> (nodeToElement[tab]?.nodeWidth ?: 8f) + padding } }
     val root = layers[0]
@@ -168,6 +194,16 @@ class CalculatorView: Table() {
 
         layoutTab.nodeX = sumX/n - sumOffX/n
         resolveOverlaps(overlaps, layoutTab)
+      }
+    }
+
+    recipeElements.forEachIndexed { i, layoutTab ->
+      if (i == 0) {
+        bounds.set(layoutTab.nodeX, layoutTab.nodeY, layoutTab.nodeWidth, layoutTab.nodeHeight)
+      }
+      else {
+        bounds.merge(layoutTab.nodeX, layoutTab.nodeY)
+        bounds.merge(layoutTab.nodeX + layoutTab.nodeWidth, layoutTab.nodeY + layoutTab.nodeHeight)
       }
     }
   }
@@ -313,85 +349,89 @@ class CalculatorView: Table() {
     }
   }
 
-  private fun setupGraphView() = object : Group() {
-    private val tempList = Seq<LinkLine>()
+  private fun setupGraphView() {
+    graphView = object : Group() {
+      private val tempList = Seq<LinkLine>()
 
-    override fun childrenChanged() {
-      invalidate()
-    }
-
-    override fun layout() {
-      val children = getChildren()
-
-      children.forEach { it.validate() }
-
-      layoutRecipeTabs()
-      layoutLinkLines()
-    }
-
-    override fun removeChild(actor: Element?, unfocus: Boolean): Boolean {
-      val removed = super.removeChild(actor, unfocus)
-      if (removed && actor is RecipeTab) removeRecipeTab(actor)
-      return removed
-    }
-
-    override fun draw() {
-      validate()
-      drawLines()
-      super.draw()
-    }
-
-    private fun drawLines(){
-      Lines.stroke(Scl.scl(5f))
-      fun draw(line: LinkLine) {
-        val from = line.from
-        val to = line.to
-
-        val cent = y + line.centerY
-
-        val fromX = x + from.x
-        val fromY = y + from.y
-        val toX = x + to.x
-        val toY = y + to.y
-
-        Lines.line(
-          fromX, fromY,
-          fromX, cent
-        )
-        Lines.line(
-          fromX, cent,
-          toX, cent,
-        )
-        Lines.line(
-          toX, cent,
-          toX, toY
-        )
+      override fun childrenChanged() {
+        invalidate()
       }
 
-      tempList.clear()
+      override fun layout() {
+        val children = getChildren()
 
-      Draw.color(Color.gray)
-      linkLines.forEach { line ->
-        if (line.isOver) {
-          tempList.add(line)
-          return@forEach
+        children.forEach { it.validate() }
+
+        layoutRecipeTabs()
+        layoutLinkLines()
+      }
+
+      override fun removeChild(actor: Element?, unfocus: Boolean): Boolean {
+        val removed = super.removeChild(actor, unfocus)
+        if (removed && actor is RecipeTab) removeRecipeTab(actor)
+        return removed
+      }
+
+      override fun draw() {
+        validate()
+        drawLines()
+        super.draw()
+      }
+
+      private fun drawLines() {
+        Lines.stroke(Scl.scl(5f))
+        fun draw(line: LinkLine) {
+          val from = line.from
+          val to = line.to
+
+          val cent = y + line.centerY
+
+          val fromX = x + from.x
+          val fromY = y + from.y
+          val toX = x + to.x
+          val toY = y + to.y
+
+          Lines.line(
+            fromX, fromY,
+            fromX, cent
+          )
+          Lines.line(
+            fromX, cent,
+            toX, cent,
+          )
+          Lines.line(
+            toX, cent,
+            toX, toY
+          )
         }
-        draw(line)
+
+        tempList.clear()
+
+        Draw.color(Color.gray)
+        linkLines.forEach { line ->
+          if (line.isOver) {
+            tempList.add(line)
+            return@forEach
+          }
+          draw(line)
+        }
+
+        Draw.color(Pal.accent)
+        tempList.forEach { line -> draw(line) }
+
+        Draw.color()
       }
-
-      Draw.color(Pal.accent)
-      tempList.forEach { line -> draw(line) }
-
-      Draw.color()
     }
   }
 
   fun build() {
     clear()
 
-    graphView = setupGraphView()
+    setupGraphView()
     graphView.setBounds(0f, 0f, 0f, 0f)
     tabSelectors.setBounds(0f, 0f, 0f, 0f)
+
+    setupIOList()
 
     container = object : Group() {
       override fun act(delta: Float) {
@@ -431,6 +471,7 @@ class CalculatorView: Table() {
     }
     container.addChild(graphView)
     container.addChild(tabSelectors)
+    container.addChild(ioList)
 
     fill { t ->
       zoom = t
@@ -443,6 +484,88 @@ class CalculatorView: Table() {
     touchable = Touchable.enabled
     setPanListener()
     setZoomListener()
+  }
+
+  private fun setupIOList() {
+    ioList = Table()
+    val ioList = ioList
+
+    ioList.visibility = Boolp{ !graph.isEmpty() }
+    ioList.update {
+      ioList.setPosition(viewBound.x + viewBound.width/2f, viewBound.y, Align.top)
+    }
+
+    ioList.table { label ->
+      label.add().size(32f)
+      label.add(Core.bundle["dialog.calculator.statistic"]).color(Pal.accent)
+        .padLeft(12f).padRight(12f).growX()
+        .labelAlign(Align.center)
+      label.button(Icon.listSmall, Styles.clearNonei){}.size(32f)
+    }.pad(8f).padTop(26f).growX()
+    ioList.row()
+    ioList.image().color(Pal.accent).growX().height(4f).padBottom(8f)
+    ioList.row()
+    ioList.table { o ->
+      o.add(Core.bundle["dialog.calculator.statOutputs"])
+      o.image(Icon.upload).size(32f).pad(8f)
+      outputs = o.table().growY().fillY().pad(8f).get()
+    }.pad(8f).growX().fillY()
+
+    ioList.row()
+    ioList.table { i ->
+      i.add(Core.bundle["dialog.calculator.statInputs"])
+      i.image(Icon.download).size(32f).pad(8f)
+      inputs = i.table().growX().fillY().pad(8f).get()
+    }.pad(8f).padTop(16f).growX().fillY()
+  }
+
+  fun rebuildIO() {
+    val formatter = AmountFormatter.unitTimedFormatter()
+
+    outputs.clearChildren()
+    statistic.resultOutputs().forEachIndexed { i, stack ->
+      if (i > 0 && i % 6 == 0) outputs.row()
+      outputs.add(RecipeItemCell(CellType.PRODUCTION, stack).also {
+        it.style = Styles.cleart
+        it.setFormatter(formatter)
+      }).size(56f).pad(8f).padLeft(12f).padRight(12f)
+    }
+
+    inputs.clearChildren()
+    val nonOptional = statistic.resultInputs()
+    val optional = statistic.resultOptionalInputs()
+      nonOptional.forEachIndexed { i, stack ->
+      if (i > 0 && i % 6 == 0) inputs.row()
+      inputs.add(RecipeItemCell(CellType.MATERIAL, *stack.toTypedArray()).also {
+        it.style = Styles.cleart
+        it.setFormatter(formatter)
+      }).size(56f).pad(8f).padLeft(12f).padRight(12f)
+    }
+
+    if (optional.isNotEmpty()) {
+      inputs.row()
+      inputs.table{ opt ->
+        opt.table { t ->
+          t.add(Core.bundle["misc.optional"]).pad(8f)
+          t.row()
+          t.image().color(Pal.gray).growX().height(4f).padTop(8f).padBottom(8f)
+          t.row()
+          t.table { items ->
+            optional.forEachIndexed { i, stack ->
+              if (i > 0 && i%6 == 0) inputs.row()
+              items.add(RecipeItemCell(CellType.MATERIAL, *stack.toTypedArray()).also {
+                it.style = Styles.cleart
+                it.setFormatter(formatter)
+              }).size(56f).pad(8f).padLeft(12f).padRight(12f)
+            }
+          }
+        }.fill()
+      }.colspan(6)
+    }
+
+
+    ioList.validate()
+    ioList.pack()
   }
 
   fun showRecipeSelector(
@@ -462,8 +585,9 @@ class CalculatorView: Table() {
 
           graph.addNode(newNode)
           graphNode.disInput(item)
+          graphNode.optionals.remove(item)
           graphNode.setInput(item, newNode)
-          cell.setLockedItem(item)
+          cell.setChosenItem(item)
           graphUpdated()
 
           hide()
@@ -474,8 +598,6 @@ class CalculatorView: Table() {
   }
   
   fun graphUpdated() {
-    isUpdated = true
-
     recipeElements.clear()
     nodeToElement.clear()
     graphView.clearChildren()
@@ -504,6 +626,26 @@ class CalculatorView: Table() {
     addRecipeTab(add)
     if (layers.isEmpty()) layers = arrayOf(Seq.with(add.node))
     else layers.first().add(add.node)
+
+    balanceUpdated()
+  }
+
+  fun balanceUpdated(){
+    isUpdated = true
+
+    recipeElements.filterIsInstance<RecipeTab>().forEach { it.updateNodeEfficiency() }
+
+    val list = mutableListOf<Pair<Int, RecipeGraphNode>>()
+    graph.eachNode { d, n -> list.add(d to n) }
+    list.sortBy { it.first }
+    list.forEach { node ->
+      node.second.updateEfficiency()
+      node.second.updateBalance()
+    }
+
+    statistic.reset()
+    statistic.updateStatistic()
+    rebuildIO()
   }
 
   private fun addRecipeTab(recipeTab: RecipeGraphElement){
@@ -575,6 +717,36 @@ class CalculatorView: Table() {
         super.enter(event, x, y, pointer, fromActor)
       }
     })
+  }
+
+  //IO
+  fun save(file: Fi): Boolean {
+    try {
+      val writer = Writes(DataOutputStream(file.write(false)))
+      graph.write(writer)
+
+      isUpdated = false
+    } catch (e: IOException) {
+      Log.err(e)
+      return false
+    }
+
+    return true
+  }
+
+  fun load(file: Fi): Boolean {
+    try {
+      val reader = Reads(DataInputStream(file.read()))
+      graph.read(reader)
+
+      graphUpdated()
+      isUpdated = false
+    } catch (e: IOException) {
+      Log.err(e)
+      return false
+    }
+
+    return true
   }
 
   data class LinkLine(

@@ -8,6 +8,7 @@ import tmi.TooManyItems
 import tmi.recipe.types.HeatMark
 import tmi.recipe.types.PowerMark
 import tmi.recipe.types.RecipeItem
+import tmi.recipe.types.RecipeItemType
 
 class EnvParameter {
   private val inputs = ObjectFloatMap<RecipeItem<*>>()
@@ -22,7 +23,7 @@ class EnvParameter {
   }
 
   fun add(item: RecipeItemStack<*>): EnvParameter {
-    return add(item.item, item.amount, item.isAttribute)
+    return add(item.item, item.amount, item.itemType == RecipeItemType.ATTRIBUTE)
   }
 
   fun add(item: RecipeItem<*>?, amount: Float, isAttribute: Boolean): EnvParameter {
@@ -32,6 +33,13 @@ class EnvParameter {
     else inputs.increment(item, 0f, amount)
 
     return this
+  }
+
+  fun setFull(stack: RecipeItemStack<*>) {
+    if (stack.itemType == RecipeItemType.ATTRIBUTE) {
+      attributes.put(stack.item, 100000f)
+    }
+    else inputs.put(stack.item, 100000f)
   }
 
   @JvmOverloads
@@ -85,7 +93,7 @@ class EnvParameter {
   fun applyFullRecipe(recipe: Recipe, fillOptional: Boolean, applyAttribute: Boolean, multiplier: Float): EnvParameter {
     for (stack in recipe.materials) {
       if (!fillOptional && stack.isOptional) continue
-      if (!applyAttribute && stack.isAttribute) continue
+      if (!applyAttribute && stack.itemType == RecipeItemType.ATTRIBUTE) continue
 
       inputs.put(stack.item, stack.amount*multiplier)
     }

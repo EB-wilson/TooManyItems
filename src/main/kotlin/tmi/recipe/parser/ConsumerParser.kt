@@ -2,6 +2,7 @@ package tmi.recipe.parser
 
 import arc.func.Boolf
 import arc.func.Cons
+import arc.func.Cons2
 import arc.func.Cons3
 import arc.struct.ObjectMap
 import mindustry.Vars
@@ -28,6 +29,14 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
     }
   }
 
+  protected fun registerCons(recipe: Recipe, handle: Cons2<Consume, RecipeItemStack<*>>, vararg cons: Consume) {
+    for (consume in cons) {
+      for (entry in consumerParsers) {
+        if (entry.key[consume]) entry.value[recipe, consume, { handle(consume, it) }]
+      }
+    }
+  }
+
   companion object {
     protected var consumerParsers: ObjectMap<Boolf<Consume>, Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>> =
       ObjectMap()
@@ -44,6 +53,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
           for (item in (consume as ConsumeItems).items) {
             handle(
               recipe.addMaterialInteger(item.item.getWrap(), item.amount)
+                .setType(if (consume.booster) RecipeItemType.BOOSTER else RecipeItemType.NORMAL)
                 .setOptional(consume.optional)
             )
           }
@@ -57,6 +67,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
             val eff = consume.itemEfficiencyMultiplier(item)
             handle(
               recipe.addMaterialInteger(item.getWrap(), 1)
+                .setType(if (consume.booster) RecipeItemType.BOOSTER else RecipeItemType.NORMAL)
                 .setOptional(consume.optional)
                 .setEff(eff)
                 .efficiencyFormat(eff)
@@ -70,15 +81,21 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         { c -> c is ConsumeLiquids },
         { recipe, consume, handle ->
           for (liquid in (consume as ConsumeLiquids).liquids) {
-            handle(recipe.addMaterialPersec(liquid.liquid.getWrap(), liquid.amount)
-              .setOptional(consume.optional))
+            handle(
+              recipe.addMaterialPersec(liquid.liquid.getWrap(), liquid.amount)
+                .setType(if (consume.booster) RecipeItemType.BOOSTER else RecipeItemType.NORMAL)
+                .setOptional(consume.optional)
+            )
           }
         })
       registerVanillaConsParser(
         { c -> c is ConsumeLiquid },
         { recipe, consume, handle ->
-          handle(recipe.addMaterialPersec((consume as ConsumeLiquid).liquid.getWrap(), consume.amount)
-            .setOptional(consume.optional))
+          handle(
+            recipe.addMaterialPersec((consume as ConsumeLiquid).liquid.getWrap(), consume.amount)
+              .setType(if (consume.booster) RecipeItemType.BOOSTER else RecipeItemType.NORMAL)
+              .setOptional(consume.optional)
+          )
         })
       registerVanillaConsParser(
         { c -> c is ConsumeLiquidFilter },
@@ -90,6 +107,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
             handle(
               recipe.addMaterialPersec(liquid.getWrap(), consume.amount)
                 .setOptional(consume.optional)
+                .setType(if (consume.booster) RecipeItemType.BOOSTER else RecipeItemType.NORMAL)
                 .setEff(eff)
                 .boostAndConsFormat(eff)
                 .setGroup(consumeGroup)
@@ -106,6 +124,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
             else handle(
               recipe.addMaterialInteger(stack.item.getWrap(), 1)
                 .setOptional(consume.optional)
+                .setType(if (consume.booster) RecipeItemType.BOOSTER else RecipeItemType.NORMAL)
             )
           }
         })

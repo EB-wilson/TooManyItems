@@ -36,16 +36,9 @@ open class Recipe @JvmOverloads constructor(
   val productions get() = productionMap.values().toList()
   val materials get() = materialMap.values().toList()
 
-  val materialGroups: List<List<RecipeItemStack<*>>> get() {
-    val groups = mutableSetOf<RecipeItemGroup>().also { set ->
-      materials.filter { it.group != null }.mapTo(set) { it.group!! }
-    }
-
-    val res = mutableListOf<List<RecipeItemStack<*>>>()
-    res.addAll(materials.filter { it.group == null }.map { listOf(it) })
-    res.addAll(groups.map { it.items() })
-
-    return res.toList()
+  val materialGroups: List<List<RecipeItemStack<*>>> get() = run {
+    var n = 0
+    materials.groupBy { it.group?:n++ }.map { it.value.toList() }
   }
 
   //infos
@@ -78,7 +71,7 @@ open class Recipe @JvmOverloads constructor(
     materialMap.orderedKeys().sort()
 
     hash = Objects.hash(
-      recipeType,
+      recipeType.id,
       productionMap.keys().toList(),
       materialMap.keys().toList(),
       ownerBlock
@@ -90,12 +83,13 @@ open class Recipe @JvmOverloads constructor(
   /**用配方当前使用的效率计算器计算该配方在给定的环境参数下的运行效率 */
   @JvmOverloads
   open fun calculateEfficiency(parameter: EnvParameter, multiplier: Float = calculateMultiple(parameter)): Float {
-    val normal = calculateZone(
-      materials.filter { it.itemType == RecipeItemType.NORMAL },
+    val matN = materials.filter { it.itemType == RecipeItemType.NORMAL }
+    val normal = if (matN.any()) calculateZone(
+      matN,
       normalMethod,
       parameter,
       multiplier
-    )
+    ) else 1f
     val booster = calculateZone(
       materials.filter { it.itemType == RecipeItemType.BOOSTER },
       boosterMethod,
@@ -106,17 +100,20 @@ open class Recipe @JvmOverloads constructor(
     return normal*max(booster, 1f)*multiplier
   }
 
-  open fun calculateMultiple(parameter: EnvParameter): Float {
+  open fun calculateMultiple(parameter: EnvParameter, multiplier: Float = 1f): Float {
+    val powerM = materials.filter { it.itemType == RecipeItemType.POWER }
     val attr = calculateZone(
       materials.filter { it.itemType == RecipeItemType.ATTRIBUTE },
       attributeMethod,
-      parameter
+      parameter,
+      multiplier
     )
-    val power = calculateZone(
-      materials.filter { it.itemType == RecipeItemType.POWER },
+    val power = if (powerM.any()) calculateZone(
+      powerM,
       powerMethod,
-      parameter
-    )
+      parameter,
+      multiplier
+    ) else 1f
 
     return (baseEfficiency + attr)*power
   }
@@ -136,6 +133,7 @@ open class Recipe @JvmOverloads constructor(
     )
 
     effs.forEach {
+      if (it.second.isInfinite()) return@forEach
       it.first.group?.also { group ->
         groupEff[group] = max(groupEff.get(group, it.second), it.second)
       }
@@ -179,7 +177,7 @@ open class Recipe @JvmOverloads constructor(
   fun addProduction(stack: RecipeItemStack<*>){ productionMap[stack.item] = stack }
 
   fun getMaterial(item: RecipeItem<*>): RecipeItemStack<*>? = materialMap[item]
-  fun getProduction(item: RecipeItem<*>): RecipeItemStack<*>? = materialMap[item]
+  fun getProduction(item: RecipeItem<*>): RecipeItemStack<*>? = productionMap[item]
 
   //utils
   fun addMaterialInteger(item: RecipeItem<*>, amount: Int) =

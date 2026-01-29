@@ -2,7 +2,7 @@ package tmi.ui
 
 import arc.Core
 import arc.func.Cons
-import arc.func.Cons4
+import arc.func.Floatp
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.input.KeyCode
@@ -16,7 +16,6 @@ import arc.scene.ui.Button
 import arc.scene.ui.Tooltip
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
-import arc.util.Interval
 import arc.util.Scaling
 import arc.util.Time
 import mindustry.Vars
@@ -26,6 +25,7 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.TooManyItems
+import tmi.recipe.AmountFormatter
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.util.Consts
@@ -44,14 +44,19 @@ class RecipeItemCell(
   private var itemIndex = 0
   private var timer = 0f
 
-  var lockedItem: RecipeItem<*>? = null
+  private var normalFormat: AmountFormatter? = null
+  private var updateText = false
+
+  var amountMultiplier: Floatp = Floatp { 1f }
+    private set
+  var chosenItem: RecipeItem<*>? = null
     private set
 
   var activity: Boolean = false
   var touched: Boolean = false
 
   init {
-    touchable = Touchable.enabled
+    touchable = if (clickListener == null) Touchable.disabled else Touchable.enabled
     rebuild()
 
     addListener(Tooltip { t ->
@@ -99,7 +104,7 @@ class RecipeItemCell(
 
         if (clickListener != null && Time.globalTime - lastTouchedTime < 12) {
           if (!Vars.mobile || Core.settings.getBool("keyboard")) {
-            if (Core.input.keyDown(TooManyItems.binds.hotKey) || lockedItem != null) clickListener(
+            if (Core.input.keyDown(TooManyItems.binds.hotKey) || chosenItem != null) clickListener(
               this@RecipeItemCell,
               currentItem(),
               type,
@@ -123,7 +128,7 @@ class RecipeItemCell(
           else {
             clicked++
             if (clicked >= 2) {
-              if (Core.input.keyDown(TooManyItems.binds.hotKey) || lockedItem != null) clickListener(
+              if (Core.input.keyDown(TooManyItems.binds.hotKey) || chosenItem != null) clickListener(
                 this@RecipeItemCell,
                 currentItem(),
                 type,
@@ -166,16 +171,17 @@ class RecipeItemCell(
       },
       Table {
         it.left().bottom()
-        it.add(stack.getAmount(), Styles.outlineLabel)
+        it.add((normalFormat?:stack.amountFormat).format(stack.amount*amountMultiplier.get()), Styles.outlineLabel)
           .apply {
             var last = false
-            if (stack.alternativeFormat != null) update { l ->
+            update { l ->
               val isDown = Core.input.keyDown(TooManyItems.binds.hotKey)
-              if (last != isDown) {
+              if (last != isDown || updateText) {
                 l.setText(
-                  if (isDown && stack.alternativeFormat != null) stack.alternativeFormat!!.format(stack.amount)
-                  else stack.getAmount()
+                  if (isDown && stack.alternativeFormat != null) stack.alternativeFormat!!.format(stack.amount*amountMultiplier.get())
+                  else (normalFormat?:stack.amountFormat).format(stack.amount*amountMultiplier.get())
                 )
+                updateText = false
                 last = isDown
               }
             }
@@ -223,17 +229,30 @@ class RecipeItemCell(
     }
   }
 
-  fun setLockedItem(item: RecipeItem<*>) {
+  fun setMultiplier(multiplier: Floatp) = also{
+    amountMultiplier = multiplier
+  }
+
+  fun updateText() = also{
+    updateText = true
+  }
+
+  fun setFormatter(formatter: AmountFormatter) = also{
+    normalFormat = formatter
+    updateText = true
+  }
+
+  fun setChosenItem(item: RecipeItem<*>) {
     val index = groupItems.indexOfFirst { it.item == item }
     if (itemIndex < 0) return
     itemIndex = index
-    lockedItem = item
+    chosenItem = item
 
     rebuild()
   }
 
   fun resetLockedItem(){
-    lockedItem = null
+    chosenItem = null
     itemIndex = 0
 
     rebuild()
@@ -245,7 +264,7 @@ class RecipeItemCell(
   override fun act(delta: Float) {
     super.act(delta)
 
-    if (groupItems.size > 1 && lockedItem == null && !Core.input.keyDown(TooManyItems.binds.hotKey)){
+    if (groupItems.size > 1 && chosenItem == null && !Core.input.keyDown(TooManyItems.binds.hotKey)){
       timer += delta
     }
 
@@ -262,7 +281,7 @@ class RecipeItemCell(
     progress = Mathf.approachDelta(progress, if (stack.item.hasDetails && click != null && touched) 1f else 0f, 1/60f)
 
     if (clickListener != null && Time.globalTime - lastTouchedTime > 12 && clicked == 1) {
-      if (Core.input.keyDown(TooManyItems.binds.hotKey) || lockedItem != null) clickListener(
+      if (Core.input.keyDown(TooManyItems.binds.hotKey) || chosenItem != null) clickListener(
         this,
         currentItem(),
         type,

@@ -18,6 +18,8 @@ import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
 import arc.util.Scaling
+import arc.util.io.Reads
+import arc.util.io.Writes
 import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.graphics.Pal
@@ -29,6 +31,9 @@ import tmi.ui.addEventBlocker
 import tmi.util.Consts
 import tmi.util.vec1
 import tmi.util.vec2
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.IOException
 import kotlin.math.max
 
 class CalculatorDialog: BaseDialog("") {
@@ -110,20 +115,22 @@ class CalculatorDialog: BaseDialog("") {
           page.table(Consts.padDarkGrayUI) { m ->
             m.left().defaults().growX().fillY().minWidth(300f).left()
 
-            m.button({ b ->
-                       b.left().defaults().left()
-                       b.image(Icon.addSmall).scaling(Scaling.fit).size(14f)
-                       b.add(Core.bundle["misc.new"]).padLeft(6f).labelAlign(Align.left)
-                     }, Styles.cleart) {
+            m.button(
+              { b ->
+              b.left().defaults().left()
+              b.image(Icon.addSmall).scaling(Scaling.fit).size(14f)
+              b.add(Core.bundle["misc.new"]).padLeft(6f).labelAlign(Align.left)
+            }, Styles.cleart) {
               hideMenu()
               createNewPage()
             }.margin(8f)
             m.row()
-            m.button({ b ->
-                       b.left().defaults().left()
-                       b.image(Icon.fileSmall).scaling(Scaling.fit).size(14f)
-                       b.add(Core.bundle["misc.open"]).padLeft(6f).labelAlign(Align.left)
-                     }, Styles.cleart) {
+            m.button(
+              { b ->
+                b.left().defaults().left()
+                b.image(Icon.fileSmall).scaling(Scaling.fit).size(14f)
+                b.add(Core.bundle["misc.open"]).padLeft(6f).labelAlign(Align.left)
+              }, Styles.cleart) {
               hideMenu()
               openFile()
             }.margin(8f)
@@ -170,11 +177,11 @@ class CalculatorDialog: BaseDialog("") {
       val currPage = currPage!!
 
       if (currPage.fi != null) {
-        if (currPage.shouldSave()) save(currPage.view, currPage.fi!!)
+        if (currPage.shouldSave()) currPage.view.save(currPage.fi!!)
       }
       else {
         Vars.platform.showFileChooser(false, currPage.title, "shd") { file ->
-          if (save(currPage.view, file)) {
+          if (currPage.view.save(file)) {
             currPage.fi = file
             currPage.title = file.nameWithoutExtension()
           }
@@ -219,12 +226,12 @@ class CalculatorDialog: BaseDialog("") {
                 true,
                 Core.bundle["misc.save"] to Icon.save to Runnable {
                   if (page.fi != null) {
-                    save(page.view, page.fi!!)
+                    page.view.save(page.fi!!)
                     deletePage(page)
                   }
                   else {
                     Vars.platform.showFileChooser(false, "shd") { file ->
-                      save(page.view, file)
+                      page.view.save(file)
                       deletePage(page)
                     }
                   }
@@ -272,7 +279,7 @@ class CalculatorDialog: BaseDialog("") {
       val viewPage = currPage!!
       if (!viewPage.loaded) {
         viewPage.view.build()
-        if (viewPage.fi != null) load(viewPage.view, viewPage.fi!!)
+        if (viewPage.fi != null) viewPage.view.load(viewPage.fi!!)
         viewPage.loaded = true
       }
 
@@ -423,15 +430,6 @@ class CalculatorDialog: BaseDialog("") {
       setCurrPage(if (pages.isEmpty) null else pages[max(index - 1, 0)])
     }
     page.reset()
-  }
-
-  //IO
-  private fun save(view: CalculatorView, file: Fi): Boolean {
-    TODO()
-  }
-
-  private fun load(view: CalculatorView, file: Fi): Boolean {
-    TODO()
   }
 
   class ViewPage(

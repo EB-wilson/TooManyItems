@@ -61,27 +61,27 @@ open class RecipesManager {
     for (stack in recipe.productions) {
       productions.add(stack.item)
     }
-    if (recipe.ownerBlock != null) blocks.add(recipe.ownerBlock)
+    blocks.add(recipe.ownerBlock)
   }
 
   /**以配方的产出项筛选配方，若配方的产出物中包含参数给定的项目则添加到返回列表 */
   fun getRecipesByProduction(production: RecipeItem<*>): Seq<Recipe> {
-    return recipes.select { e: Recipe -> e.containsProduction(production) || (e.recipeType == RecipeType.building && e.ownerBlock == production) }
+    return recipes.select { e -> e.containsProduction(production) || (e.recipeType == RecipeType.building && e.ownerBlock == production) }
   }
 
   /**以配方的材料筛选配方，若配方的消耗材料中包含参数给定的项目则添加到返回列表 */
   fun getRecipesByMaterial(material: RecipeItem<*>): Seq<Recipe> {
-    return recipes.select { e: Recipe -> e.containsMaterial(material) }
+    return recipes.select { e -> e.containsMaterial(material) }
   }
 
   /**以配方的建筑方块筛选配方，若配方的[Recipe.ownerBlock]与给定的参数相同则添加到返回列表 */
   fun getRecipesByFactory(block: RecipeItem<*>): Seq<Recipe> {
-    return recipes.select { e: Recipe -> e.recipeType != RecipeType.building && e.ownerBlock == block }
+    return recipes.select { e -> e.recipeType != RecipeType.building && e.ownerBlock == block }
   }
 
   /**提供一个方块条目，搜索目标方块的建筑配方*/
   fun getRecipesByBuilding(block: RecipeItem<*>): Seq<Recipe> {
-    return recipes.select { e: Recipe -> e.recipeType == RecipeType.building && e.ownerBlock == block }
+    return recipes.select { e -> e.recipeType == RecipeType.building && e.ownerBlock == block }
   }
 
   fun getByID(id: Int): Recipe {
@@ -115,19 +115,6 @@ open class RecipesManager {
         }
 
         addRecipe((parser as RecipeParser<Block>).parse(block))
-      }
-
-      if (block.requirements.isNotEmpty() && block.placeablePlayer) {
-        val recipe = Recipe(
-          RecipeType.building,
-          TooManyItems.itemsManager.getItem(block),
-          Consts.buildTimeAlter.get(block) as Float
-        )
-
-        for (stack in block.requirements) {
-          recipe.addMaterialInteger(TooManyItems.itemsManager.getItem(stack.item), stack.amount)
-        }
-        addRecipe(recipe)
       }
     }
   }

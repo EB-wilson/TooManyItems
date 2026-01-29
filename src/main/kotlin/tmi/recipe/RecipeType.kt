@@ -29,7 +29,7 @@ abstract class RecipeType {
   }
 
   /**此类型的ID，必须是唯一的，此类型的所有实例共用此id*/
-  open val id: Int get() = this::class.hashCode()
+  open val id: Int get() = this::class.qualifiedName.hashCode()
 
   /**构建配方视图的布局空间*/
   abstract fun RecipeView.BuilderScope.buildRecipeView(view: Table, recipe: Recipe)

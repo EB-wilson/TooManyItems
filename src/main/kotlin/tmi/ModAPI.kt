@@ -153,6 +153,7 @@ class ModAPI {
         ownerBlock: "$ownerBlockName", // default: null
         baseEfficiency: "#efficiency", // default: 1.0f
         normalMethod: "add"/"multiplier"/"min"/"max". // default: "min"
+        powerMethod: "add"/"multiplier"/"min"/"max". // default: "min"
         attributeMethod: "add"/"multiplier"/"min"/"max". // default: "min"
         boosterMethod: "add"/"multiplier"/"min"/"max". // default: "min"
         subInfo: "$subInfoBundleName", // default: null
@@ -217,6 +218,7 @@ class ModAPI {
       val subInfo: String? = recipeInfo.getString("subInfo")
 
       val normalMethod: String? = recipeInfo.getString("normalMethod")
+      val powerMethod: String? = recipeInfo.getString("powerMethod")
       val attributeMethod: String? = recipeInfo.getString("attributeMethod")
       val boosterMethod: String? = recipeInfo.getString("boosterMethod")
 
@@ -230,6 +232,7 @@ class ModAPI {
       ).setBaseEff(recipeInfo.getFloat("baseEfficiency", 1f))
 
       normalMethod?.also { method -> recipe.setNormalMethod(CalculateMethod.valueOf(method.uppercase())) }
+      powerMethod?.also { method -> recipe.setPowerMethod(CalculateMethod.valueOf(method.uppercase())) }
       attributeMethod?.also { method -> recipe.setAttributeMethod(CalculateMethod.valueOf(method.uppercase())) }
       boosterMethod?.also { method -> recipe.setBoosterMethod(CalculateMethod.valueOf(method.uppercase())) }
 

@@ -71,9 +71,7 @@ open class DrillParser : ConsumerParser<Drill>() {
         r
       }
 
-      val realDrillTime = content.getDrillTime(drop.itemDrop)
       recipe!!.addMaterial(drop.getWrap(), (content.size*content.size) as Number)
-        .setEff(content.drillTime/realDrillTime)
         .setType(RecipeItemType.ATTRIBUTE)
         .emptyFormat()
         .setGroup(oreGroup.get(drop.itemDrop){ RecipeItemGroup() })

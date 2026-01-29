@@ -36,7 +36,7 @@ enum class CalculateMethod(
       MAX -> objects.forEach { result = max(it, result) }
     }
 
-    return result
+    return if (result.isInfinite()) 0f else result
   }
 
   fun <T> cleanOptional(
@@ -52,7 +52,7 @@ enum class CalculateMethod(
       MULTIPLE -> optional.forEach { obj -> if (numeric(obj) < 1) clean(obj, base) }
       MIN -> {
         val min = objects.minOf(numeric)
-        optional.forEach { obj -> if (numeric(obj) <= min) clean(obj, base) }
+        optional.forEach { obj -> if (numeric(obj) < min) clean(obj, base) }
       }
       MAX -> { /*no action*/ }
     }
