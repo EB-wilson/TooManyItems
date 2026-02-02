@@ -2,7 +2,6 @@ package tmi.ui.designer
 
 import arc.Core
 import arc.Events
-import arc.func.Cons
 import arc.func.Cons2
 import arc.func.Prov
 import arc.graphics.Color
@@ -12,11 +11,8 @@ import arc.graphics.g2d.Fill
 import arc.graphics.g2d.TextureRegion
 import arc.input.KeyCode
 import arc.scene.Element
-import arc.scene.event.EventListener
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
-import arc.scene.event.SceneEvent
-import arc.scene.style.Drawable
 import arc.scene.ui.*
 import arc.scene.ui.layout.Cell
 import arc.scene.ui.layout.Scl
@@ -26,7 +22,7 @@ import arc.util.Tmp
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
-import tmi.invoke
+import tmi.util.invoke
 import tmi.ui.addEventBlocker
 import tmi.util.Consts
 

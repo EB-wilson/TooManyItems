@@ -32,7 +32,7 @@ import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
-import tmi.invoke
+import tmi.util.invoke
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI

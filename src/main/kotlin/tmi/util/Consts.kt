@@ -3,10 +3,12 @@ package tmi.util
 import arc.Core
 import arc.func.Prov
 import arc.graphics.Color
+import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
 import arc.scene.style.BaseDrawable
 import arc.scene.style.Drawable
 import arc.scene.style.TextureRegionDrawable
+import arc.scene.ui.Button
 import arc.scene.ui.Dialog.DialogStyle
 import arc.scene.ui.layout.Scl
 import arc.struct.Seq
@@ -102,14 +104,33 @@ object Consts {
 
   val transparent: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Color.clear) }
 
-  val transparentBack: DialogStyle by lazy { object : DialogStyle() {
-    init {
-      stageBackground = transparent
-      titleFont = Fonts.outline
-      background = transparent
-      titleFontColor = Pal.accent
+  val transparentBack: DialogStyle by lazy { DialogStyle().apply {
+    stageBackground = transparent
+    titleFont = Fonts.outline
+    background = transparent
+    titleFontColor = Pal.accent
+  } }
+
+  val recipeTabSelector: Button.ButtonStyle by lazy { Button.ButtonStyle().apply{
+    up = object : BaseDrawable(){
+      override fun draw(x: Float, y: Float, width: Float, height: Float) {
+        Lines.stroke(Scl.scl(8f), Pal.accent)
+        Lines.rect(x, y, width, height)
+      }
     }
-  }}
+    over = object : BaseDrawable(){
+      override fun draw(x: Float, y: Float, width: Float, height: Float) {
+        Lines.stroke(Scl.scl(8f), Color.white)
+        Lines.rect(x, y, width, height)
+      }
+    }
+    down = object : BaseDrawable(){
+      override fun draw(x: Float, y: Float, width: Float, height: Float) {
+        Lines.stroke(Scl.scl(8f), Color.gray)
+        Lines.rect(x, y, width, height)
+      }
+    }
+  } }
 
   val markerTile: Tile = object : Tile(0, 0) {
     override fun setFloor(type: Floor) {

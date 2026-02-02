@@ -8,7 +8,7 @@ import arc.struct.ObjectMap
 import mindustry.Vars
 import mindustry.world.Block
 import mindustry.world.consumers.*
-import tmi.invoke
+import tmi.util.invoke
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
 import tmi.recipe.RecipeItemStack

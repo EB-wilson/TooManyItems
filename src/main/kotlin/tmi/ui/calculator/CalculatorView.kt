@@ -23,16 +23,12 @@ import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
-import arc.util.Scaling
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
-import sun.tools.jconsole.Tab
-import tmi.TooManyItems
 import tmi.recipe.AmountFormatter
-import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
 import tmi.ui.CellType
@@ -40,6 +36,7 @@ import tmi.ui.RecipeItemCell
 import tmi.ui.RecipesDialog
 import tmi.ui.TmiUI
 import tmi.ui.calculator.RecipeGraphElement.*
+import tmi.util.Consts
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
@@ -106,13 +103,17 @@ class CalculatorView: Table() {
       clearChildren()
       validNodes.forEach { tabs ->
         val select = Button()
+        select.style = Consts.recipeTabSelector
         select.clicked {
           node.disInput(item)
           node.setInput(item, tabs.node.targetNode)
           graphUpdated()
           hide()
         }
-        select.setBounds(tabs.x, tabs.y, tabs.width, tabs.height)
+        select.setBounds(
+          tabs.x - Scl.scl(16f), tabs.y - Scl.scl(16f),
+          tabs.width + Scl.scl(32f), tabs.height + Scl.scl(32f)
+        )
         addChild(select)
       }
 
@@ -281,8 +282,8 @@ class CalculatorView: Table() {
         val children = node.childrenWithItem()
         children.forEach a@{ (item, child) ->
           val linked = nodeToElement[child] ?: return@a
-          val from = tab.inputOffset(item).add(tab.nodeX, tab.nodeY)
-          val to = linked.outputOffset(item).add(linked.nodeX, linked.nodeY)
+          val from = tab.inputOffset(item).cpy().add(tab.nodeX, tab.nodeY)
+          val to = linked.outputOffset(item).cpy().add(linked.nodeX, linked.nodeY)
           val line = LinkLine(item, from, to)
 
           tab.setupInputOverListener(line)
@@ -588,6 +589,9 @@ class CalculatorView: Table() {
           graphNode.optionals.remove(item)
           graphNode.setInput(item, newNode)
           cell.setChosenItem(item)
+
+          linkExisted(newNode)
+
           graphUpdated()
 
           hide()
@@ -595,6 +599,37 @@ class CalculatorView: Table() {
         showDoubleRecipe(true)
       }
     }
+  }
+
+  fun linkExisted(target: RecipeGraphNode) {
+    val validConsNodes = mutableMapOf<RecipeItem<*>, RecipeGraphNode>()
+    val validProdNodes = mutableMapOf<RecipeItem<*>, Seq<RecipeGraphNode>>()
+    val recipe = target.recipe
+
+    graph.forEach { node ->
+      if (node == target) return@forEach
+
+      val nodeRec = node.recipe
+
+      recipe.materials
+        .filter { it.itemType != RecipeItemType.POWER && it.itemType != RecipeItemType.ATTRIBUTE }
+        .forEach { mat ->
+          if (nodeRec.containsProduction(mat.item) && !target.hasInput(mat.item)){
+            validConsNodes[mat.item] = node
+          }
+        }
+
+      recipe.productions
+        .filter { it.itemType != RecipeItemType.POWER }
+        .forEach { mat ->
+          if (nodeRec.containsMaterial(mat.item) && !node.hasInput(mat.item)) {
+            validProdNodes.computeIfAbsent(mat.item){ Seq() }.add(node)
+          }
+        }
+    }
+
+    validConsNodes.forEach { (item, n) -> target.setInput(item, n) }
+    validProdNodes.forEach { (item, nodes) -> nodes.forEach { n -> target.setOutput(item, n) } }
   }
   
   fun graphUpdated() {
@@ -633,7 +668,7 @@ class CalculatorView: Table() {
   fun balanceUpdated(){
     isUpdated = true
 
-    recipeElements.filterIsInstance<RecipeTab>().forEach { it.updateNodeEfficiency() }
+    recipeElements.filterIsInstance<RecipeTab>().forEach { it.setupEnvParameters(it.graphNode.envParameter) }
 
     val list = mutableListOf<Pair<Int, RecipeGraphNode>>()
     graph.eachNode { d, n -> list.add(d to n) }
@@ -645,6 +680,16 @@ class CalculatorView: Table() {
 
     statistic.reset()
     statistic.updateStatistic()
+    graphView.act(0f) // update the balanced amount
+
+    recipeElements.filterIsInstance<RecipeTab>().forEach {
+      it.invalidate()
+      it.validate()
+      it.pack()
+    }
+
+    graphView.invalidate()
+
     rebuildIO()
   }
 

@@ -4,11 +4,11 @@ import arc.func.Cons
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectFloatMap
 import arc.struct.OrderedMap
-import tmi.invoke
+import tmi.util.invoke
 import tmi.recipe.types.CalculateMethod
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
-import tmi.set
+import tmi.util.set
 import tmi.util.mto
 import java.util.*
 import kotlin.math.max

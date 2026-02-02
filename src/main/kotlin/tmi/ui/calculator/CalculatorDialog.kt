@@ -2,7 +2,6 @@ package tmi.ui.calculator
 
 import arc.Core
 import arc.files.Fi
-import arc.func.Boolp
 import arc.func.Cons
 import arc.func.Prov
 import arc.graphics.Color
@@ -12,28 +11,22 @@ import arc.scene.Element
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
 import arc.scene.ui.Button
-import arc.scene.ui.Dialog
 import arc.scene.ui.layout.Table
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
 import arc.util.Scaling
-import arc.util.io.Reads
-import arc.util.io.Writes
 import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
-import tmi.invoke
+import tmi.util.invoke
 import tmi.ui.TmiUI
 import tmi.ui.addEventBlocker
 import tmi.util.Consts
 import tmi.util.vec1
 import tmi.util.vec2
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.io.IOException
 import kotlin.math.max
 
 class CalculatorDialog: BaseDialog("") {

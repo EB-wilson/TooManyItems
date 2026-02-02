@@ -1,11 +1,8 @@
 package tmi.util
 
-import arc.Application
 import arc.ApplicationListener
-import arc.Core
 import arc.files.Fi
 import arc.func.Cons
-import tmi.invoke
 
 open class WrapAppListener(
   protected val origin: ApplicationListener,

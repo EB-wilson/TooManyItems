@@ -23,7 +23,7 @@ import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.TooManyItems
-import tmi.forEach
+import tmi.util.forEach
 import tmi.recipe.EnvParameter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack

@@ -56,6 +56,7 @@ interface RecipeGraphElement {
           callbackRecipe(Icon.add) { rec ->
             val node = RecipeGraphNode(rec)
             view.graph.addNode(node)
+            view.linkExisted(node)
             view.graphUpdated()
             hide()
           }

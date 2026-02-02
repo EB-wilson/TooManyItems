@@ -9,10 +9,10 @@ import arc.util.io.Reads
 import arc.util.io.Writes
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
-import tmi.set
+import tmi.util.set
 import kotlin.math.max
 
-class RecipeGraph{
+class RecipeGraph: Iterable<RecipeGraphNode>{
   private var lastIndex = 0
   private val recipeNodes = Seq<RecipeGraphNode>()
 
@@ -132,4 +132,6 @@ class RecipeGraph{
       }
     }
   }
+
+  override fun iterator() = recipeNodes.iterator()
 }

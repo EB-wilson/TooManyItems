@@ -6,12 +6,9 @@ import arc.struct.ObjectSet
 import arc.struct.Seq
 import tmi.recipe.EnvParameter
 import tmi.recipe.Recipe
-import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
-import tmi.set
-import tmi.util.Consts.balance
-import kotlin.math.ceil
+import tmi.util.set
 import kotlin.math.max
 
 class RecipeGraphNode(
@@ -27,7 +24,7 @@ class RecipeGraphNode(
   /**Only usable on root nodes*/
   var targetAmount = 1
 
-  var balanceAmount = -1
+  var balanceAmount = -1f
 
   var multiplier = 1f
   var efficiency = 1f
@@ -43,7 +40,7 @@ class RecipeGraphNode(
 
   fun updateBalance(){
     if (contextDepth > 0) {
-      var amount = 0
+      var amount = 0f
       parentsWithItem().forEach { (item, parents) ->
         val out = recipe.getProduction(item)!!
 
@@ -54,7 +51,7 @@ class RecipeGraphNode(
             requireAmount += stack.amount*parent.balanceAmount*mul
           }
         }
-        val balance = ceil(requireAmount/(out.amount*efficiency)).toInt()
+        val balance = requireAmount/(out.amount*efficiency)
 
         amount = max(amount, balance)
       }

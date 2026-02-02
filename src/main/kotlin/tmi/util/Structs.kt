@@ -1,6 +1,9 @@
 package tmi.util
 
-import kotlin.contracts.ContractBuilder
+import arc.struct.IntMap
+import arc.struct.ObjectFloatMap
+import arc.struct.ObjectIntMap
+import arc.struct.ObjectMap
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -38,4 +41,14 @@ inline fun <reified T: Any, R> Any.runInst(clazz: KClass<T>, block: (T) -> R): R
     callsInPlace(block, InvocationKind.AT_MOST_ONCE)
   }
   return if (this is T) block(this) else null
+}
+
+operator fun <K, V> ObjectMap<K, V>.set(key: K, value: V): V = put(key, value)
+operator fun <K> ObjectIntMap<K>.set(key: K, value: Int) = put(key, value)
+operator fun <K> ObjectFloatMap<K>.set(key: K, value: Float) = put(key, value)
+operator fun <V> IntMap<V>.set(key: Int, value: V): V = put(key, value)
+inline fun <K, V> ObjectMap<K, V>.forEach(block: (K, V) -> Unit){
+  for (e in this){
+    block(e.key, e.value)
+  }
 }

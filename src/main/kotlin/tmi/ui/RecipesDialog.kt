@@ -176,9 +176,7 @@ open class RecipesDialog : BaseDialog("") {
   fun build(){
     addCloseButton()
 
-    //TODO: not usable yet
-    if (Core.settings.getBool("tmi_enable_preview")) buttons.button(Core.bundle["dialog.recipes.designer"], Icon.book) {
-      //TmiUI.schematicDesigner.show()
+    buttons.button(Core.bundle["dialog.recipes.designer"], Icon.book) {
       TmiUI.recipeGraph.show()
       hide()
     }

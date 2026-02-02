@@ -26,7 +26,7 @@ import mindustry.graphics.Pal
 import tmi.TooManyItems
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
-import tmi.set
+import tmi.util.set
 import tmi.ui.TmiUI
 import tmi.ui.addEventBlocker
 import tmi.util.Consts

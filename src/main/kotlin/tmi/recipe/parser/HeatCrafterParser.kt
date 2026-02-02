@@ -22,7 +22,7 @@ open class HeatCrafterParser : ConsumerParser<HeatCrafter>() {
       recipeType = RecipeType.factory,
       ownerBlock = content.getWrap(),
       craftTime = content.craftTime,
-    ).setBaseEff(0f)
+    )
 
     res.addMaterial(HeatMark, content.heatRequirement as Number)
       .setType(RecipeItemType.POWER)

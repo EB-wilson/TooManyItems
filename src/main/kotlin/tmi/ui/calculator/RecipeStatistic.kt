@@ -1,22 +1,11 @@
 package tmi.ui.calculator
 
-import arc.math.Mathf
 import arc.struct.*
 import tmi.TooManyItems
-import tmi.forEach
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
-import tmi.set
-import tmi.ui.calculator.RecipeGraphLayout.Node
-import tmi.ui.calculator.RecipeGraphLayout.RecNode
-import tmi.ui.designer.Card
-import tmi.ui.designer.DesignerView
-import tmi.ui.designer.IOCard
-import tmi.ui.designer.RecipeCard
-import kotlin.math.ceil
-import kotlin.math.max
 
 class RecipeStatistic(
   private val targetGraph: RecipeGraph

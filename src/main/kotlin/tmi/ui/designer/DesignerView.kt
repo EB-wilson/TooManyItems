@@ -42,11 +42,11 @@ import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.TooManyItems
-import tmi.f
-import tmi.invoke
+import tmi.util.f
+import tmi.util.invoke
 import tmi.recipe.Recipe
 import tmi.recipe.types.RecipeItem
-import tmi.set
+import tmi.util.set
 import tmi.ui.addEventBlocker
 import tmi.util.*
 import java.io.IOException

@@ -3,11 +3,11 @@ package tmi.ui.designer
 import arc.math.Mathf
 import arc.struct.*
 import tmi.TooManyItems
-import tmi.forEach
+import tmi.util.forEach
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
-import tmi.set
+import tmi.util.set
 
 @Deprecated("Use recipe calculator")
 class BalanceStatistic(private val ownerView: DesignerView) {

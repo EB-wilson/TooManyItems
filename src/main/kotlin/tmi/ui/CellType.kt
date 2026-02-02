@@ -3,5 +3,7 @@ package tmi.ui
 enum class CellType {
   MATERIAL,
   BLOCK,
-  PRODUCTION
+  PRODUCTION,
+  ATTRIBUTE,
+  OPTIONAL,
 }

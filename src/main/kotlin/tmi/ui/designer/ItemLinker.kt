@@ -30,7 +30,7 @@ import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.recipe.types.RecipeItem
-import tmi.set
+import tmi.util.set
 import tmi.ui.addEventBlocker
 import tmi.util.*
 import kotlin.math.abs

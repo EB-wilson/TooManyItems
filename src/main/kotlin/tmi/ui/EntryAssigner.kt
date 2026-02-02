@@ -22,7 +22,7 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.ContentInfoDialog
 import tmi.TooManyItems
-import tmi.invoke
+import tmi.util.invoke
 import tmi.util.CombinedKeys
 import tmi.util.Consts
 

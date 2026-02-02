@@ -43,6 +43,7 @@ class RecipeItemCell(
   private var clicked = 0
   private var itemIndex = 0
   private var timer = 0f
+  private var fontScl = 1f
 
   private var normalFormat: AmountFormatter? = null
   private var updateText = false
@@ -155,7 +156,7 @@ class RecipeItemCell(
     clearChildren()
 
     val stack = groupItems[itemIndex]
-    buildButton(this, stack)
+    buildButton(this, stack, fontScl)
 
     fill {
       it.top().left().add("*", Styles.outlineLabel).size(10f).fontScale(1.2f)
@@ -164,7 +165,7 @@ class RecipeItemCell(
     }
   }
 
-  private fun buildButton(table: Table, stack: RecipeItemStack<*>) {
+  private fun buildButton(table: Table, stack: RecipeItemStack<*>, fontScale: Float) {
     table.stack(
       Table {
         it.image(stack.item.icon).grow().scaling(Scaling.fit)
@@ -185,6 +186,7 @@ class RecipeItemCell(
                 last = isDown
               }
             }
+            fontScale(fontScale)
           }
         it.pack()
       },
@@ -209,7 +211,7 @@ class RecipeItemCell(
             groupItems.forEachIndexed { i, stack ->
               if (i > 0 && i % 8 == 0) pane.row()
 
-              pane.button({ button -> buildButton(button, stack)}){
+              pane.button({ button -> buildButton(button, stack, 1.0f)}){
                 callback.get(stack)
                 hide()
               }.size(80f).pad(6f).get().addListener(Tooltip { t ->
@@ -233,6 +235,11 @@ class RecipeItemCell(
     amountMultiplier = multiplier
   }
 
+  fun setFontScl(fontScl: Float) = also{
+    this.fontScl = fontScl
+    rebuild()
+  }
+
   fun updateText() = also{
     updateText = true
   }
@@ -242,16 +249,16 @@ class RecipeItemCell(
     updateText = true
   }
 
-  fun setChosenItem(item: RecipeItem<*>) {
+  fun setChosenItem(item: RecipeItem<*>) = also {
     val index = groupItems.indexOfFirst { it.item == item }
-    if (itemIndex < 0) return
+    if (itemIndex < 0) return this
     itemIndex = index
     chosenItem = item
 
     rebuild()
   }
 
-  fun resetLockedItem(){
+  fun resetLockedItem() = also{
     chosenItem = null
     itemIndex = 0
 

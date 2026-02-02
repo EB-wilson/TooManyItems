@@ -15,7 +15,7 @@ import mindustry.core.UI
 import mindustry.gen.Icon
 import mindustry.ui.Styles
 import tmi.TooManyItems
-import tmi.forEach
+import tmi.util.forEach
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI
