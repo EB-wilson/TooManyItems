@@ -5,6 +5,8 @@ import mindustry.ctype.UnlockableContent
 import tmi.recipe.AmountFormatter.Companion.emptyFormatter
 import tmi.recipe.AmountFormatter.Companion.floatFormatter
 import tmi.recipe.AmountFormatter.Companion.integerFormatter
+import tmi.recipe.AmountFormatter.Companion.timeToFormatter
+import tmi.recipe.AmountFormatter.Companion.timedAmountFormatter
 import tmi.recipe.AmountFormatter.Companion.unitTimedFormatter
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
@@ -76,6 +78,8 @@ class RecipeItemStack<T>(
   @JvmOverloads
   fun integerFormat(mul: Float = 1f) = also { setFormat(integerFormatter(mul)) }
   fun unitTimedFormat() = also { setFormat( unitTimedFormatter()) }
+  fun timeToFormat() = also { setFormat( timeToFormatter()) }
+  fun timedFormat() = also { setFormat( timedAmountFormatter()) }
 
   fun efficiencyFormat(eff: Float) = also {
     setFormat { _ ->

@@ -513,11 +513,9 @@ open class RecipesDialog : BaseDialog("") {
 
     recipesTable.touchable = Touchable.enabled
 
-    val viewTabs = Seq<Table>()
     mainView = Table{ main ->
       recipePage = 0
       rebuildRecipe = {
-        viewTabs.clear()
         main.center()
         main.clearChildren()
         val views = Seq<RecipeView>()
@@ -573,33 +571,37 @@ open class RecipesDialog : BaseDialog("") {
           views.forEach { v ->
             if (v != null) {
               view.table { rec ->
-                viewTabs.add(rec)
-                rec.center().add(v).center().fill().pad(20f)
+                rec.table { back ->
+                  back.center().add(v).center().fill().pad(20f)
 
-                v.recipe.subInfoBuilder?.also {
-                  rec.row()
-                  rec.table { t ->
-                    t.center().defaults().center()
-                    it.get(t)
-                  }.fill().padTop(8f)
-                }
+                  v.recipe.subInfoBuilder?.also {
+                    back.row()
+                    back.table { t ->
+                      t.center().defaults().center()
+                      it.get(t)
+                    }.fill().padTop(8f)
+                  }
+                }.fillY().growX()
+
+                rec.row()
+                rec.image().color(Pal.gray).height(2f).growX()
 
                 if (callback != null && recipeCallbackFilter?.get(v.recipe) ?: true) {
                   rec.row()
                   rec.table { bu ->
-                    bu.button(callbackIcon, Styles.clearNonei, 36f) {
+                    bu.right().button(callbackIcon, Styles.clearNonei, 36f) {
                       callback!![v.recipe]
                     }.margin(5f).disabled {
                       return@disabled v.recipe.recipeType == RecipeType.building
                     }
-                  }.fill()
+                  }.fillY().growX()
                 }
-              }.fill().pad(12f)
+              }.fillY().growX().pad(12f)
             }
             else view.add().grow()
             view.row()
           }
-        }.center().fill().get()
+        }.center().fillY().growX().get()
 
         main.addChild(modeTab)
 
@@ -622,10 +624,7 @@ open class RecipesDialog : BaseDialog("") {
 
     recipesTable.clearChildren()
     recipesTable.fill { t ->
-      t.table { clip ->
-        clip.clip = true
-        clip.addChild(mainView)
-      }.grow().pad(8f)
+      t.addChild(mainView)
     }
     recipesTable.table { top ->
       top.table { t ->

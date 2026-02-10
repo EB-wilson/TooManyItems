@@ -42,12 +42,43 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
     recipeNodes.forEach { callBack.get(it) }
   }
 
+  private fun RecipeGraphNode.visitFlow(set: MutableSet<RecipeGraphNode>, callBack: Cons<RecipeGraphNode>){
+    if (set.add(this)) {
+      callBack.get(this)
+      parents().forEach { it.visitFlow(set, callBack) }
+      children().forEach { it.visitFlow(set, callBack) }
+    }
+  }
+
   fun eachNode(callBack: Cons2<Int, RecipeGraphNode>){
     val set = linkedSetOf<RecipeGraphNode>()
 
     recipeNodes.forEach { it.contextDepth = 0 }
 
-    for (root in recipeNodes.select { e -> e.parents().isEmpty() }) {
+    val flowed = mutableSetOf<RecipeGraphNode>()
+    val isolated = mutableSetOf<MutableList<RecipeGraphNode>>()
+    recipeNodes.forEach {
+      if (!flowed.contains(it)) {
+        val nodes = mutableListOf<RecipeGraphNode>()
+        isolated.add(nodes)
+        it.visitFlow(flowed) { node ->
+          nodes.add(node)
+        }
+      }
+    }
+
+    val top = mutableListOf<RecipeGraphNode>()
+    isolated.forEach { sub ->
+      val roots = sub.filter { it.parents().isEmpty() }
+      if (!sub.isEmpty() && roots.isEmpty()){
+        top.add(sub.first())
+      }
+      else {
+        top.addAll(roots)
+      }
+    }
+
+    for (root in top) {
       root.visit(0){ depth, node ->
         set.add(node)
         node.contextDepth = max(node.contextDepth, depth)
@@ -121,7 +152,10 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
       list.add(tmp)
     }
 
-    list.forEach { addNode(it.node) }
+    list.forEach { node ->
+      recipeNodes.add(node.node)
+      node.node.graph = this
+    }
     list.forEach {
       it.children.forEach { entry ->
         val item = entry.key

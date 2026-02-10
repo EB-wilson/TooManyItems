@@ -2,15 +2,23 @@ package tmi.ui.calculator
 
 import arc.Core
 import arc.files.Fi
+import arc.func.Boolf
+import arc.func.Boolp
 import arc.func.Cons
+import arc.func.Cons2
+import arc.func.Func
 import arc.func.Prov
 import arc.graphics.Color
 import arc.input.KeyCode
 import arc.math.geom.Vec2
 import arc.scene.Element
+import arc.scene.event.ClickListener
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
+import arc.scene.event.Touchable
+import arc.scene.style.Drawable
 import arc.scene.ui.Button
+import arc.scene.ui.Tooltip
 import arc.scene.ui.layout.Table
 import arc.struct.Seq
 import arc.util.Align
@@ -18,18 +26,31 @@ import arc.util.Log
 import arc.util.Scaling
 import mindustry.Vars
 import mindustry.gen.Icon
+import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.util.invoke
 import tmi.ui.TmiUI
+import tmi.ui.TmiUI.showChoiceIcons
 import tmi.ui.addEventBlocker
+import tmi.util.CombineKeyTree
+import tmi.util.CombinedKeys
 import tmi.util.Consts
 import tmi.util.vec1
 import tmi.util.vec2
+import kotlin.collections.forEach
 import kotlin.math.max
 
 class CalculatorDialog: BaseDialog("") {
+  private var menuFolded = true
+
+  private val sideToolTabs = Seq<ToolTab>()
+  private val topMenuTabSet = Seq<MenuTab>()
+  private val menuHiddens = Seq<Runnable>()
+
+  private val keyBinds = CombineKeyTree<Runnable>()
+
   private val pages = Seq<ViewPage>()
   private val recentPages = Seq<ViewPage>()
   private var currPage: ViewPage? = null
@@ -41,6 +62,11 @@ class CalculatorDialog: BaseDialog("") {
   private val menuTable = Table().apply{ visible = false }
 
   init {
+    setupTools()
+    setupMenu()
+
+    loadRecentPages()
+    setupMenuBinds()
     build()
 
     addListener(object: InputListener(){
@@ -49,6 +75,288 @@ class CalculatorDialog: BaseDialog("") {
         return false
       }
     })
+  }
+
+  override fun act(delta: Float) {
+    super.act(delta)
+    if (Core.scene.hasField()) return
+    keyBinds.checkTap(Core.input)?.run()
+  }
+
+  private fun loadRecentPages(){
+    recentPages.clear()
+    val raw = Core.settings.getString("tmi-calculator-recent-pages", "")
+    val entries = raw.split(";")
+
+    entries.forEach {
+      addRecentPage(Fi(it))
+    }
+
+    recentPages.removeAll { it.fi?.exists()?.let { b -> !b }?: true }
+  }
+
+  private fun addRecentPage(fi: Fi) {
+    recentPages.removeAll { it.fi?.exists()?.let { b -> !b }?: true }
+
+    if (!fi.exists()) return
+    if (recentPages.contains { it.fi == fi }) return
+    recentPages.add(ViewPage(fi, fi.nameWithoutExtension()){ CalculatorView() })
+
+    Core.settings.put(
+      "tmi-calculator-recent-pages",
+      recentPages.joinToString(";") { it.fi!!.path() }
+    )
+  }
+
+  private fun setupTools() {
+    addTool(
+      ToolTab(
+        Core.bundle["dialog.calculator.addRecipe"],
+        Icon.add,
+        disabled = { it != null },
+      ){ v, _ ->
+        v!!
+        TmiUI.recipesDialog.showWith {
+          callbackRecipe(Icon.add) { rec ->
+            val node = RecipeGraphNode(rec)
+            v.graph.addNode(node)
+            v.linkExisted(node)
+            v.graphUpdated()
+            hide()
+          }
+          showDoubleRecipe(true)
+        }
+      },
+
+      ToolTab(
+        Core.bundle["dialog.calculator.showGrid"],
+        { v -> if (v?.showGrid?:true) Consts.showGrid else Consts.hideGrid },
+        disabled = { it != null },
+      ){ v, _ ->
+        v!!.showGrid = !v.showGrid
+      },
+
+      ToolTab(
+        Core.bundle["dialog.calculator.autoLink"],
+        {
+          it?.let { v ->
+            when {
+              v.autoLinkInput && v.autoLinkOutput -> Consts.autolinkAll
+              v.autoLinkInput && !v.autoLinkOutput -> Consts.autolinkInputs
+              !v.autoLinkInput && v.autoLinkOutput -> Consts.autolinkOutputs
+              else -> Consts.autolinkOff
+            }
+          }?: Consts.autolinkAll
+        },
+        disabled = { it != null },
+      ){ v, b ->
+        v!!
+        showMenu(b, Align.topRight){ tab ->
+          tab.table(Consts.padDarkGrayUI) { m ->
+            m.left().defaults().growX().fillY().minWidth(240f).left()
+
+            m.button(Core.bundle["autolink.all"], Consts.autolinkAll, Styles.clearTogglet) {
+              v.autoLinkInput = true
+              v.autoLinkOutput = true
+            }.margin(8f).update { it.isChecked = v.autoLinkInput && v.autoLinkOutput }
+
+            m.row()
+            m.button(Core.bundle["autolink.inputs"], Consts.autolinkInputs, Styles.clearTogglet) {
+              v.autoLinkInput = true
+              v.autoLinkOutput = false
+            }.margin(8f).update { it.isChecked = v.autoLinkInput && !v.autoLinkOutput }
+
+            m.row()
+            m.button(Core.bundle["autolink.outputs"], Consts.autolinkOutputs, Styles.clearTogglet) {
+              v.autoLinkInput = false
+              v.autoLinkOutput = true
+            }.margin(8f).update { it.isChecked = !v.autoLinkInput && v.autoLinkOutput }
+
+            m.row()
+            m.button(Core.bundle["autolink.off"], Consts.autolinkOff, Styles.clearTogglet) {
+              v.autoLinkInput = false
+              v.autoLinkOutput = false
+            }.margin(8f).update { it.isChecked = !v.autoLinkInput && !v.autoLinkOutput }
+          }
+        }
+      },
+    )
+  }
+
+  private fun setupMenu(){
+    addMenu(
+      // files
+      MenuTab(
+        Core.bundle["misc.new"], "file",
+        group = "fileIO"
+      ){
+        hideMenu()
+        createNewPage()
+      },
+      MenuTab(
+        Core.bundle["misc.open"], "file", Icon.fileSmall,
+        group = "fileIO"
+      ){
+        hideMenu()
+        openFile()
+      },
+      MenuTab(
+        Core.bundle["misc.save"], "file", Icon.saveSmall,
+        group = "fileIO",
+        valid = { currPage -> currPage != null },
+        keyBind = CombinedKeys(KeyCode.controlLeft, KeyCode.s),
+      ){ currPage ->
+        val page = currPage!!
+        hideMenu()
+        if (page.fi != null) {
+          if (page.shouldSave()) save(page, page.fi!!)
+        }
+        else {
+          Vars.platform.showFileChooser(false, page.title, "shd") { file ->
+            if (save(page, file)) {
+              page.fi = file
+              page.title = file.nameWithoutExtension()
+            }
+          }
+        }
+      },
+      MenuTab(
+        Core.bundle["misc.saveAs"], "file",
+        group = "fileIO",
+        valid = { currPage != null },
+        keyBind = CombinedKeys(KeyCode.altLeft, KeyCode.s),
+      ){ currPage ->
+        hideMenu()
+        val page = currPage!!
+        Vars.platform.showFileChooser(false, page.title, "shd") { file ->
+          if (save(page, file)) {
+            page.fi = file
+            page.title = file.nameWithoutExtension()
+          }
+        }
+      },
+      MenuTab(
+        Core.bundle["misc.saveAll"], "file", Icon.saveSmall,
+        group = "fileIO",
+        valid = { currPage != null },
+        keyBind = CombinedKeys(KeyCode.controlLeft, KeyCode.shiftLeft, KeyCode.s),
+      ){
+        hideMenu()
+        pages.forEach { it.fi?.also { f -> it.view.save(f) } }
+      },
+
+      // view
+      MenuTab(
+        Core.bundle["dialog.calculator.refresh"], "view", Icon.refreshSmall,
+        group = "normal",
+        keyBind = CombinedKeys(KeyCode.f5),
+        valid = { currPage != null }
+      ){ currPage ->
+        hideMenu()
+        currPage!!.view.graphUpdated()
+      },
+      MenuTab(
+        Core.bundle["misc.closeAllPage"], "view",
+        group = "pages",
+        valid = { pages.any() }
+      ){
+        hideMenu()
+        pages.toList().also { closePages(it) }
+      },
+      MenuTab(
+        Core.bundle["misc.closeOtherPage"], "view",
+        group = "pages",
+        valid = { pages.any { it != currPage } }
+      ){
+        hideMenu()
+        pages.filter { it != currPage }.also { closePages(it) }
+      },
+      MenuTab(
+        Core.bundle["misc.closeAllSaved"], "view",
+        group = "pages",
+        valid = { pages.any { !it.shouldSave() } }
+      ){
+        hideMenu()
+        pages.filter { !it.shouldSave() }.forEach { deletePage(it) }
+      },
+      MenuTab(
+        Core.bundle["misc.resetView"], "view", Icon.refreshSmall,
+        group = "view",
+        valid = { currPage != null }
+      ){ currPage ->
+        hideMenu()
+        currPage!!.view.resetView()
+      },
+
+      // help
+      MenuTab(
+        Core.bundle["misc.designerHelp"], "help", Icon.bookSmall
+      ){
+        hideMenu()
+      },
+      MenuTab(
+        Core.bundle["misc.about"], "help", Icon.infoSmall
+      ){
+        hideMenu()
+      },
+    )
+  }
+
+  fun setupMenuBinds() {
+    keyBinds.clear()
+
+    setBinds(topMenuTabSet)
+  }
+
+  private fun setBinds(topMenuTabSet: Iterable<MenuTab>) {
+    topMenuTabSet.forEach { tab ->
+      if (tab.subTabs != null) {
+        setBinds(tab.subTabs)
+      }
+      else if (tab.keyBind != null) {
+        keyBinds.putKeyBinding(tab.keyBind!!) { tab.clicked?.get(currPage) }
+      }
+    }
+  }
+
+  private fun closePages(
+    viewPages: List<ViewPage>
+  ) {
+    if (viewPages.any { it.shouldSave() }) {
+      showChoiceIcons(
+        Core.bundle["misc.someUnsaved"],
+        Core.bundle["misc.ensureClose"],
+        true,
+        Core.bundle["misc.saveAll"] to Icon.save to Runnable {
+          viewPages.forEach {
+            if (it.shouldSave()) {
+              if (it.fi != null) {
+                it.view.save(it.fi!!)
+                deletePage(it)
+              }
+              else {
+                Vars.platform.showFileChooser(false, it.title, "shd") { file ->
+                  it.view.save(file)
+                  deletePage(it)
+                }
+              }
+            }
+          }
+        },
+        Core.bundle["misc.close"] to Icon.cancel to Runnable {
+          viewPages.forEach { deletePage(it) }
+        },
+      )
+    }
+    else viewPages.forEach { deletePage(it) }
+  }
+
+  fun addTool(vararg toolTab: ToolTab) = also{
+    sideToolTabs.add(toolTab)
+  }
+
+  fun addMenu(vararg menuTab: MenuTab) = also{
+    topMenuTabSet.add(menuTab)
   }
 
   fun build(){
@@ -83,10 +391,37 @@ class CalculatorDialog: BaseDialog("") {
       it.image(Consts.tmi).scaling(Scaling.fit).size(32f)
     }.growY().marginLeft(8f).marginRight(8f)
 
-    topTable.table{ def ->
+    val tabs = topMenuTabSet.groupBy { it.tabName }
+      .map{ groups -> groups.key to groups.value.groupBy { it.group } }
+      .toMap()
+
+    var menuTable: Table? = null
+
+    addListener(object : InputListener(){
+      override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
+        val elem = hit(x, y, false)
+        if (elem != null && elem.isDescendantOf(menuTable)) return false
+
+        menuFolded = true
+        return false
+      }
+    })
+
+    topTable.stack(Table{ def ->
       def.left()
-      buildPages(def)
-    }
+      def.visibility = Boolp{ menuFolded }
+      def.button(Icon.menuSmall, Styles.clearNonei, 48f) {
+        menuFolded = false
+      }.growY().fillX().padLeft(12f).padRight(12f)
+
+      buildFoldedMenu(def)
+    }, Table{ menus ->
+      menuTable = menus
+      menus.left()
+      menus.visibility = Boolp{ !menuFolded }
+
+      buildUnfoldedMenuTabs(tabs, menus)
+    })
 
     topTable.add().growX()
 
@@ -94,7 +429,152 @@ class CalculatorDialog: BaseDialog("") {
       .marginLeft(5f).marginRight(5f).growY()
   }
 
-  private fun buildPages(pagesTable: Table) {
+  private fun buildUnfoldedMenuTabs(
+    tabs: Map<String, Map<String, List<MenuTab>>>,
+    menu: Table,
+  ) {
+    var currHover: Button? = null
+    tabs.forEach { (tabName, groups) ->
+      val button = object : Button(Styles.cleart) {
+        init {
+          add(Core.bundle["calculator.tabs.$tabName", tabName])
+        }
+
+        override fun isOver(): Boolean {
+          return currHover == this || super.isOver()
+        }
+      }
+
+      menu.add(button).marginLeft(20f).marginRight(20f).growY().get()
+        .apply {
+          val show = show@{
+            if (currHover == this) return@show
+            currHover = this
+            onMenuHidden { currHover = null }
+            showMenu(this, Align.bottomLeft, Align.topLeft, true) { menu ->
+              menu.table(Consts.padDarkGrayUI) { m ->
+                m.defaults().growX().fillY().minWidth(300f)
+                buildMenuTab(m, groups.values)
+              }.fill()
+            }
+          }
+
+          addListener(object : ClickListener() {
+            override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
+              super.enter(event, x, y, pointer, fromActor)
+              if (fromActor != null && !fromActor.isDescendantOf(this@apply)) show()
+            }
+
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+              if (currHover == this@apply) {
+                hideMenu()
+                currHover = null
+              }
+              else show()
+            }
+          })
+
+          addEventBlocker()
+        }
+    }
+  }
+
+  private fun buildMenuTab(
+    table: Table,
+    groups: Iterable<Iterable<MenuTab>>,
+  ) {
+    var first = true
+    var currHover: Button? = null
+    var hoverMenu: Table? = null
+    groups.forEach { group ->
+      if (!first) table.image().height(2f).pad(4f).padLeft(0f).padRight(0f).growX().color(Color.lightGray).row()
+      first = false
+
+      group.forEach { tab ->
+        val button = object :Button(Styles.cleart){
+          init {
+            val valid = tab.valid.get(currPage)
+            left().defaults().left()
+            image(tab.icon).scaling(Scaling.fit).size(14f)
+              .color(if (valid) Color.white else Color.gray)
+            add(tab.title).padLeft(6f).labelAlign(Align.left)
+              .color(if (valid) Color.white else Color.gray)
+            if (tab.subTabs == null){
+              if (tab.keyBind != null) {
+                add(tab.keyBind.toString()).padLeft(40f)
+                  .growX().right().labelAlign(Align.right)
+                  .color(if (valid) Color.lightGray else Color.darkGray)
+              }
+            }
+            else {
+              table{
+                it.right().image(Icon.rightOpenSmall).scaling(Scaling.fit).size(12f)
+                  .color(if (valid) Color.white else Color.gray)
+              }.growX()
+            }
+          }
+
+          override fun isOver(): Boolean {
+            return currHover == this || super.isOver()
+          }
+        }
+
+        table.add(button).fill().margin(8f).get().apply {
+          if (tab.valid.get(currPage)) {
+            if (tab.subTabs != null){
+              val show = show@{
+                if (currHover == this) return@show
+                currHover = this
+                hoverMenu = makeSubMenu(this, Align.topRight, Align.topLeft){ t ->
+                  val tabs = linkedMapOf<String, Seq<MenuTab>>()
+                  tab.subTabs.forEach {
+                    tabs.computeIfAbsent(it.group){ Seq() }.add(it)
+                  }
+
+                  t.defaults().growX().fillY().minWidth(300f)
+                  buildMenuTab(t, tabs.values)
+                }
+              }
+
+              addListener(object : ClickListener(){
+                override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
+                  super.enter(event, x, y, pointer, fromActor)
+                  if (fromActor != null && !fromActor.isDescendantOf(this@apply)) show()
+                }
+
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                  super.clicked(event, x, y)
+                  if (currHover == this@apply) {
+                    hoverMenu?.remove()
+                    currHover = null
+                  }
+                  else show()
+                }
+              })
+            }
+            else {
+              hovered{
+                currHover = null
+                hoverMenu?.remove()
+                hoverMenu = null
+              }
+
+              addCaptureListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                  event?.cancel()
+                  tab.clicked?.get(currPage)
+                }
+              })
+            }
+          }
+          else isDisabled = true
+        }
+        table.row()
+      }
+    }
+  }
+
+  private fun buildFoldedMenu(pagesTable: Table) {
     pagesTable.button(
       { t ->
         t.left().defaults().left()
@@ -110,9 +590,9 @@ class CalculatorDialog: BaseDialog("") {
 
             m.button(
               { b ->
-              b.left().defaults().left()
-              b.image(Icon.addSmall).scaling(Scaling.fit).size(14f)
-              b.add(Core.bundle["misc.new"]).padLeft(6f).labelAlign(Align.left)
+                b.left().defaults().left()
+                b.image(Icon.addSmall).scaling(Scaling.fit).size(14f)
+                b.add(Core.bundle["misc.new"]).padLeft(6f).labelAlign(Align.left)
             }, Styles.cleart) {
               hideMenu()
               createNewPage()
@@ -123,7 +603,7 @@ class CalculatorDialog: BaseDialog("") {
                 b.left().defaults().left()
                 b.image(Icon.fileSmall).scaling(Scaling.fit).size(14f)
                 b.add(Core.bundle["misc.open"]).padLeft(6f).labelAlign(Align.left)
-              }, Styles.cleart) {
+            }, Styles.cleart) {
               hideMenu()
               openFile()
             }.margin(8f)
@@ -170,11 +650,11 @@ class CalculatorDialog: BaseDialog("") {
       val currPage = currPage!!
 
       if (currPage.fi != null) {
-        if (currPage.shouldSave()) currPage.view.save(currPage.fi!!)
+        if (currPage.shouldSave()) save(currPage, currPage.fi!!)
       }
       else {
         Vars.platform.showFileChooser(false, currPage.title, "shd") { file ->
-          if (currPage.view.save(file)) {
+          if (save(currPage, file)) {
             currPage.fi = file
             currPage.title = file.nameWithoutExtension()
           }
@@ -213,18 +693,18 @@ class CalculatorDialog: BaseDialog("") {
         if (!recentMark) {
           b.button(Icon.cancelSmall, Styles.clearNonei, 20f) {
             if (page.shouldSave()) {
-              TmiUI.showChoiceIcons(
+              showChoiceIcons(
                 Core.bundle["misc.unsaved"],
                 Core.bundle["misc.ensureClose"],
                 true,
                 Core.bundle["misc.save"] to Icon.save to Runnable {
                   if (page.fi != null) {
-                    page.view.save(page.fi!!)
+                    save(page, page.fi!!)
                     deletePage(page)
                   }
                   else {
                     Vars.platform.showFileChooser(false, "shd") { file ->
-                      page.view.save(file)
+                      save(page, file)
                       deletePage(page)
                     }
                   }
@@ -262,7 +742,33 @@ class CalculatorDialog: BaseDialog("") {
 
   //Sides
   private fun buildSide() {
+    sideTable.clear()
+    sideTable.top().pane(Styles.noBarPane) { list ->
+      list.top().defaults().size(40f).padBottom(8f)
+      for (entry in sideToolTabs) {
+        var btn: Button? = null
+        btn = list.button(Icon.none, Styles.clearNoneTogglei, 32f) {
+          entry.action.get(currPage?.view, btn)
+        }.padTop(8f).update { b ->
+          b.isChecked = entry.checked?.get(currPage?.view)?:false
+          b.style.imageUp = entry.icon.get(currPage?.view)
+        }.get()
+        btn.addListener(Tooltip { tip -> tip.table(Tex.paneLeft).get().add(entry.desc) })
+        btn.setDisabled { currPage == null }
+        btn.touchable { Touchable.enabled.takeIf{ currPage != null }?: Touchable.disabled }
+        btn.fill { x, y, w, h ->
+          if (!btn.isDisabled) return@fill
+          Consts.grayUIAlpha.draw(x, y, w, h)
+        }.touchable = Touchable.disabled
+        list.row()
+      }
+    }.fill().padTop(8f)
+    sideTable.add().growY()
 
+    sideTable.row()
+    sideTable.button(Icon.infoCircle, Styles.clearNonei, 32f) {
+      //TODO
+    }.padBottom(0f).size(40f).padBottom(8f)
   }
 
   //Views
@@ -290,7 +796,7 @@ class CalculatorDialog: BaseDialog("") {
 
   //== Tools ==
   //Menu
-  private fun showMenu(
+  fun showMenu(
     showOn: Element,
     alignment: Int = Align.topLeft,
     tableAlign: Int = Align.topLeft,
@@ -330,7 +836,7 @@ class CalculatorDialog: BaseDialog("") {
     menuTable.addEventBlocker()
   }
 
-  private fun makeSubMenu(
+  fun makeSubMenu(
     showOn: Element,
     alignment: Int = Align.topLeft,
     tableAlign: Int = Align.topLeft,
@@ -364,8 +870,15 @@ class CalculatorDialog: BaseDialog("") {
     return menuTable
   }
 
-  private fun hideMenu() {
+  fun hideMenu() {
+    menuFolded = true
     menuTable.visible = false
+    menuHiddens.forEach { it.run() }
+    menuHiddens.clear()
+  }
+
+  fun onMenuHidden(listener: Runnable){
+    menuHiddens.add(listener)
   }
 
   //Handles
@@ -389,13 +902,13 @@ class CalculatorDialog: BaseDialog("") {
       setCurrPage(page)
     }
 
-  private fun addRecentPage(fi: Fi) {
-    recentPages.removeAll { it.fi?.exists()?.let { b -> !b }?: true }
-    if (!fi.exists()) return
-    if (recentPages.contains { it.fi == fi }) return
-    recentPages.add(ViewPage(fi, fi.nameWithoutExtension()){ CalculatorView() })
+  private fun save(page: ViewPage, fi: Fi): Boolean {
+    if (page.view.save(fi)) {
+      addRecentPage(fi)
+      return true
+    }
 
-    Core.settings.put("tmi-schematic-recent-pages", recentPages.joinToString(";") { it.fi!!.path() })
+    return false
   }
 
   private fun openFile(){
@@ -441,5 +954,52 @@ class CalculatorDialog: BaseDialog("") {
     }
 
     fun shouldSave() = fi == null || view.isUpdated
+  }
+
+  data class ToolTab(
+    val desc: String,
+    val icon: Func<CalculatorView?, Drawable>,
+    val checked: Boolf<CalculatorView?>? = null,
+    val disabled: Boolf<CalculatorView?>? = null,
+    val action: Cons2<CalculatorView?, Button>,
+  ) {
+    constructor(
+      desc: String,
+      icon: Drawable,
+      checked: Boolf<CalculatorView?>? = null,
+      disabled: Boolf<CalculatorView?>? = null,
+      action: Cons2<CalculatorView?, Button>,
+    ) : this(desc, Func<CalculatorView?, Drawable> { icon }, checked, disabled, action)
+  }
+
+  data class MenuTab(
+    val title: String,
+    val tabName: String,
+    val icon: Drawable,
+    val group: String,
+    var keyBind: CombinedKeys?,
+    val valid: Boolf<ViewPage?>,
+    val subTabs: List<MenuTab>?,
+    val clicked: Cons<ViewPage?>?,
+  ){
+    constructor(
+      title: String,
+      tabName: String,
+      icon: Drawable = Consts.transparent,
+      group: String = "normal",
+      keyBind: CombinedKeys? = null,
+      valid: Boolf<ViewPage?> = Boolf{ true },
+      clicked: Cons<ViewPage?>,
+    ): this(title, tabName, icon, group, keyBind, valid, null, clicked)
+
+    constructor(
+      title: String,
+      tabName: String,
+      icon: Drawable = Consts.transparent,
+      group: String = "normal",
+      keyBind: CombinedKeys? = null,
+      valid: Boolf<ViewPage?> = Boolf{ true },
+      vararg subTabs: MenuTab,
+    ): this(title, tabName, icon, group, keyBind, valid, subTabs.toList(), null)
   }
 }

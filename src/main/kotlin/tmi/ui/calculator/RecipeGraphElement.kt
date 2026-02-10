@@ -21,6 +21,7 @@ interface RecipeGraphElement {
   var nodeX: Float
   var nodeY: Float
 
+  fun centerOffset(): Vec2
   fun outputOffset(item: RecipeItem<*>): Vec2
   fun inputOffset(item: RecipeItem<*>): Vec2
 
@@ -83,6 +84,7 @@ interface RecipeGraphElement {
     override var nodeX: Float by::x
     override var nodeY: Float by::y
 
+    override fun centerOffset(): Vec2 = Vec2(nodeWidth/2, nodeHeight/2)
     override fun outputOffset(item: RecipeItem<*>): Vec2 = Vec2()
     override fun inputOffset(item: RecipeItem<*>): Vec2 = Vec2()
     override fun setupInputOverListener(line: CalculatorView.LinkLine) { /*no action*/ }

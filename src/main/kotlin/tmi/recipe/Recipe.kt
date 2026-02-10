@@ -58,6 +58,10 @@ open class Recipe @JvmOverloads constructor(
    * @see CalculateMethod*/
   var boosterMethod = CalculateMethod.MIN
     private set
+  /**[tmi.recipe.types.RecipeItemType.ISOLATED]计算区的计算方法
+   * @see CalculateMethod*/
+  var isolatedMethod = CalculateMethod.MIN
+    private set
 
   var baseEfficiency = 1f
     private set
@@ -83,7 +87,10 @@ open class Recipe @JvmOverloads constructor(
   /**用配方当前使用的效率计算器计算该配方在给定的环境参数下的运行效率 */
   @JvmOverloads
   open fun calculateEfficiency(parameter: EnvParameter, multiplier: Float = calculateMultiple(parameter)): Float {
+    if (multiplier <= 0f) return 0f
+
     val matN = materials.filter { it.itemType == RecipeItemType.NORMAL }
+    val matI = materials.filter { it.itemType == RecipeItemType.ISOLATED }
     val normal = if (matN.any()) calculateZone(
       matN,
       normalMethod,
@@ -96,8 +103,14 @@ open class Recipe @JvmOverloads constructor(
       parameter,
       multiplier
     )
+    val isolated = if (matI.any()) calculateZone(
+      matI,
+      isolatedMethod,
+      parameter,
+      1f
+    ) else 1f
 
-    return normal*max(booster, 1f)*multiplier
+    return normal*max(booster, 1f)*multiplier*isolated
   }
 
   open fun calculateMultiple(parameter: EnvParameter, multiplier: Float = 1f): Float {
@@ -151,6 +164,7 @@ open class Recipe @JvmOverloads constructor(
   fun setPowerMethod(attr: CalculateMethod) = also { powerMethod = attr }
   fun setAttributeMethod(attr: CalculateMethod) = also { attributeMethod = attr }
   fun setBoosterMethod(attr: CalculateMethod) = also { boosterMethod = attr }
+  fun setIsolatedMethod(attr: CalculateMethod) = also { isolatedMethod = attr }
   fun setBaseEff(baseEfficiency: Float) = also { this.baseEfficiency = baseEfficiency }
   fun setSubInfo(builder: Cons<Table>) = also { subInfoBuilder = builder }
   fun prependSubInfo(prependBuilder: Cons<Table>) = also {
@@ -186,7 +200,7 @@ open class Recipe @JvmOverloads constructor(
       item,
       amount.toFloat()
     ).integerFormat()).also {
-      it.setAltFormat(AmountFormatter.unitTimedFormatter())
+      it.setAltFormat(AmountFormatter.timedAmountFormatter())
       materialMap[item] = it
     }
 
@@ -196,13 +210,13 @@ open class Recipe @JvmOverloads constructor(
       item,
       amount
     ).floatFormat()).also {
-      it.setAltFormat(AmountFormatter.unitTimedFormatter())
+      it.setAltFormat(AmountFormatter.timedAmountFormatter())
       materialMap[item] = it
     }
 
   fun addMaterialPersec(item: RecipeItem<*>, persec: Float) =
     RecipeItemStack(item, persec).unitTimedFormat().also {
-      if (craftTime > 0) it.setAltFormat(AmountFormatter.floatFormatter(craftTime))
+      if (craftTime > 0) it.setAltFormat(AmountFormatter.timedAmountFormatter())
       materialMap[item] = it
     }
 
@@ -212,7 +226,7 @@ open class Recipe @JvmOverloads constructor(
       item,
       amount.toFloat()
     ).integerFormat()).also {
-      it.setAltFormat(AmountFormatter.unitTimedFormatter())
+      it.setAltFormat(AmountFormatter.timedAmountFormatter())
       productionMap[item] = it
     }
 
@@ -222,13 +236,13 @@ open class Recipe @JvmOverloads constructor(
       item,
       amount
     ).floatFormat()).also {
-      it.setAltFormat(AmountFormatter.unitTimedFormatter())
+      it.setAltFormat(AmountFormatter.timedAmountFormatter())
       productionMap[item] = it
     }
 
   fun addProductionPersec(item: RecipeItem<*>, perSec: Float) =
     RecipeItemStack(item, perSec).unitTimedFormat().also {
-      if (craftTime > 0) it.setAltFormat(AmountFormatter.floatFormatter(craftTime))
+      if (craftTime > 0) it.setAltFormat(AmountFormatter.timedAmountFormatter())
       productionMap[item] = it
     }
 

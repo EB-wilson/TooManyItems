@@ -5,16 +5,12 @@ import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
-import arc.graphics.g2d.ScissorStack
-import arc.math.geom.Rect
 import arc.scene.style.BaseDrawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.util.Time
-import arc.util.Tmp
 import mindustry.graphics.Pal
 import tmi.recipe.Recipe
-import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
 import tmi.ui.CellType
 import tmi.ui.RecipeView
@@ -28,12 +24,15 @@ open class FactoryRecipe : RecipeType() {
     view: Table,
     recipe: Recipe
   ) {
+    val cons = normalCons + isolatedCons.filter { !it.first().isOptional }
+    val boosters = boosterCons + isolatedCons.filter { it.first().isOptional }
+    val prod = mainProd + isolatedProd
     val subProd = sideProd + garbage
     val nonOptAttrs = attributeCons.filter { !it.first().isOptional }
     val optionalAttrs = attributeCons.filter { it.first().isOptional }
 
-    val mats = min(4, ceil(sqrt(normalCons.size.toFloat())).toInt())
-    val prods = min(4, ceil(sqrt(mainProd.size.toFloat())).toInt())
+    val mats = min(4, ceil(sqrt(cons.size.toFloat())).toInt())
+    val prods = min(4, ceil(sqrt(prod.size.toFloat())).toInt())
     val w = max(mats, prods)*92f
     val p = if (powerCons.any() || powerProd.any()) 100f else 0f
 
@@ -49,7 +48,7 @@ open class FactoryRecipe : RecipeType() {
           }.padRight(8f)
         }
         input.table { mat ->
-          normalCons.forEachIndexed { i, group ->
+          cons.forEachIndexed { i, group ->
             if (i > 0 && i%mats == 0) mat.row()
             mat.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
           }
@@ -105,7 +104,7 @@ open class FactoryRecipe : RecipeType() {
       main.table { output ->
         output.left()
         output.table { productions ->
-          mainProd.forEachIndexed { i, mat ->
+          prod.forEachIndexed { i, mat ->
             if (i > 0 && i%prods == 0) productions.row()
             productions.itemCell(CellType.PRODUCTION, mat).size(80f).pad(6f)
           }
@@ -137,7 +136,7 @@ open class FactoryRecipe : RecipeType() {
         }
       }
 
-      if (optionalAttrs.any() || boosterCons.any()) {
+      if (optionalAttrs.any() || boosters.any()) {
         attr.table { optional ->
           optional.add(Core.bundle["misc.optional"]).color(Pal.accent).pad(6f)
           optional.row()
@@ -145,13 +144,13 @@ open class FactoryRecipe : RecipeType() {
           optional.row()
 
           optional.table { items ->
-            boosterCons.forEach { group ->
+            boosters.forEach { group ->
               items.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
             }
 
             optionalAttrs.forEachIndexed { i, attribute ->
               items.itemCell(CellType.MATERIAL, *attribute.toTypedArray()).size(80f).pad(6f).also {
-                if (i == 0 && boosterCons.any()) it.padLeft(12f)
+                if (i == 0 && boosters.any()) it.padLeft(12f)
               }
             }
           }

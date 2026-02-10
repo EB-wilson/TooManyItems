@@ -4,21 +4,20 @@ import arc.struct.Seq
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
+import java.util.Stack
 
 object RecipeGraphLayout {
   fun generateLayout(graph: RecipeGraph): Array<Seq<Node>> {
     if (graph.isEmpty()) return emptyArray()
 
     val copyMap = mutableMapOf<RecipeGraphNode, RecNode>()
-    val copyList = mutableListOf<Node>()
+    val nodeList = mutableListOf<Node>()
 
-    var maxDepth = -1
     graph.eachNode { depth, node ->
       val rec = RecNode(node, node.recipe)
       rec.contextDepth = depth
-      maxDepth = maxDepth.coerceAtLeast(depth)
       copyMap[node] = rec
-      copyList.add(rec)
+      nodeList.add(rec)
     }
 
     graph.eachNode { node ->
@@ -36,14 +35,16 @@ object RecipeGraphLayout {
       }
     }
 
-    val layers = Array(maxDepth + 1){ Seq<Node>() }
-    copyList.forEach { node ->
+    val layered = nodeList.sortedBy { it.contextDepth }
+    val resolved = resolveLoops(layered)
+
+    val layers = Array(resolved.maxOf { it.contextDepth } + 1){ Seq<Node>() }
+    resolved.forEach { node ->
       val depth = node.contextDepth
       layers[depth].add(node)
     }
 
-    val standardizeLayers = standardLayers(layers)
-    val insertedLayers = insertLineMark(standardizeLayers)
+    val insertedLayers = insertLineMark(layers)
     val sortedLayers = sortLayers(insertedLayers)
 
     return sortedLayers
@@ -74,27 +75,70 @@ object RecipeGraphLayout {
     return swap.toTypedArray()
   }
 
-  private fun standardLayers(layers: Array<Seq<Node>>): Array<Seq<Node>> {
-    val swap = Seq(layers)
-    val aligned = Seq<Node>()
-    for (lay in 0..<swap.size) {
-      aligned.clear()
-      for (node in swap[lay]) {
-        for (child in node.children()) {
-          if (child.contextDepth == lay) {
-            aligned.add(child)
-            if (lay + 1 >= swap.size) {
-              swap.add(Seq<Node>())
-            }
-            swap[lay + 1].addUnique(child)
-            child.contextDepth = lay + 1
+  private fun Node.findLoop(other: Node): Boolean {
+    val checkingSet: MutableSet<Node> = mutableSetOf()
+    val stack = Stack<Node>()
+
+    stack.push(this)
+
+    var findOther = false
+    var isLoop = false
+    while (!stack.empty()) {
+      val node = stack.pop()
+      if (node == other) findOther = true
+      if (checkingSet.add(node)){
+        node.children().forEach { child ->
+          if (child == this@findLoop)
+            isLoop = true
+          stack.push(child)
+        }
+      }
+
+      if (findOther && isLoop) break
+    }
+
+    return findOther && isLoop
+  }
+
+  private fun standardDepth(nodes: List<Node>): List<Node> {
+    var anySorted = true
+
+    while (anySorted) {
+      anySorted = false
+      nodes.forEach { node ->
+        node.children().forEach { child ->
+          if (child.contextDepth <= node.contextDepth) {
+            child.contextDepth = node.contextDepth + 1
+            anySorted = true
           }
         }
       }
-      swap[lay].removeAll(aligned)
     }
 
-    return swap.toArray()
+    return nodes
+  }
+
+  private fun resolveLoops(nodes: List<Node>): List<Node> {
+    val swap = mutableListOf<Node>()
+    val shadowedMap = mutableMapOf<Node, ShadowNode>()
+
+    nodes.forEach { node ->
+      swap.add(node)
+      if (node !is RecNode) return@forEach
+      node.childrenWithItem().forEach { (item, child) ->
+        if (child is RecNode && child.contextDepth < node.contextDepth && child.findLoop(node)) {
+          val shadowed = shadowedMap.computeIfAbsent(child) { _ ->
+            ShadowNode(child).also { swap.add(it) }
+          }
+          node.disInput(item)
+          node.linkInput(item, shadowed)
+
+          standardDepth(swap)
+        }
+      }
+    }
+
+    return standardDepth(swap)
   }
 
   private fun insertLineMark(layers: Array<Seq<Node>>): Array<Seq<Node>> {
@@ -163,7 +207,7 @@ object RecipeGraphLayout {
     abstract fun unInput(item: RecipeItem<*>)
   }
 
-  class RecNode(
+  open class RecNode(
     val targetNode: RecipeGraphNode,
     val recipe: Recipe,
   ): Node(){
@@ -194,6 +238,10 @@ object RecipeGraphLayout {
       inputs.remove(item)
     }
   }
+
+  class ShadowNode(
+    val shadowed: RecNode
+  ): RecNode(shadowed.targetNode, shadowed.recipe)
 
   class LineMark(
     val stack: RecipeItemStack<*>

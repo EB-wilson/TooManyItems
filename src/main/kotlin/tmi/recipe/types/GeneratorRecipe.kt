@@ -25,8 +25,12 @@ class GeneratorRecipe : RecipeType() {
     view: Table,
     recipe: Recipe,
   ) {
-    val mats = min(4, ceil(sqrt(normalCons.size.toFloat())).toInt())
-    val prods = min(4, ceil(sqrt(mainProd.size.toFloat())).toInt())
+    val realCons = normalCons + isolatedCons.filter { !it.first().isOptional }
+    val realProd = mainProd + isolatedProd
+    val boosters = boosterCons + isolatedCons.filter { it.first().isOptional }
+
+    val mats = min(4, ceil(sqrt(realCons.size.toFloat())).toInt())
+    val prods = min(4, ceil(sqrt(realProd.size.toFloat())).toInt())
 
     val m = max(mats, prods)*92f
     val p = if (powerCons.any()) 100f else 0f
@@ -42,7 +46,7 @@ class GeneratorRecipe : RecipeType() {
         }.padRight(8f)
 
         mat.table { matTab ->
-          normalCons.forEachIndexed { i, group ->
+          realCons.forEachIndexed { i, group ->
             if (i > 0 && i%mats == 0) matTab.row()
             matTab.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
           }
@@ -51,12 +55,12 @@ class GeneratorRecipe : RecipeType() {
       main.table { center ->
         val rect = center.clipRect{ ((Time.globalTime%180f)/180f) }
 
-        if (normalCons.any() || boosterCons.any()){
+        if (realCons.any() || boosters.any()){
           center.table { booster ->
             booster.bottom()
-            if (boosterCons.any()) {
+            if (boosters.any()) {
               booster.table { b ->
-                boosterCons.forEach { group ->
+                boosters.forEach { group ->
                   b.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
                   b.row()
                 }
@@ -69,14 +73,14 @@ class GeneratorRecipe : RecipeType() {
 
                 val centerY = y + height/2f
                 val centerX = x + width/2f
-                val dx = if (normalCons.any()) x else centerX
-                val dw = if (normalCons.any()) width else width - width/2f
+                val dx = if (realCons.any()) x else centerX
+                val dw = if (realCons.any()) width else width - width/2f
                 Lines.stroke(Scl.scl(12f))
                 val a = Draw.getColorAlpha()
 
                 drawProgress(rect, Color.gray, Pal.accent, a) {
                   Lines.line(dx, centerY, dx + dw - s, centerY)
-                  if (boosterCons.any()) Lines.line(centerX, centerY, centerX, y + height)
+                  if (boosters.any()) Lines.line(centerX, centerY, centerX, y + height)
                   Fill.poly(x + width - s, centerY, 3, s, 0f)
                 }
               }
@@ -139,7 +143,7 @@ class GeneratorRecipe : RecipeType() {
         out.left()
 
         out.table { prod ->
-          mainProd.forEachIndexed { i, p ->
+          realProd.forEachIndexed { i, p ->
             if (i > 0 && i%prods == 0) prod.row()
             prod.itemCell(CellType.PRODUCTION, p).size(80f).pad(6f)
           }
@@ -189,6 +193,10 @@ class GeneratorRecipe : RecipeType() {
             }.pad(8f)
           }
         }.growX().colspan(3)
+      }
+      else if (sideProd.any() || garbage.any()) {
+        main.row()
+        main.add().height(40f)
       }
     }.padTop(24f)
   }

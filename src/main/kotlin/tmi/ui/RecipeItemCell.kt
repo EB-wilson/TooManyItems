@@ -46,7 +46,7 @@ class RecipeItemCell(
   private var fontScl = 1f
 
   private var normalFormat: AmountFormatter? = null
-  private var updateText = false
+  private var updateText = true
 
   var amountMultiplier: Floatp = Floatp { 1f }
     private set
@@ -163,6 +163,8 @@ class RecipeItemCell(
         .pad(12f).padTop(18f)
       it.visible { groupItems.size > 1 }
     }
+
+    act(0f)
   }
 
   private fun buildButton(table: Table, stack: RecipeItemStack<*>, fontScale: Float) {
@@ -172,16 +174,13 @@ class RecipeItemCell(
       },
       Table {
         it.left().bottom()
-        it.add((normalFormat?:stack.amountFormat).format(stack.amount*amountMultiplier.get()), Styles.outlineLabel)
+        it.add(formatAmount(false, stack), Styles.outlineLabel)
           .apply {
             var last = false
             update { l ->
               val isDown = Core.input.keyDown(TooManyItems.binds.hotKey)
               if (last != isDown || updateText) {
-                l.setText(
-                  if (isDown && stack.alternativeFormat != null) stack.alternativeFormat!!.format(stack.amount*amountMultiplier.get())
-                  else (normalFormat?:stack.amountFormat).format(stack.amount*amountMultiplier.get())
-                )
+                l.setText(formatAmount(isDown, stack))
                 updateText = false
                 last = isDown
               }
@@ -197,6 +196,15 @@ class RecipeItemCell(
       }
     ).grow().pad(5f)
   }
+
+  private fun formatAmount(alt: Boolean, stack: RecipeItemStack<*>): String =
+    if (alt && stack.alternativeFormat != null) {
+      stack.alternativeFormat!!.format(stack.amount*amountMultiplier.get())
+    }
+    else {
+      SpecialFormatters.getFormatter(stack.item, normalFormat ?: stack.amountFormat)
+        .format(stack.amount*amountMultiplier.get())
+    }
 
   private fun showSelector(callback: Cons<RecipeItemStack<*>>){
     if (groupItems.size == 1) callback.get(groupItems.first())

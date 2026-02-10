@@ -8,6 +8,7 @@ import mindustry.type.Item
 import mindustry.world.Block
 import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.environment.OreBlock
+import mindustry.world.blocks.environment.StaticWall
 import mindustry.world.blocks.production.BeamDrill
 import mindustry.world.consumers.Consume
 import mindustry.world.consumers.ConsumeLiquidBase
@@ -15,14 +16,14 @@ import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
 import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
-import tmi.util.Consts.markerTile
 
 open class BeamDrillParser : ConsumerParser<BeamDrill>() {
-  private var itemDrops: ObjectSet<Floor> = ObjectSet()
+  private var itemDrops: ObjectSet<Block> = ObjectSet()
 
   override fun init() {
     for (block in Vars.content.blocks()) {
-      if (block is Floor && block.wallOre && block.itemDrop != null) itemDrops.add(block)
+      if ((block is Floor && block.wallOre && block.itemDrop != null)
+      || (block is StaticWall && block.itemDrop != null)) itemDrops.add(block)
     }
   }
 
@@ -35,9 +36,6 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
     val oreGroup = ObjectMap<Item, RecipeItemGroup>()
 
     for (drop in itemDrops) {
-      if (drop is OreBlock) markerTile.setOverlay(drop)
-      else markerTile.setFloor(drop)
-
       if (drop.itemDrop.hardness > content.tier) continue
 
       val recipe = res.get(drop.itemDrop) {

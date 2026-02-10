@@ -15,6 +15,7 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
+import tmi.util.set
 
 class ModAPI {
   companion object {
@@ -152,10 +153,11 @@ class ModAPI {
         craftTime: "#craftTime",
         ownerBlock: "$ownerBlockName", // default: null
         baseEfficiency: "#efficiency", // default: 1.0f
-        normalMethod: "add"/"multiplier"/"min"/"max". // default: "min"
-        powerMethod: "add"/"multiplier"/"min"/"max". // default: "min"
-        attributeMethod: "add"/"multiplier"/"min"/"max". // default: "min"
-        boosterMethod: "add"/"multiplier"/"min"/"max". // default: "min"
+        normalMethod: "add"/"multiple"/"min"/"max". // default: "min"
+        powerMethod: "add"/"multiple"/"min"/"max". // default: "multiple"
+        attributeMethod: "add"/"multiple"/"min"/"max". // default: "min"
+        boosterMethod: "add"/"multiple"/"min"/"max". // default: "min"
+        isolatedMethod: "add"/"multiple"/"min"/"max". // default: "min"
         subInfo: "$subInfoBundleName", // default: null
         materials: [
           {
@@ -221,6 +223,7 @@ class ModAPI {
       val powerMethod: String? = recipeInfo.getString("powerMethod")
       val attributeMethod: String? = recipeInfo.getString("attributeMethod")
       val boosterMethod: String? = recipeInfo.getString("boosterMethod")
+      val isolatedMethod: String? = recipeInfo.getString("isolatedMethod")
 
       val materials = recipeInfo.get("materials")?.asArray()
       val productions = recipeInfo.get("productions")?.asArray()
@@ -235,6 +238,7 @@ class ModAPI {
       powerMethod?.also { method -> recipe.setPowerMethod(CalculateMethod.valueOf(method.uppercase())) }
       attributeMethod?.also { method -> recipe.setAttributeMethod(CalculateMethod.valueOf(method.uppercase())) }
       boosterMethod?.also { method -> recipe.setBoosterMethod(CalculateMethod.valueOf(method.uppercase())) }
+      isolatedMethod?.also { method -> recipe.setIsolatedMethod(CalculateMethod.valueOf(method.uppercase())) }
 
       subInfo?.also { info -> recipe.setSubInfo { it.add(Core.bundle[info]) } }
 

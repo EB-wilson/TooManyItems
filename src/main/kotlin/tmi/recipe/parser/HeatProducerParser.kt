@@ -19,8 +19,8 @@ open class HeatProducerParser : ConsumerParser<HeatProducer>() {
 
   override fun parse(content: HeatProducer): Seq<Recipe> {
     val res = Recipe(
-      recipeType = RecipeType.factory,
-      ownerBlock = 0.getWrap(),
+      recipeType = RecipeType.generator,
+      ownerBlock = content.getWrap(),
       craftTime = content.craftTime,
     )
 

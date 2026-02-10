@@ -9,6 +9,7 @@ import tmi.recipe.Recipe
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
 import tmi.util.set
+import kotlin.math.ceil
 import kotlin.math.max
 
 class RecipeGraphNode(
@@ -38,7 +39,7 @@ class RecipeGraphNode(
     efficiency = recipe.calculateEfficiency(envParameter, multiplier)
   }
 
-  fun updateBalance(){
+  fun updateBalance(): Boolean{
     if (contextDepth > 0) {
       var amount = 0f
       parentsWithItem().forEach { (item, parents) ->
@@ -47,24 +48,33 @@ class RecipeGraphNode(
         var requireAmount = 0f
         parents.forEach { parent ->
           parent.recipe.getMaterial(item)?.also { stack ->
-            val mul = if (stack.itemType == RecipeItemType.BOOSTER || stack.itemType == RecipeItemType.NORMAL) parent.multiplier else 1f
-            requireAmount += stack.amount*parent.balanceAmount*mul
+            val mul = if (stack.itemType == RecipeItemType.BOOSTER || stack.itemType == RecipeItemType.NORMAL)
+              parent.multiplier else 1f
+
+            requireAmount +=
+              if (stack.itemType == RecipeItemType.BOOSTER) stack.amount*ceil(parent.balanceAmount)*mul
+              else stack.amount*parent.balanceAmount*mul
           }
         }
-        val balance = requireAmount/(out.amount*efficiency)
+        val balance = requireAmount/(out.amount*if(out.itemType == RecipeItemType.ISOLATED) 1f else efficiency)
 
-        amount = max(amount, balance)
+        amount = max(amount, if (balance.isNaN()) 0f else balance)
       }
 
-      balanceAmount = amount
+      if (balanceAmount != amount) {
+        balanceAmount = amount
+        return true
+      }
     }
+
+    return false
   }
 
   fun children() = inputs.values().toList()
-  fun childrenWithItem() = inputs.map { it.key to it.value }
+  fun childrenWithItem() = inputs.map { it.key to it.value }.sortedBy { it.first }
 
   fun parents() = outputs.values().flatMap { it }
-  fun parentsWithItem() = outputs.map { it.key to it.value.copy() }.filter { it.second.any() }
+  fun parentsWithItem() = outputs.map { it.key to it.value.copy() }.filter { it.second.any() }.sortedBy { it.first }
 
   fun isHovering() = inputs.isEmpty && outputs.sumOf { it.value.size } <= 0
 
@@ -107,14 +117,17 @@ class RecipeGraphNode(
   fun getInput(item: RecipeItem<*>): RecipeGraphNode? = inputs.get(item)
   fun getOutputs(item: RecipeItem<*>): List<RecipeGraphNode>? = outputs.get(item)?.toList()
 
+  @JvmOverloads
   fun visit(
     currDepth: Int = 0,
-    block: Cons2<Int, RecipeGraphNode>
+    visitedSet: MutableSet<RecipeGraphNode> = mutableSetOf(),
+    block: Cons2<Int, RecipeGraphNode>,
   ){
-    block.get(currDepth, this)
-    inputs.values().forEach {
-      it.visit(currDepth + 1, block)
+    if (visitedSet.add(this)) {
+      block.get(currDepth, this)
+      inputs.values().forEach {
+        it.visit(currDepth + 1, visitedSet, block)
+      }
     }
   }
-
 }

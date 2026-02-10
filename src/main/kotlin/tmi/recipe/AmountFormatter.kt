@@ -4,6 +4,7 @@ import arc.math.Mathf
 import arc.util.Strings
 import mindustry.core.UI
 import tmi.util.Utils
+import kotlin.math.roundToInt
 
 fun interface AmountFormatter {
   companion object{
@@ -25,11 +26,48 @@ fun interface AmountFormatter {
     }
 
     @JvmStatic
+    fun timedAmountFormatter() = AmountFormatter{ f ->
+      if (f > 0) {
+        if (f < 1f/Utils.Unit.MIN.multi) {
+          val (value, unit) = Utils.timeTo(f)
+
+          (if (value > 1000) UI.formatAmount((value).toLong())
+          else if (value < 100) Strings.autoFixed(value, 1)
+          else value.roundToInt().toString()) + unit.colorCode + unit.strify + "/"
+        }
+        else {
+          val (value, unit) = Utils.unitTimed(f)
+
+          (if (value > 1000) UI.formatAmount((value).toLong())
+          else if (value < 100) Strings.autoFixed(value, 1)
+          else value.roundToInt().toString()) + unit.colorCode + "/" + unit.strify
+        }
+      }
+      else "--"
+    }
+
+    @JvmStatic
     fun unitTimedFormatter() = AmountFormatter{ f ->
       val (value, unit) = Utils.unitTimed(f)
 
-      (if (value > 1000) UI.formatAmount((value).toLong())
-      else Strings.autoFixed(value, 1)) + unit
+      if (value > 0) {
+        (if (value > 1000) UI.formatAmount((value).toLong())
+        else if (value < 100) Strings.autoFixed(value, 1)
+        else value.roundToInt().toString()) + unit.colorCode + "/" + unit.strify
+      }
+      else "--"
+    }
+
+    @JvmStatic
+    fun timeToFormatter() = AmountFormatter{ f ->
+      val (value, unit) = Utils.timeTo(f)
+
+      if (value > 0) {
+        (if (value > 1000) UI.formatAmount((value).toLong())
+        else if (value < 100) Strings.autoFixed(value, 1)
+        else value.roundToInt().toString()) + unit.colorCode + unit.strify + "/"
+      }
+      else "--"
     }
 
     @Deprecated(

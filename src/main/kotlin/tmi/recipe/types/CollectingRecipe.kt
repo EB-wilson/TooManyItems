@@ -24,7 +24,10 @@ open class CollectingRecipe : RecipeType() {
     view: Table,
     recipe: Recipe,
   ) {
-    val mats = min(4, ceil(sqrt(normalCons.size.toFloat())).toInt())
+    val cons = normalCons + isolatedCons.filter { !it.first().isOptional }
+    val boosters = boosterCons + isolatedCons.filter { it.first().isOptional }
+
+    val mats = min(4, ceil(sqrt(cons.size.toFloat())).toInt())
     val prods = min(4, ceil(sqrt(productions.size.toFloat())).toInt())
 
     val m = max(mats, prods)*92f
@@ -41,7 +44,7 @@ open class CollectingRecipe : RecipeType() {
         }.padRight(8f)
 
         mat.table { matTab ->
-          normalCons.forEachIndexed { i, group ->
+          cons.forEachIndexed { i, group ->
             if (i > 0 && i%mats == 0) matTab.row()
             matTab.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
           }
@@ -50,12 +53,12 @@ open class CollectingRecipe : RecipeType() {
       main.table { center ->
         val rect = center.clipRect{ ((Time.globalTime%180f)/180f) }
 
-        if (normalCons.any() || boosterCons.any()){
+        if (cons.any() || boosters.any()){
           center.table { booster ->
             booster.bottom()
-            if (boosterCons.any()) {
+            if (boosters.any()) {
               booster.table { b ->
-                boosterCons.forEach { group ->
+                boosters.forEach { group ->
                   b.itemCell(CellType.MATERIAL, *group.toTypedArray()).size(80f).pad(6f)
                   b.row()
                 }
@@ -68,14 +71,14 @@ open class CollectingRecipe : RecipeType() {
 
                 val centerY = y + height/2f
                 val centerX = x + width/2f
-                val dx = if (normalCons.any()) x else centerX
-                val dw = if (normalCons.any()) width else width - width/2f
+                val dx = if (cons.any()) x else centerX
+                val dw = if (cons.any()) width else width - width/2f
                 Lines.stroke(Scl.scl(12f))
                 val a = Draw.getColorAlpha()
 
                 drawProgress(rect, Color.gray, Pal.accent, a) {
                   Lines.line(dx, centerY, dx + dw - s, centerY)
-                  if (boosterCons.any()) Lines.line(centerX, centerY, centerX, y + height)
+                  if (boosters.any()) Lines.line(centerX, centerY, centerX, y + height)
                   Fill.poly(x + width - s, centerY, 3, s, 0f)
                 }
               }

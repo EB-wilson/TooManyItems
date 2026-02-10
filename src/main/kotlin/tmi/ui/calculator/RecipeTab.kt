@@ -30,16 +30,13 @@ import tmi.ui.CellType.*
 import tmi.ui.RecipeItemCell
 import tmi.ui.RecipesDialog
 import tmi.ui.TmiUI
-import tmi.util.Consts
-import tmi.util.ProviderWrap
-import tmi.util.enterSt
-import tmi.util.exitSt
-import tmi.util.wrap
+import tmi.util.*
 import kotlin.math.ceil
 
 class RecipeTab(
   override val node: RecipeGraphLayout.RecNode,
-  val view: CalculatorView
+  val view: CalculatorView,
+  val isShadow: Boolean,
 ): Table(), RecipeGraphElement {
   val graphNode = node.targetNode
 
@@ -83,8 +80,9 @@ class RecipeTab(
   }
 
   fun setupEnvParameters(env: EnvParameter) {
-    env.clear()
+    if (isShadow) return
 
+    env.clear()
     graphNode.recipe.materialGroups
       .filter { it.first().itemType == RecipeItemType.POWER }
       .forEach { p -> p.forEach { env.setFull(it) } }
@@ -98,7 +96,7 @@ class RecipeTab(
 
         if (stack == null) {
           stack = cell.groupItems.first()
-          if (stack.isOptional) return@forEach
+          if (stack.isOptional || stack.itemType == RecipeItemType.ATTRIBUTE) return@forEach
         }
 
         env.setFull(stack)
@@ -106,6 +104,10 @@ class RecipeTab(
 
     allCells.forEach { it.updateText() }
   }
+
+  fun getRecipeCells() = allCells.toList()
+
+  override fun centerOffset() = blockPos.value
 
   override fun inputOffset(item: RecipeItem<*>): Vec2 {
     val pos = materialPos.get(item)?:
@@ -139,7 +141,7 @@ class RecipeTab(
   }
 
   private fun buildCell(type: CellType, vararg groupItems: RecipeItemStack<*>) = RecipeItemCell(type, *groupItems){ stack, type, mode ->
-    cellCallback(type, stack, groupItems, mode)
+    if (!isShadow) cellCallback(type, stack, groupItems, mode)
   }.also { postHandleCell(it, groupItems, type) }
 
   private fun postHandleCell(
@@ -149,18 +151,23 @@ class RecipeTab(
   ) {
     allCells.add(cell)
 
+    if (isShadow) {
+      cell.isDisabled = true
+    }
+
     val posProv = wrap {
       val cent = Vec2(cell.width/2f, cell.height/2f)
       cell.localToAscendantCoordinates(this, cent)
     }
 
-    if (type == MATERIAL || type == PRODUCTION) cell.setFormatter(AmountFormatter.unitTimedFormatter())
+    if (type == MATERIAL || type == PRODUCTION) cell.setFormatter(AmountFormatter.timedAmountFormatter())
 
     when (type) {
       MATERIAL -> {
         when (groupItems.first().itemType) {
-          RecipeItemType.POWER -> cell.setMultiplier { graphNode.balanceAmount }
-          else -> cell.setMultiplier { graphNode.multiplier*graphNode.balanceAmount }
+          RecipeItemType.ISOLATED -> cell.setMultiplier { graphNode.balanceAmount }
+          RecipeItemType.BOOSTER -> cell.setMultiplier { graphNode.multiplier*ceil(graphNode.balanceAmount) }
+          else -> cell.setMultiplier { graphNode.efficiency*graphNode.balanceAmount }
         }
 
         if (!groupItems.first().isOptional) groupItems.forEach { i -> materialCells.put(i.item, cell) }
@@ -179,7 +186,9 @@ class RecipeTab(
         }
       }
       PRODUCTION -> {
-        cell.setMultiplier { graphNode.balanceAmount*graphNode.efficiency }
+        cell.setMultiplier {
+          graphNode.balanceAmount*if (groupItems.first().itemType == RecipeItemType.ISOLATED) 1f else graphNode.efficiency
+        }
 
         groupItems.forEach { i -> productionCells.put(i.item, cell) }
         groupItems.forEach { i -> productionPos.put(i.item, posProv) }
@@ -208,7 +217,12 @@ class RecipeTab(
         }
       }
       OPTIONAL -> {
-        cell.setMultiplier { graphNode.multiplier*graphNode.balanceAmount }
+        when(groupItems.first().itemType) {
+          RecipeItemType.BOOSTER -> cell.setMultiplier { graphNode.multiplier*ceil(graphNode.balanceAmount) }
+          RecipeItemType.ISOLATED -> cell.setMultiplier { graphNode.balanceAmount }
+          else -> cell.setMultiplier { graphNode.efficiency*graphNode.balanceAmount }
+        }
+
         groupItems.forEach { i -> materialCells.put(i.item, cell) }
 
         groupItems.find { s -> graphNode.optionals.contains(s.item) || graphNode.hasInput(s.item) }
@@ -311,11 +325,13 @@ class RecipeTab(
     val optionals = mats.filter { it.first().isOptional }
     val nonOptionals = mats.filter { !it.first().isOptional }
 
-    val realMats = nonOptionals + optionals.map {
-      listOfNotNull(it.find { s ->
-        graphNode.optionals.contains(s.item) || graphNode.hasInput(s.item)
-      })
-    }.filter { it.isNotEmpty() }
+    val realMats = if (isShadow) emptyList() else {
+      nonOptionals + optionals.map {
+        listOfNotNull(it.find { s ->
+          graphNode.optionals.contains(s.item) || graphNode.hasInput(s.item)
+        })
+      }.filter { it.isNotEmpty() }
+    }
 
     val attrs = materials.filter { it.first().itemType == RecipeItemType.ATTRIBUTE }
     val prod = productions.filter { it.itemType != RecipeItemType.POWER }
@@ -405,12 +421,12 @@ class RecipeTab(
     }).height(64f).fill()
     row()
     table{ center ->
-      val t = center.table(Consts.darkGrayUI){ cent ->
+      val t = center.table(if (isShadow) Tex.buttonDisabled else Consts.darkGrayUI){ cent ->
         cent.table { c ->
           val cell = buildCell(BLOCK, blockStack)
           c.add(cell).size(80f).pad(8f)
 
-          if (graphNode.parents().any()) {
+          if (graphNode.contextDepth > 0) {
             c.table { amount ->
               amount.add("").update {
                 if (graphNode.balanceAmount > 0) it.setText("${ceil(graphNode.balanceAmount).toInt()}x")
@@ -456,6 +472,13 @@ class RecipeTab(
               attr.add(cell).size(64f).pad(8f).margin(6f).get().setFontScl(0.8f)
             }
           }.pad(-4f)
+        }
+
+        if (isShadow) {
+          cent.fill { over ->
+            over.top().left()
+            over.image(Icon.copy).size(42f).pad(8f)
+          }
         }
       }.margin(8f).get()
 

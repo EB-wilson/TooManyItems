@@ -89,9 +89,11 @@ class RecipeView @JvmOverloads constructor(
     val attributeCons = materials.filter { group -> group.first().itemType == RecipeItemType.ATTRIBUTE }
     val normalCons = materials.filter { group -> group.first().itemType == RecipeItemType.NORMAL }
     val boosterCons = materials.filter { group -> group.first().itemType == RecipeItemType.BOOSTER }
+    val isolatedCons = materials.filter { group -> group.first().itemType == RecipeItemType.ISOLATED }
 
     val powerProd = productions.filter { it.itemType == RecipeItemType.POWER }
     val mainProd = productions.filter { it.itemType == RecipeItemType.NORMAL }
+    val isolatedProd = productions.filter { it.itemType == RecipeItemType.ISOLATED }
     val sideProd = productions.filter { it.itemType == RecipeItemType.SIDEPRODUCT }
     val garbage = productions.filter { it.itemType == RecipeItemType.GARBAGE }
 

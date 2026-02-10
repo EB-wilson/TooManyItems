@@ -6,6 +6,7 @@ import arc.util.Strings
 import mindustry.world.Block
 import mindustry.world.blocks.production.*
 import mindustry.world.meta.StatUnit
+import tmi.recipe.AmountFormatter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
 
@@ -21,6 +22,7 @@ open class SeparatorParser : ConsumerParser<Separator>() {
       craftTime = content.craftTime
     )
 
+    val united = AmountFormatter.timedAmountFormatter()
     registerCons(res, *content.consumers)
 
     var n = 0f
@@ -30,7 +32,7 @@ open class SeparatorParser : ConsumerParser<Separator>() {
     for (item in content.results) {
       res.addProduction(item.item.getWrap(), (item.amount/n/content.craftTime) as Number)
         .setFormat { f -> Mathf.round(f*100*res.craftTime).toString() + "%" }
-        .setAltFormat { f -> Strings.autoFixed(f*60, 1) + StatUnit.perSecond.localized() }
+        .setAltFormat(united)
     }
 
     return Seq.with(res)

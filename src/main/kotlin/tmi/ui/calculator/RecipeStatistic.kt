@@ -1,11 +1,13 @@
 package tmi.ui.calculator
 
 import arc.struct.*
+import mindustry.content.Items
 import tmi.TooManyItems
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
+import kotlin.math.ceil
 
 class RecipeStatistic(
   private val targetGraph: RecipeGraph
@@ -22,6 +24,7 @@ class RecipeStatistic(
 
   fun reset(){
     allRecipes.clear()
+    inputGroups.clear()
     inputs.clear()
     optionalInputs.clear()
     outputs.clear()
@@ -31,13 +34,14 @@ class RecipeStatistic(
 
   fun updateStatistic() {
     val inputs = mutableMapOf<RecipeGraphNode, MutableSet<RecipeItem<*>>>()
+    
     targetGraph.eachNode { node ->
       allRecipes.increment(node.recipe, 1)
 
       node.recipe.productions.forEach { stack ->
         val item = stack.item
         val out = node.recipe.getProduction(item)!!
-        val nodeOut = out.amount*node.efficiency*node.balanceAmount
+        val nodeOut = out.amount*node.balanceAmount*if(out.itemType == RecipeItemType.ISOLATED) 1f else node.efficiency
         val parents = node.getOutputs(item)
         var requireAmount = 0f
 
@@ -47,13 +51,16 @@ class RecipeStatistic(
               val mul =
                 if (stack.itemType == RecipeItemType.BOOSTER || stack.itemType == RecipeItemType.NORMAL) parent.multiplier
                 else 1f
-              requireAmount += stack.amount*parent.balanceAmount*mul
+
+              requireAmount +=
+                if (stack.itemType == RecipeItemType.BOOSTER) stack.amount*ceil(parent.balanceAmount)*mul
+                else stack.amount*parent.balanceAmount*mul
 
               inputs.computeIfAbsent(parent){ mutableSetOf() }.add(item)
             }
-
-            redundant.get(item) { RecipeItemStack(item) }.amount += nodeOut - requireAmount
           }
+
+          redundant.get(item) { RecipeItemStack(item) }.amount += nodeOut - requireAmount
         }
         else {
           outputs.get(item) { RecipeItemStack(item) }.amount += nodeOut

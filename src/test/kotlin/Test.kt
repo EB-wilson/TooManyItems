@@ -1,8 +1,21 @@
-class Test {
-  private var n: Int? = 10
+import tmi.util.ui.observed
+import kotlin.reflect.jvm.javaField
+import kotlin.reflect.jvm.javaGetter
+import kotlin.reflect.jvm.javaSetter
 
-  fun foo1(a: Int){
-    println(n?:10)
-    println(a + n!!)
+class A {
+
+}
+
+class C {
+  var A.obs by observed(1)
+
+  fun foo(){
+    val a = A()
+    println(a.obs)
   }
+}
+
+fun main(){
+  C().foo()
 }

@@ -1,4 +1,5 @@
 
+import org.gradle.internal.declarativedsl.objectGraph.reflect
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileOutputStream
 import java.io.InputStreamReader
@@ -67,6 +68,7 @@ dependencies {
   implementation("com.github.EB-wilson.UniverseCore:markdown:2.1.1")
 
   implementation(kotlin("stdlib-jdk8"))
+  implementation(kotlin("reflect"))
 }
 
 tasks {

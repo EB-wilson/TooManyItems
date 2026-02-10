@@ -75,20 +75,6 @@ object Consts {
     res.bottomHeight = 8f
     return@lazy res
   }
-  val leftLine by lazy { object : BaseDrawable(){
-    init {
-      leftWidth = 4f
-      rightWidth = 4f
-      topHeight = 4f
-      bottomHeight = 4f
-    }
-
-    override fun draw(x: Float, y: Float, width: Float, height: Float) {
-      val lw = Scl.scl(3f)
-      Lines.stroke(lw, Color.gray)
-      Lines.line(x + lw/2f, y + lw, x + lw/2f, y + height - lw)
-    }
-  } }
   val a_z: Drawable by lazy { Core.atlas.getDrawable("tmi-a_z") }
   val tmi: Drawable by lazy { Core.atlas.getDrawable("tmi-tmi") }
   val panner: Drawable by lazy { Core.atlas.getDrawable("tmi-panner") }
@@ -96,6 +82,14 @@ object Consts {
   val inbalance: Drawable by lazy { Core.atlas.getDrawable("tmi-inbalance") }
   val time: Drawable by lazy { Core.atlas.getDrawable("tmi-time") }
   val clip: Drawable by lazy { Core.atlas.getDrawable("tmi-clip") }
+
+  val showGrid: Drawable by lazy { Core.atlas.getDrawable("tmi-show_grid") }
+  val hideGrid: Drawable by lazy { Core.atlas.getDrawable("tmi-hide_grid") }
+
+  val autolinkAll: Drawable by lazy { Core.atlas.getDrawable("tmi-autolink_all") }
+  val autolinkInputs: Drawable by lazy { Core.atlas.getDrawable("tmi-autolink_inputs") }
+  val autolinkOutputs: Drawable by lazy { Core.atlas.getDrawable("tmi-autolink_outputs") }
+  val autolinkOff: Drawable by lazy { Core.atlas.getDrawable("tmi-autolink_off") }
 
   val side_bottom: Drawable by lazy { Core.atlas.getDrawable("tmi-side_bottom") }
   val side_top: Drawable by lazy { Core.atlas.getDrawable("tmi-side_top") }

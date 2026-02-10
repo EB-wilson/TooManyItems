@@ -13,6 +13,7 @@ class LineMark(
   override var nodeX: Float = 0f
   override var nodeY: Float = 0f
 
+  override fun centerOffset(): Vec2 = Vec2()
   override fun outputOffset(item: RecipeItem<*>) = Vec2()
   override fun inputOffset(item: RecipeItem<*>) = Vec2()
 
