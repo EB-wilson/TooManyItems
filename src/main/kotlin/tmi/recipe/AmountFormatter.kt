@@ -33,7 +33,7 @@ fun interface AmountFormatter {
 
           (if (value > 1000) UI.formatAmount((value).toLong())
           else if (value < 100) Strings.autoFixed(value, 1)
-          else value.roundToInt().toString()) + unit.colorCode + unit.strify + "/"
+          else value.roundToInt().toString()) + unit.colorCode + unit.strify
         }
         else {
           val (value, unit) = Utils.unitTimed(f)
@@ -65,7 +65,7 @@ fun interface AmountFormatter {
       if (value > 0) {
         (if (value > 1000) UI.formatAmount((value).toLong())
         else if (value < 100) Strings.autoFixed(value, 1)
-        else value.roundToInt().toString()) + unit.colorCode + unit.strify + "/"
+        else value.roundToInt().toString()) + unit.colorCode + unit.strify
       }
       else "--"
     }

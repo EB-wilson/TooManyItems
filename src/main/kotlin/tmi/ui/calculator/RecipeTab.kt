@@ -1,5 +1,6 @@
 package tmi.ui.calculator
 
+import arc.Core
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
@@ -14,6 +15,7 @@ import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Strings
+import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
@@ -30,6 +32,7 @@ import tmi.ui.CellType.*
 import tmi.ui.RecipeItemCell
 import tmi.ui.RecipesDialog
 import tmi.ui.TmiUI
+import tmi.ui.addEventBlocker
 import tmi.util.*
 import kotlin.math.ceil
 
@@ -37,7 +40,7 @@ class RecipeTab(
   override val node: RecipeGraphLayout.RecNode,
   val view: CalculatorView,
   val isShadow: Boolean,
-): Table(), RecipeGraphElement {
+): Table(), RecipeGraphElement, CalculatorDialog.TipsProvider {
   val graphNode = node.targetNode
 
   private val allCells = Seq<RecipeItemCell>()
@@ -61,6 +64,8 @@ class RecipeTab(
     validate()
     pack()
 
+    addEventBlocker()
+
     // initial pos
     materialPos.forEach { it.value }
     productionPos.forEach { it.value }
@@ -78,6 +83,9 @@ class RecipeTab(
     centerUp.refresh()
     centerDown.refresh()
   }
+
+  override fun getTip(): String = Core.bundle["calculator.tips.shadowed"]
+  override fun tipValid(): Boolean = isShadow
 
   fun setupEnvParameters(env: EnvParameter) {
     if (isShadow) return
@@ -140,15 +148,32 @@ class RecipeTab(
     node.exitSt { line.isOver = false }
   }
 
-  private fun buildCell(type: CellType, vararg groupItems: RecipeItemStack<*>) = RecipeItemCell(type, *groupItems){ stack, type, mode ->
-    if (!isShadow) cellCallback(type, stack, groupItems, mode)
-  }.also { postHandleCell(it, groupItems, type) }
+  private fun buildCell(type: CellType, vararg groupItems: RecipeItemStack<*>) =
+    object: RecipeItemCell(type, *groupItems, clickListener = { stack, type, mode ->
+      if (!isShadow) cellCallback(type, stack, groupItems, mode)
+    }), CalculatorDialog.TipsProvider{
+      override fun getTip(): String {
+        val input = if (Vars.mobile) "mobile" else "desktop"
+        val stackStrify = groupItems.joinToString("/") { it.item.localizedName }
+        return when(this.type){
+          MATERIAL -> Core.bundle.format("calculator.tips.material-$input", stackStrify)
+          BLOCK -> Core.bundle.format("calculator.tips.block-$input", stackStrify)
+          PRODUCTION -> Core.bundle.format("calculator.tips.production-$input", stackStrify)
+          ATTRIBUTE ->
+            if (groupItems.size > 1 || groupItems.first().isOptional)
+              Core.bundle.format("calculator.tips.attribute-$input", stackStrify)
+            else Core.bundle.format("calculator.tips.fix.attribute-$input", stackStrify)
+          OPTIONAL -> Core.bundle.format("calculator.tips.optional-$input", stackStrify)
+        }
+      }
+    }.also { postHandleCell(it, groupItems, type) }
 
   private fun postHandleCell(
     cell: RecipeItemCell,
     groupItems: Array<out RecipeItemStack<*>>,
     type: CellType,
   ) {
+    cell.addEventBlocker()
     allCells.add(cell)
 
     if (isShadow) {

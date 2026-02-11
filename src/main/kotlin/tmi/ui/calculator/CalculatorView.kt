@@ -12,10 +12,7 @@ import arc.math.geom.Rect
 import arc.math.geom.Vec2
 import arc.scene.Element
 import arc.scene.Group
-import arc.scene.event.ElementGestureListener
-import arc.scene.event.InputEvent
-import arc.scene.event.InputListener
-import arc.scene.event.Touchable
+import arc.scene.event.*
 import arc.scene.ui.Button
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
@@ -23,6 +20,7 @@ import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
+import arc.util.Time
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.gen.Icon
@@ -33,7 +31,7 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
 import tmi.ui.*
-import tmi.ui.calculator.RecipeGraphElement.*
+import tmi.ui.calculator.RecipeGraphElement.AddRecipeButton
 import tmi.util.Consts
 import tmi.util.enterSt
 import tmi.util.exitSt
@@ -45,13 +43,16 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-class CalculatorView: Table() {
+class CalculatorView: Table(), CalculatorDialog.TipsProvider {
   var isUpdated = false
+    private set
+  var astringentValid = false
     private set
 
   var padding = 24f
   var layerMargin = 160f
 
+  var browsMode = false
   var showGrid = true
   var autoLinkInput = true
   var autoLinkOutput = true
@@ -84,6 +85,7 @@ class CalculatorView: Table() {
   private lateinit var zoom: Group
 
   private lateinit var ioList: Table
+  private lateinit var status: Table
   private lateinit var inputs: Table
   private lateinit var outputs: Table
 
@@ -123,12 +125,16 @@ class CalculatorView: Table() {
           tabs.x - Scl.scl(16f), tabs.y - Scl.scl(16f),
           tabs.width + Scl.scl(32f), tabs.height + Scl.scl(32f)
         )
+        select.addEventBlocker()
         addChild(select)
       }
 
       return validNodes.any()
     }
   }
+
+  override fun getTip(): String = Core.bundle["calculator.tips.selectExisted"]
+  override fun tipValid(): Boolean = tabSelectors.visible
 
   fun layoutRecipeTabs(){
     val bounds = viewBound
@@ -543,6 +549,21 @@ class CalculatorView: Table() {
     touchable = Touchable.enabled
     setPanListener()
     setZoomListener()
+
+    addEventBlocker(true){ e -> browsMode && e is InputEvent && e.type == InputEvent.InputEventType.touchDown }
+
+    addListener(object: ClickListener(KeyCode.mouseLeft){
+      override fun touchDragged(event: InputEvent?, x: Float, y: Float, pointer: Int) {
+        super.touchDragged(event, x, y, pointer)
+        if (!cancelled && Mathf.dst(x, y, touchDownX, touchDownY) > 8) {
+          cancel()
+        }
+      }
+
+      override fun clicked(event: InputEvent?, x: Float, y: Float) {
+        tabSelectors.hide()
+      }
+    })
   }
 
   private fun setupIOList() {
@@ -563,6 +584,10 @@ class CalculatorView: Table() {
     }.pad(8f).padTop(26f).growX()
     ioList.row()
     ioList.image().color(Pal.accent).growX().height(4f).padBottom(8f)
+
+    ioList.row()
+    ioList.table { i -> status = i }.growX().fillY()
+
     ioList.row()
     ioList.table { o ->
       o.add(Core.bundle["dialog.calculator.statOutputs"])
@@ -581,13 +606,21 @@ class CalculatorView: Table() {
   fun rebuildIO() {
     val formatter = AmountFormatter.timedAmountFormatter()
 
+    status.clearChildren()
+    if (!astringentValid) {
+      status.table { s ->
+        s.image(Icon.warning).color(Color.crimson).size(36f).pad(8f)
+        s.add(Core.bundle["dialog.calculator.astringentFailed"])
+      }
+    }
+
     outputs.clearChildren()
     val out = statistic.resultOutputs()
     val res = statistic.resultRedundant()
 
     (out + res).groupBy { it.item }
       .map { (k, v) -> RecipeItemStack(k, v.sumOf{ s -> s.amount.toDouble() }.toFloat()) }
-      .filter { it.amount > 0.00000001f }
+      .filter { it.amount > 0.000001f }
       .forEachIndexed { i, stack ->
         if (i > 0 && i % 6 == 0) outputs.row()
         outputs.add(RecipeItemCell(CellType.PRODUCTION, stack).also {
@@ -775,6 +808,7 @@ class CalculatorView: Table() {
     )
 
     while (nodeSet.isNotEmpty()) {
+      astringentValid = true
       iterated++
       val nl = nodeSet.toList()
       nodeSet.clear()
@@ -786,7 +820,7 @@ class CalculatorView: Table() {
       }
 
       if (iterated >= 100) {
-        throw IllegalStateException("Non astringent recipe loop.")
+        astringentValid = false
       }
     }
 
@@ -836,7 +870,7 @@ class CalculatorView: Table() {
   }
 
   private fun setZoomListener() {
-    addListener(object : ElementGestureListener() {
+    addCaptureListener(object : ElementGestureListener() {
       var panEnable: Boolean = false
 
       override fun zoom(event: InputEvent, initialDistance: Float, distance: Float) {
@@ -874,7 +908,7 @@ class CalculatorView: Table() {
   }
 
   private fun setPanListener() {
-    addListener(object : InputListener() {
+    addCaptureListener(object : InputListener() {
       override fun scrolled(event: InputEvent, x: Float, y: Float, amountX: Float, amountY: Float): Boolean {
         zoom.setScale(Mathf.clamp(zoom.scaleX - amountY/10f*zoom.scaleX, 0.25f, 1f).also { lastZoom = it })
 

@@ -32,7 +32,7 @@ import tmi.util.Consts
 import tmi.util.Shapes
 
 /**在[tmi.recipe.RecipeType]进行布局时所操作的元素对象，用于显示单个条目信息和提供控制逻辑 */
-class RecipeItemCell(
+open class RecipeItemCell(
   val type: CellType,
   vararg val groupItems: RecipeItemStack<*>,
   val clickListener: (RecipeItemCell.(RecipeItemStack<*>, CellType, RecipesDialog.Mode) -> Unit)? = null,

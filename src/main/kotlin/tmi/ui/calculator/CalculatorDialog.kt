@@ -2,22 +2,19 @@ package tmi.ui.calculator
 
 import arc.Core
 import arc.files.Fi
-import arc.func.Boolf
-import arc.func.Boolp
-import arc.func.Cons
-import arc.func.Cons2
-import arc.func.Func
-import arc.func.Prov
+import arc.func.*
 import arc.graphics.Color
 import arc.input.KeyCode
 import arc.math.geom.Vec2
 import arc.scene.Element
+import arc.scene.Group
 import arc.scene.event.ClickListener
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
 import arc.scene.event.Touchable
 import arc.scene.style.Drawable
 import arc.scene.ui.Button
+import arc.scene.ui.Label
 import arc.scene.ui.Tooltip
 import arc.scene.ui.layout.Table
 import arc.struct.Seq
@@ -30,20 +27,18 @@ import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
-import tmi.util.invoke
 import tmi.ui.TmiUI
 import tmi.ui.TmiUI.showChoiceIcons
 import tmi.ui.addEventBlocker
-import tmi.util.CombineKeyTree
-import tmi.util.CombinedKeys
-import tmi.util.Consts
-import tmi.util.vec1
-import tmi.util.vec2
-import kotlin.collections.forEach
+import tmi.util.*
+import universecore.ui.elements.markdown.Markdown
+import universecore.ui.elements.markdown.MarkdownStyles
 import kotlin.math.max
 
 class CalculatorDialog: BaseDialog("") {
   private var menuFolded = true
+  private var showTips = false
+  private var lastTip: TipsProvider? = null
 
   private val sideToolTabs = Seq<ToolTab>()
   private val topMenuTabSet = Seq<MenuTab>()
@@ -56,6 +51,7 @@ class CalculatorDialog: BaseDialog("") {
   private var currPage: ViewPage? = null
 
   private lateinit var topTable: Table
+  private lateinit var tipsTable: Table
   private lateinit var viewTable: Table
   private lateinit var sideTable: Table
 
@@ -67,7 +63,6 @@ class CalculatorDialog: BaseDialog("") {
 
     loadRecentPages()
     setupMenuBinds()
-    build()
 
     addListener(object: InputListener(){
       override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean {
@@ -77,8 +72,49 @@ class CalculatorDialog: BaseDialog("") {
     })
   }
 
+  private fun Element.findTips(x: Float, y: Float): TipsProvider? {
+    if (this is Group) {
+      val point = vec1
+      val childrenArray = children.items
+      for (i in children.size - 1 downTo 0) {
+        val child = childrenArray[i]
+        if (!child.visible || (child.cullable && cullingArea != null && !cullingArea.overlaps(
+            child.x + child.translation.x,
+            child.y + child.translation.y,
+            child.width,
+            child.height
+          ))
+        ) continue
+        child.parentToLocalCoordinates(point.set(x, y))
+        val hit = child.findTips(point.x, point.y)
+        if (hit != null) return hit
+        else if (child is TipsProvider && child.tipValid()
+                 && point.x >= child.translation.x && point.x < child.width + child.translation.x
+                 && point.y >= child.translation.y && point.y < child.height + child.translation.y) return child
+      }
+    }
+
+    return if (this is TipsProvider && tipValid()
+               && x >= translation.x && x < width + translation.x
+               && y >= translation.y && y < height + translation.y) this else null
+  }
+
   override fun act(delta: Float) {
     super.act(delta)
+
+    val mouse = vec1.set(Core.input.mouse())
+    stageToLocalCoordinates(mouse)
+
+    val prov = findTips(mouse.x, mouse.y)
+    if (prov != lastTip) {
+      lastTip = prov
+      prov?.let { provider ->
+        setTip({ provider.getTip() }, provider.getTipStyle(), provider.getTipColor())
+      } ?: run {
+        hideTips()
+      }
+    }
+
     if (Core.scene.hasField()) return
     keyBinds.checkTap(Core.input)?.run()
   }
@@ -126,6 +162,14 @@ class CalculatorDialog: BaseDialog("") {
           }
           showDoubleRecipe(true)
         }
+      },
+
+      ToolTab(
+        { v -> Core.bundle[if (v?.browsMode?:false) "dialog.calculator.browseMode" else "dialog.calculator.editMode"] },
+        { v -> if (v?.browsMode?:false) Icon.zoom else Icon.pencil },
+        disabled = { it != null },
+      ){ v, _ ->
+        v!!.browsMode = !v.browsMode
       },
 
       ToolTab(
@@ -290,15 +334,56 @@ class CalculatorDialog: BaseDialog("") {
 
       // help
       MenuTab(
-        Core.bundle["misc.designerHelp"], "help", Icon.bookSmall
+        Core.bundle["misc.calculatorHelp"], "help", Icon.infoSmall
       ){
         hideMenu()
+        showHelp()
       },
       MenuTab(
-        Core.bundle["misc.about"], "help", Icon.infoSmall
+        Core.bundle["misc.about"], "help",
+        valid = { false }
       ){
         hideMenu()
       },
+    )
+  }
+
+  private fun Markdown.MarkdownStyle.copy() = Markdown.MarkdownStyle().also { c ->
+    c.font = font
+    c.emFont = emFont
+    c.subFont = subFont
+    c.codeFont = codeFont
+    c.strongFont = strongFont
+
+    c.textColor = textColor
+    c.emColor = emColor
+    c.subTextColor = subTextColor
+    c.lineColor = lineColor
+    c.linkColor = lineColor
+
+    c.linesPadding = linesPadding
+    c.maxCodeBoxHeight = maxCodeBoxHeight
+    c.tablePadHor = tablePadHor
+    c.tablePadVert = tablePadVert
+    c.paragraphPadding = paragraphPadding
+
+    c.board = board
+    c.codeBack = codeBack
+    c.codeBlockBack = codeBlockBack
+    c.tableBack1 = tableBack1
+    c.tableBack2 = tableBack2
+    c.curtain = curtain
+
+    c.codeBlockStyle = codeBlockStyle
+    c.listMarks = listMarks
+  }
+
+  private fun showHelp(){
+    val docText = TmiAssets.getDocument("calculator-help.md")
+    TmiUI.document.showDocument(
+      Core.bundle["misc.calculatorHelp"],
+      MarkdownStyles.defaultMD,
+      docText
     )
   }
 
@@ -320,7 +405,7 @@ class CalculatorDialog: BaseDialog("") {
   }
 
   private fun closePages(
-    viewPages: List<ViewPage>
+    viewPages: List<ViewPage>,
   ) {
     if (viewPages.any { it.shouldSave() }) {
       showChoiceIcons(
@@ -374,6 +459,13 @@ class CalculatorDialog: BaseDialog("") {
         under.image().color(Pal.darkestGray).width(2f).growY().pad(0f)
         under.table{ v ->
           viewTable = v.table().grow().get().apply { clip = true }
+          v.fill{ t ->
+            t.bottom().table { tip ->
+              tip.image().color(Pal.darkestGray).height(2f).growX().pad(0f)
+              tip.row()
+              tipsTable = tip.table(Consts.grayUI).left().growX().fillY().margin(6f).get()
+            }.fillY().growX().visible { showTips }
+          }
         }.grow()
       }.grow()
     }.grow()
@@ -666,7 +758,7 @@ class CalculatorDialog: BaseDialog("") {
   private fun buildPageTab(
     pane: Table,
     page: ViewPage,
-    recentMark: Boolean
+    recentMark: Boolean,
   ): Button {
     return pane.button(
       { b ->
@@ -753,7 +845,11 @@ class CalculatorDialog: BaseDialog("") {
           b.isChecked = entry.checked?.get(currPage?.view)?:false
           b.style.imageUp = entry.icon.get(currPage?.view)
         }.get()
-        btn.addListener(Tooltip { tip -> tip.table(Tex.paneLeft).get().add(entry.desc) })
+        btn.addListener(Tooltip { tip ->
+          tip.table(Tex.paneLeft).get()
+            .add(entry.desc.get(currPage?.view))
+            .update { l -> l.setText(entry.desc.get(currPage?.view)) }
+        })
         btn.setDisabled { currPage == null }
         btn.touchable { Touchable.enabled.takeIf{ currPage != null }?: Touchable.disabled }
         btn.fill { x, y, w, h ->
@@ -767,7 +863,7 @@ class CalculatorDialog: BaseDialog("") {
 
     sideTable.row()
     sideTable.button(Icon.infoCircle, Styles.clearNonei, 32f) {
-      //TODO
+      showHelp()
     }.padBottom(0f).size(40f).padBottom(8f)
   }
 
@@ -795,6 +891,21 @@ class CalculatorDialog: BaseDialog("") {
   }
 
   //== Tools ==
+  //Tips
+  fun setTip(
+    tip: Prov<String>,
+    style: Label.LabelStyle = Styles.defaultLabel,
+    color: Color = Color.lightGray,
+  ){
+    tipsTable.clearChildren()
+    tipsTable.left().add(tip.get(), style).color(color).left().update { it.setText(tip.get()) }
+    showTips = true
+  }
+
+  fun hideTips(){
+    showTips = false
+  }
+
   //Menu
   fun showMenu(
     showOn: Element,
@@ -938,10 +1049,17 @@ class CalculatorDialog: BaseDialog("") {
     page.reset()
   }
 
+  interface TipsProvider{
+    fun getTip(): String
+    fun getTipStyle(): Label.LabelStyle = Styles.defaultLabel
+    fun getTipColor(): Color = Color.lightGray
+    fun tipValid() = true
+  }
+
   class ViewPage(
     var fi: Fi?,
     var title: String,
-    private val viewProv: Prov<CalculatorView>
+    private val viewProv: Prov<CalculatorView>,
   ){
     var loaded: Boolean = false
     var hovered = false
@@ -957,7 +1075,7 @@ class CalculatorDialog: BaseDialog("") {
   }
 
   data class ToolTab(
-    val desc: String,
+    val desc: Func<CalculatorView?, String>,
     val icon: Func<CalculatorView?, Drawable>,
     val checked: Boolf<CalculatorView?>? = null,
     val disabled: Boolf<CalculatorView?>? = null,
@@ -965,11 +1083,18 @@ class CalculatorDialog: BaseDialog("") {
   ) {
     constructor(
       desc: String,
+      icon: Func<CalculatorView?, Drawable>,
+      checked: Boolf<CalculatorView?>? = null,
+      disabled: Boolf<CalculatorView?>? = null,
+      action: Cons2<CalculatorView?, Button>,
+    ) : this({ desc }, icon, checked, disabled, action)
+    constructor(
+      desc: String,
       icon: Drawable,
       checked: Boolf<CalculatorView?>? = null,
       disabled: Boolf<CalculatorView?>? = null,
       action: Cons2<CalculatorView?, Button>,
-    ) : this(desc, Func<CalculatorView?, Drawable> { icon }, checked, disabled, action)
+    ) : this({ desc }, Func<CalculatorView?, Drawable> { icon }, checked, disabled, action)
   }
 
   data class MenuTab(

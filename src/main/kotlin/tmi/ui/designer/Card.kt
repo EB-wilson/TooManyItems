@@ -41,26 +41,6 @@ abstract class Card(val ownerDesigner: DesignerView) : Table() {
     @JvmStatic
     protected val provs: IntMap<Func2<Reads, Int, Card>> = IntMap()
 
-    init {
-      provs[IOCard.CLASS_ID] = Func2<Reads, Int, Card>{ r, rev ->
-        if (rev <= 2) r.str()
-
-        val res = IOCard(
-          TmiUI.schematicDesigner.currPage!!.view,
-          r.bool()
-        )
-
-        if (rev <= 2) r.f()
-        res
-      }
-
-      provs[RecipeCard.CLASS_ID] = Func2<Reads, Int, Card> { r, _ ->
-        RecipeCard(
-          TmiUI.schematicDesigner.currPage!!.view,
-          TooManyItems.recipesManager.getByID(r.i())
-        )
-      }
-    }
 
     fun read(read: Reads, rev: Int): Card {
       val id = read.i()

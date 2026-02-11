@@ -50,7 +50,6 @@ import java.text.Collator
 import java.util.*
 import kotlin.math.min
 
-
 open class RecipesDialog : BaseDialog("") {
   companion object{
     private val nameComparator: Collator = Collator.getInstance(Core.bundle.locale)
@@ -176,7 +175,7 @@ open class RecipesDialog : BaseDialog("") {
   fun build(){
     addCloseButton()
 
-    buttons.button(Core.bundle["dialog.recipes.designer"], Icon.book) {
+    buttons.button(Core.bundle["dialog.recipes.calculator"], Icon.book) {
       TmiUI.recipeGraph.show()
       hide()
     }
@@ -630,8 +629,7 @@ open class RecipesDialog : BaseDialog("") {
       top.table { t ->
         t.table(Tex.buttonTrans).size(90f).get().image(currentSelect!!.icon).size(60f).scaling(Scaling.fit)
         t.row()
-        t.add(Core.bundle["dialog.recipes.currSelected"]).growX().fillY().color(Color.lightGray).wrap().get()
-          .setAlignment(Align.center)
+        t.add(Core.bundle["dialog.recipes.currSelected"]).width(90f).fillY().color(Color.lightGray).labelAlign(Align.left)
       }
       top.table { infos ->
         infos.left().top().defaults().left()

@@ -1,6 +1,7 @@
 package tmi
 
 import arc.Events
+import arc.files.Fi
 import arc.util.Time
 import mindustry.Vars
 import mindustry.game.EventType.ClientLoadEvent
@@ -15,6 +16,10 @@ import tmi.util.KeyBinds
 
 class TooManyItems : Mod() {
   companion object {
+    val modFile: Fi by lazy {
+      Vars.mods.getMod(TooManyItems::class.java)!!.root
+    }
+
     @JvmField
     var recipesManager: RecipesManager = RecipesManager()
     @JvmField

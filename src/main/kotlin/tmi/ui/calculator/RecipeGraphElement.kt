@@ -13,6 +13,7 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.recipe.types.RecipeItem
 import tmi.ui.TmiUI
+import tmi.ui.addEventBlocker
 
 interface RecipeGraphElement {
   val node: RecipeGraphLayout.Node
@@ -32,6 +33,8 @@ interface RecipeGraphElement {
     val view: CalculatorView
   ): Button(ButtonStyle()), RecipeGraphElement {
     init {
+      addEventBlocker()
+
       table{
         it.image(object: BaseDrawable() {
           override fun draw(x: Float, y: Float, width: Float, height: Float) {
@@ -90,5 +93,4 @@ interface RecipeGraphElement {
     override fun setupInputOverListener(line: CalculatorView.LinkLine) { /*no action*/ }
     override fun setupOutputOverListener(line: CalculatorView.LinkLine) { /*no action*/ }
   }
-
 }
