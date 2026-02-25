@@ -204,6 +204,7 @@ class RecipeTab(
           s.up = object : BaseDrawable(s.up) {
             override fun draw(x: Float, y: Float, width: Float, height: Float) {
               if (cell.chosenItem != null) Draw.color(Color.darkGray)
+              else if (view.imageGenerating) Draw.color(Color.darkGray)
               else Draw.color(Color.darkGray, Pal.accent, Mathf.absin(10f, 1f))
               Tex.buttonDown.draw(x, y, width, height)
             }

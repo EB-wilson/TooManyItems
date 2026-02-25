@@ -1,13 +1,10 @@
 package tmi.ui
 
-import arc.Core
-import arc.files.Fi
 import arc.func.Boolf
 import arc.func.Cons
 import arc.func.Cons2
 import arc.input.KeyCode
 import arc.scene.Element
-import arc.scene.actions.Actions
 import arc.scene.event.SceneEvent
 import arc.scene.style.Drawable
 import arc.scene.style.TextureRegionDrawable
@@ -16,33 +13,16 @@ import arc.scene.ui.Tooltip
 import arc.scene.ui.layout.Table
 import arc.struct.Seq
 import arc.util.Align
-import arc.util.Log
-import arc.util.Tmp
 import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
-import tmi.util.invoke
 import tmi.recipe.types.RecipeItem
 import tmi.ui.calculator.CalculatorDialog
-import tmi.ui.designer.*
-import tmi.util.CombinedKeys
-import tmi.util.Consts
-import tmi.util.vec4
+import tmi.util.invoke
 
 object TmiUI {
-  private val alignTable = intArrayOf(
-    Align.topLeft, Align.top, Align.topRight,
-    Align.left, Align.center, Align.right,
-    Align.bottomLeft, Align.bottom, Align.bottomRight,
-  )
-  private val alignIcon = arrayOf(
-    Core.atlas.drawable("tmi-ui-top-left"), Core.atlas.drawable("tmi-ui-top"), Core.atlas.drawable("tmi-ui-top-right"),
-    Core.atlas.drawable("tmi-ui-left"), Core.atlas.drawable("tmi-ui-center"), Core.atlas.drawable("tmi-ui-right"),
-    Core.atlas.drawable("tmi-ui-bottom-left"), Core.atlas.drawable("tmi-ui-bottom"), Core.atlas.drawable("tmi-ui-bottom-right"),
-  )
-
   @JvmStatic
   val recipesDialog by lazy { RecipesDialog() }
   @JvmStatic

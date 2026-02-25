@@ -36,6 +36,10 @@ import universecore.ui.elements.markdown.MarkdownStyles
 import kotlin.math.max
 
 class CalculatorDialog: BaseDialog("") {
+  companion object{
+    val exportDialog = ExportDialog()
+  }
+
   private var menuFolded = true
   private var showTips = false
   private var lastTip: TipsProvider? = null
@@ -234,24 +238,37 @@ class CalculatorDialog: BaseDialog("") {
         Core.bundle["misc.new"], "file",
         group = "fileIO"
       ){
-        hideMenu()
         createNewPage()
       },
       MenuTab(
         Core.bundle["misc.open"], "file", Icon.fileSmall,
         group = "fileIO"
       ){
-        hideMenu()
         openFile()
       },
       MenuTab(
+        Core.bundle["misc.export"], "file",
+        group = "export",
+        valid = { currPage != null && currPage!!.view.graph.any() },
+        subTabs = arrayOf(
+          MenuTab(Core.bundle["misc.exportImg"], "file", Icon.imageSmall){
+            exportDialog.show(it!!.view)
+          },
+          MenuTab(Core.bundle["misc.exportText"], "file", Icon.fileTextSmall){
+            //TODO
+          },
+          MenuTab(Core.bundle["misc.exportStat"], "file", Icon.bookSmall){
+            //TODO
+          },
+        )
+      ),
+      MenuTab(
         Core.bundle["misc.save"], "file", Icon.saveSmall,
         group = "fileIO",
-        valid = { currPage -> currPage != null },
+        valid = { it != null },
         keyBind = CombinedKeys(KeyCode.controlLeft, KeyCode.s),
       ){ currPage ->
         val page = currPage!!
-        hideMenu()
         if (page.fi != null) {
           if (page.shouldSave()) save(page, page.fi!!)
         }
@@ -270,7 +287,6 @@ class CalculatorDialog: BaseDialog("") {
         valid = { currPage != null },
         keyBind = CombinedKeys(KeyCode.altLeft, KeyCode.s),
       ){ currPage ->
-        hideMenu()
         val page = currPage!!
         Vars.platform.showFileChooser(false, page.title, "shd") { file ->
           if (save(page, file)) {
@@ -285,7 +301,6 @@ class CalculatorDialog: BaseDialog("") {
         valid = { currPage != null },
         keyBind = CombinedKeys(KeyCode.controlLeft, KeyCode.shiftLeft, KeyCode.s),
       ){
-        hideMenu()
         pages.forEach { it.fi?.also { f -> it.view.save(f) } }
       },
 
@@ -296,7 +311,6 @@ class CalculatorDialog: BaseDialog("") {
         keyBind = CombinedKeys(KeyCode.f5),
         valid = { currPage != null }
       ){ currPage ->
-        hideMenu()
         currPage!!.view.graphUpdated()
       },
       MenuTab(
@@ -304,7 +318,6 @@ class CalculatorDialog: BaseDialog("") {
         group = "pages",
         valid = { pages.any() }
       ){
-        hideMenu()
         pages.toList().also { closePages(it) }
       },
       MenuTab(
@@ -312,7 +325,6 @@ class CalculatorDialog: BaseDialog("") {
         group = "pages",
         valid = { pages.any { it != currPage } }
       ){
-        hideMenu()
         pages.filter { it != currPage }.also { closePages(it) }
       },
       MenuTab(
@@ -320,7 +332,6 @@ class CalculatorDialog: BaseDialog("") {
         group = "pages",
         valid = { pages.any { !it.shouldSave() } }
       ){
-        hideMenu()
         pages.filter { !it.shouldSave() }.forEach { deletePage(it) }
       },
       MenuTab(
@@ -328,7 +339,6 @@ class CalculatorDialog: BaseDialog("") {
         group = "view",
         valid = { currPage != null }
       ){ currPage ->
-        hideMenu()
         currPage!!.view.resetView()
       },
 
@@ -336,14 +346,13 @@ class CalculatorDialog: BaseDialog("") {
       MenuTab(
         Core.bundle["misc.calculatorHelp"], "help", Icon.infoSmall
       ){
-        hideMenu()
         showHelp()
       },
       MenuTab(
         Core.bundle["misc.about"], "help",
         valid = { false }
       ){
-        hideMenu()
+        //TODO
       },
     )
   }
@@ -535,39 +544,38 @@ class CalculatorDialog: BaseDialog("") {
         override fun isOver(): Boolean {
           return currHover == this || super.isOver()
         }
-      }
+      }.apply {
+        val show = show@{
+          if (currHover == this) return@show
+          currHover = this
+          onMenuHidden { currHover = null }
+          showMenu(this, Align.bottomLeft, Align.topLeft, true) { menu ->
+            menu.table(Consts.padDarkGrayUI) { m ->
+              m.defaults().growX().fillY().minWidth(300f)
+              buildMenuTab(m, groups.values)
+            }.fill()
+          }
+        }
 
-      menu.add(button).marginLeft(20f).marginRight(20f).growY().get()
-        .apply {
-          val show = show@{
-            if (currHover == this) return@show
-            currHover = this
-            onMenuHidden { currHover = null }
-            showMenu(this, Align.bottomLeft, Align.topLeft, true) { menu ->
-              menu.table(Consts.padDarkGrayUI) { m ->
-                m.defaults().growX().fillY().minWidth(300f)
-                buildMenuTab(m, groups.values)
-              }.fill()
-            }
+        addListener(object : ClickListener() {
+          override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
+            super.enter(event, x, y, pointer, fromActor)
+            if (fromActor != null && !fromActor.isDescendantOf(this@apply)) show()
           }
 
-          addListener(object : ClickListener() {
-            override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
-              super.enter(event, x, y, pointer, fromActor)
-              if (fromActor != null && !fromActor.isDescendantOf(this@apply)) show()
+          override fun clicked(event: InputEvent?, x: Float, y: Float) {
+            if (currHover == this@apply) {
+              hideMenu()
+              currHover = null
             }
+            else show()
+          }
+        })
 
-            override fun clicked(event: InputEvent?, x: Float, y: Float) {
-              if (currHover == this@apply) {
-                hideMenu()
-                currHover = null
-              }
-              else show()
-            }
-          })
+        addEventBlocker()
+      }
 
-          addEventBlocker()
-        }
+      menu.add(button).marginLeft(20f).marginRight(20f).growY()
     }
   }
 
@@ -654,6 +662,7 @@ class CalculatorDialog: BaseDialog("") {
               addCaptureListener(object : ClickListener() {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
                   event?.cancel()
+                  hideMenu()
                   tab.clicked?.get(currPage)
                 }
               })

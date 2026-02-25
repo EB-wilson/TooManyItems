@@ -3,6 +3,7 @@ package tmi.ui.calculator
 import arc.Core
 import arc.files.Fi
 import arc.func.Boolp
+import arc.graphics.Camera
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
@@ -20,7 +21,6 @@ import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
-import arc.util.Time
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.gen.Icon
@@ -49,6 +49,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
   var astringentValid = false
     private set
 
+
   var padding = 24f
   var layerMargin = 160f
 
@@ -63,6 +64,10 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
       graphUpdated()
     }
   var statistic = RecipeStatistic(graph)
+
+  var imageGenerating: Boolean = false
+    private set
+  private var tmpGridAlpha: Float = 1f
 
   private var layers: Array<Seq<RecipeGraphLayout.Node>> = arrayOf()
 
@@ -135,6 +140,11 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
   override fun getTip(): String = Core.bundle["calculator.tips.selectExisted"]
   override fun tipValid(): Boolean = tabSelectors.visible
+
+  fun getBound() = Rect(viewBound).also {
+    it.y -= ioList.height
+    it.height += ioList.height
+  }
 
   fun layoutRecipeTabs(){
     val bounds = viewBound
@@ -505,8 +515,9 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
       override fun draw() {
         if (showGrid) {
+          val a = if (imageGenerating) tmpGridAlpha else 1f
           Lines.stroke(Scl.scl(4f), Pal.gray)
-          Draw.alpha(parentAlpha)
+          Draw.alpha(parentAlpha*a)
           val gridSize = Scl.scl(Core.settings.getInt("tmi_gridSize", 150).toFloat())
 
           var offX = 0f
@@ -958,6 +969,56 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     panY = 0f
     zoom.scaleX = 1f
     zoom.scaleY = 1f
+  }
+
+  fun drawToImage(padding: Float, backAlpha: Float) {
+    tmpGridAlpha = backAlpha
+    val view = getBound()
+
+    val width = view.width + padding*2
+    val height = view.height + padding*2
+
+    val dx = view.x - padding
+    val dy = view.y - padding
+
+    val camera = Camera()
+    camera.width = width
+    camera.height = height
+    camera.position.x = dx + width/2f
+    camera.position.y = dy + height/2f
+    camera.update()
+
+    val par = container.parent
+    val x = container.x
+    val y = container.y
+    val sclX = zoom.scaleX
+    val sclY = zoom.scaleY
+    val scW = Core.scene.viewport.worldWidth
+    val scH = Core.scene.viewport.worldHeight
+
+    zoom.scaleX = 1f
+    zoom.scaleY = 1f
+    container.parent = null
+    container.x = 0f
+    container.y = 0f
+    Core.scene.viewport.worldWidth = width
+    Core.scene.viewport.worldHeight = height
+
+    Draw.proj(camera)
+    imageGenerating = true
+    container.forEach { it.act(0f) }
+    container.draw()
+    imageGenerating = false
+    container.forEach { it.act(0f) }
+    Draw.flush()
+
+    container.parent = par
+    container.x = x
+    container.y = y
+    zoom.scaleX = sclX
+    zoom.scaleY = sclY
+    Core.scene.viewport.worldWidth = scW
+    Core.scene.viewport.worldHeight = scH
   }
 
   data class LinkLine(

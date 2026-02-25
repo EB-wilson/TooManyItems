@@ -35,6 +35,8 @@ interface RecipeGraphElement {
     init {
       addEventBlocker()
 
+      visible { !view.imageGenerating }
+
       table{
         it.image(object: BaseDrawable() {
           override fun draw(x: Float, y: Float, width: Float, height: Float) {
