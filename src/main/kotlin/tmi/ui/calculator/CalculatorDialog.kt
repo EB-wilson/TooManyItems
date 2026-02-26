@@ -22,6 +22,7 @@ import arc.util.Align
 import arc.util.Log
 import arc.util.Scaling
 import mindustry.Vars
+import mindustry.content.Blocks
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal

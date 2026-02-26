@@ -52,7 +52,7 @@ class RecipeItemStack<T>(
   fun getAmount() = amountFormat.format(amount)
 
   //属性设置的工具方法
-  fun setEff(efficiency: Float) = also { this.efficiency = efficiency }
+  fun setEfficiency(efficiency: Float) = also { this.efficiency = efficiency }
   @JvmOverloads
   fun setOptional(optionalCons: Boolean = true) = also { this.isOptional = optionalCons }
   fun setType(type: RecipeItemType) = also { this.itemType = type }
@@ -159,6 +159,11 @@ class RecipeItemStack<T>(
     replaceWith = ReplaceWith("setGroup(group)")
   )
   fun setAttribute(group: Any?){ /**no action*/ }
+  @Deprecated(
+    message = "Method name standardized, use setEfficiency() instead.",
+    replaceWith = ReplaceWith("setEfficiency(efficiency)")
+  )
+  fun setEff(efficiency: Float) = setEfficiency(efficiency)
 
   override fun toString() = "(item: $item amount: ${amountFormat.format(amount)})"
 

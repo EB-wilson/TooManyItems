@@ -7,7 +7,6 @@ import mindustry.Vars
 import mindustry.type.Item
 import mindustry.world.Block
 import mindustry.world.blocks.environment.Floor
-import mindustry.world.blocks.environment.OreBlock
 import mindustry.world.blocks.environment.StaticWall
 import mindustry.world.blocks.production.BeamDrill
 import mindustry.world.consumers.Consume
@@ -57,7 +56,7 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
           )
           val consBase = content.findConsumer<ConsumeLiquidBase> { e -> e.booster && e is ConsumeLiquidBase }
           registerCons(r, { s ->
-            s.setEff(content.optionalBoostIntensity)
+            s.setEfficiency(content.optionalBoostIntensity)
               .setType(RecipeItemType.BOOSTER)
               .setOptional()
               .boostAndConsFormat(content.optionalBoostIntensity)
@@ -71,7 +70,7 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
 
       val realDrillTime = content.getDrillTime(drop.itemDrop)
       recipe!!.addMaterial(drop.getWrap(), content.size as Number)
-        .setEff(content.drillTime/realDrillTime)
+        .setEfficiency(content.drillTime/realDrillTime)
         .setType(RecipeItemType.ATTRIBUTE)
         .emptyFormat()
         .setGroup(oreGroup.get(drop.itemDrop){ RecipeItemGroup() })

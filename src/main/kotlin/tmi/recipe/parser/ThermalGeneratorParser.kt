@@ -6,14 +6,13 @@ import mindustry.world.Block
 import mindustry.world.blocks.power.ThermalGenerator
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
+import tmi.recipe.RecipeParser
 import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.recipe.types.PowerMark
 
 open class ThermalGeneratorParser : ConsumerParser<ThermalGenerator>() {
-  init {
-    excludes.add(GeneratorParser::class.java)
-  }
+  override val excludes: Seq<Class<out RecipeParser<*>>> = Seq.with(GeneratorParser::class.java)
 
   override fun isTarget(content: Block): Boolean {
     return content is ThermalGenerator
@@ -37,7 +36,7 @@ open class ThermalGeneratorParser : ConsumerParser<ThermalGenerator>() {
       val eff = content.size*content.size*block.attributes[content.attribute]
       if (eff <= content.minEfficiency) continue
       res.addMaterial(block.getWrap(), (content.size*content.size) as Number)
-        .setEff(eff*content.displayEfficiencyScale)
+        .setEfficiency(eff*content.displayEfficiencyScale)
         .setType(RecipeItemType.ATTRIBUTE)
         .efficiencyFormat(eff*content.displayEfficiencyScale)
         .setGroup(attrGroup)

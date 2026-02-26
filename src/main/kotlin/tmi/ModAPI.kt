@@ -267,7 +267,7 @@ class ModAPI {
             "rawFloat" -> floatFormat()
             else -> emptyFormat()
           }
-          setEff(comp.getFloat("efficiency", 1f))
+          setEfficiency(comp.getFloat("efficiency", 1f))
           setOptional(comp.getBool("isOptional", false))
           setType(RecipeItemType.valueOf(comp.getString("itemType", "normal").uppercase()))
         }

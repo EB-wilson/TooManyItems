@@ -4,16 +4,17 @@ import arc.struct.Seq
 import mindustry.world.Block
 import mindustry.world.blocks.power.HeaterGenerator
 import tmi.recipe.Recipe
+import tmi.recipe.RecipeParser
 import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import tmi.recipe.types.HeatMark
 import tmi.recipe.types.PowerMark
 
 open class HeatGeneratorParser : ConsumerParser<HeaterGenerator>() {
-  init {
-    excludes.add(GeneratorParser::class.java)
-    excludes.add(ConsumeGeneratorParser::class.java)
-  }
+  override val excludes: Seq<Class<out RecipeParser<*>>> = Seq.with(
+    GeneratorParser::class.java,
+    ConsumeGeneratorParser::class.java
+  )
 
   override fun isTarget(content: Block): Boolean {
     return content is HeaterGenerator

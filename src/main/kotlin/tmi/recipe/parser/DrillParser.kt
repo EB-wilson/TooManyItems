@@ -58,7 +58,7 @@ open class DrillParser : ConsumerParser<Drill>() {
           if (consBase is ConsumeLiquidBase) {
             registerCons(r, { s ->
               val eff = content.liquidBoostIntensity*content.liquidBoostIntensity
-              s!!.setEff(eff)
+              s!!.setEfficiency(eff)
                 .setType(RecipeItemType.BOOSTER)
                 .setOptional()
                 .boostAndConsFormat(eff)

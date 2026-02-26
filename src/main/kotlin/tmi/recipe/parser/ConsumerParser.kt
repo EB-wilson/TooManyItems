@@ -23,7 +23,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
 
   protected fun registerCons(recipe: Recipe, handle: Cons<RecipeItemStack<*>>, vararg cons: Consume) {
     for (consume in cons) {
-      for (entry in consumerParsers) {
+      for (entry in consumeParsers) {
         if (entry.key[consume]) entry.value[recipe, consume, handle]
       }
     }
@@ -31,23 +31,23 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
 
   protected fun registerCons(recipe: Recipe, handle: Cons2<Consume, RecipeItemStack<*>>, vararg cons: Consume) {
     for (consume in cons) {
-      for (entry in consumerParsers) {
+      for (entry in consumeParsers) {
         if (entry.key[consume]) entry.value[recipe, consume, { handle(consume, it) }]
       }
     }
   }
 
   companion object {
-    protected var consumerParsers: ObjectMap<Boolf<Consume>, Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>> =
+    protected var consumeParsers: ObjectMap<Boolf<Consume>, Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>> =
       ObjectMap()
 
-    fun registerVanillaConsParser(type: Boolf<Consume>, handle: Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>) {
-      consumerParsers.put(type, handle)
+    fun registerConsumeParser(type: Boolf<Consume>, handle: Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>) {
+      consumeParsers.put(type, handle)
     }
 
     fun registerVanillaConsumeParser() {
       //items
-      registerVanillaConsParser(
+      registerConsumeParser(
         { c -> c is ConsumeItems },
         { recipe: Recipe, consume: Consume, handle ->
           for (item in (consume as ConsumeItems).items) {
@@ -58,7 +58,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
             )
           }
         })
-      registerVanillaConsParser(
+      registerConsumeParser(
         { c -> c is ConsumeItemFilter && c !is ConsumeItemExplode },
         { recipe, consume, handle ->
           consume as ConsumeItemFilter
@@ -69,7 +69,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
               recipe.addMaterialInteger(item.getWrap(), 1)
                 .setType(if (consume.booster) RecipeItemType.BOOSTER else RecipeItemType.NORMAL)
                 .setOptional(consume.optional)
-                .setEff(eff)
+                .setEfficiency(eff)
                 .efficiencyFormat(eff)
                 .setGroup(consumeGroup)
             )
@@ -77,7 +77,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         })
 
       //liquids
-      registerVanillaConsParser(
+      registerConsumeParser(
         { c -> c is ConsumeLiquids },
         { recipe, consume, handle ->
           for (liquid in (consume as ConsumeLiquids).liquids) {
@@ -88,7 +88,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
             )
           }
         })
-      registerVanillaConsParser(
+      registerConsumeParser(
         { c -> c is ConsumeLiquid },
         { recipe, consume, handle ->
           handle(
@@ -97,7 +97,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
               .setOptional(consume.optional)
           )
         })
-      registerVanillaConsParser(
+      registerConsumeParser(
         { c -> c is ConsumeLiquidFilter },
         { recipe, consume, handle ->
           consume as ConsumeLiquidFilter
@@ -108,7 +108,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
               recipe.addMaterialPersec(liquid.getWrap(), consume.amount)
                 .setOptional(consume.optional)
                 .setType(if (consume.booster) RecipeItemType.BOOSTER else RecipeItemType.NORMAL)
-                .setEff(eff)
+                .setEfficiency(eff)
                 .boostAndConsFormat(eff)
                 .setGroup(consumeGroup)
             )
@@ -116,7 +116,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         })
 
       //payloads
-      registerVanillaConsParser(
+      registerConsumeParser(
         { c -> c is ConsumePayloads },
         { recipe, consume, handle ->
           for (stack in (consume as ConsumePayloads).payloads) {
@@ -130,7 +130,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
         })
 
       //power
-      registerVanillaConsParser(
+      registerConsumeParser(
         { c -> c is ConsumePower },
         { recipe, consume, handle ->
           handle(

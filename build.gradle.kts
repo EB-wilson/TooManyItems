@@ -1,5 +1,5 @@
 
-import org.gradle.internal.declarativedsl.objectGraph.reflect
+import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileOutputStream
 import java.io.InputStreamReader
@@ -19,8 +19,9 @@ val buildDir = layout.buildDirectory.get()
 val projectName = project.name
 
 plugins {
-  kotlin("jvm") version "2.1.20"
+  kotlin("jvm") version "2.3.10"
   `maven-publish`
+  id("org.jetbrains.dokka") version "2.1.0"
 }
 
 group = "com.github.EB-wilson"
@@ -38,6 +39,38 @@ kotlin {
 
   compilerOptions {
     jvmTarget.set(JvmTarget.JVM_1_8)
+  }
+}
+
+dokka {
+  moduleName.set("Too Many Items")
+  dokkaPublications.html {
+    outputDirectory.set(layout.projectDirectory.dir("../TooManyItems-doc"))
+    suppressInheritedMembers.set(true)
+    failOnWarning.set(true)
+  }
+  dokkaSourceSets.main {
+    includes.from("Module.md")
+    documentedVisibilities.set(setOf(
+      VisibilityModifier.Public,
+      VisibilityModifier.Internal
+    ))
+    reportUndocumented.set(false)
+    skipEmptyPackages.set(true)
+    skipDeprecated.set(true)
+    suppressGeneratedFiles.set(true)
+    jdkVersion.set(8)
+    sourceLink {
+      localDirectory.set(file("src/main/kotlin"))
+      remoteUrl(
+        "https://github.com/EB-wilson/TooManyItems"
+      )
+      remoteLineSuffix.set("#L")
+    }
+  }
+  pluginsConfiguration.html {
+    customAssets.from("icon.png")
+    footerMessage.set("EBwilson")
   }
 }
 

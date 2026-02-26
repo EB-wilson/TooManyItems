@@ -7,13 +7,12 @@ import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.production.SolidPump
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
+import tmi.recipe.RecipeParser
 import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 
 open class SolidPumpParser : ConsumerParser<SolidPump>() {
-  init {
-    excludes.add(PumpParser::class.java)
-  }
+  override val excludes: Seq<Class<out RecipeParser<*>>> = Seq.with(PumpParser::class.java)
 
   override fun isTarget(content: Block): Boolean {
     return content is SolidPump
@@ -37,7 +36,7 @@ open class SolidPumpParser : ConsumerParser<SolidPump>() {
       val eff = block.attributes[content.attribute]
       res.addMaterial(block.getWrap(), (content.size*content.size) as Number)
         .setOptional(content.baseEfficiency > 0.001f)
-        .setEff(eff)
+        .setEfficiency(eff)
         .setType(RecipeItemType.ATTRIBUTE)
         .efficiencyFormat(content.baseEfficiency, eff)
         .setGroup(attrGroup)

@@ -7,14 +7,15 @@ import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.production.Fracker
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
+import tmi.recipe.RecipeParser
 import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 
 open class FrackerParser : ConsumerParser<Fracker>() {
-  init {
-    excludes.add(PumpParser::class.java)
-    excludes.add(SolidPumpParser::class.java)
-  }
+  override val excludes: Seq<Class<out RecipeParser<*>>> = Seq.with(
+    PumpParser::class.java,
+    SolidPumpParser::class.java
+  )
 
   override fun isTarget(content: Block): Boolean {
     return content is Fracker
@@ -38,7 +39,7 @@ open class FrackerParser : ConsumerParser<Fracker>() {
       val eff = block.attributes[content.attribute]
       res.addMaterial(block.getWrap(), (content.size*content.size) as Number)
         .setOptional(content.baseEfficiency > 0.001f)
-        .setEff(eff)
+        .setEfficiency(eff)
         .setType(RecipeItemType.ATTRIBUTE)
         .efficiencyFormat(content.baseEfficiency, eff)
         .setGroup(attrGroup)

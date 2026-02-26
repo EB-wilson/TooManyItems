@@ -7,14 +7,13 @@ import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.production.AttributeCrafter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
+import tmi.recipe.RecipeParser
 import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
 import kotlin.math.min
 
 open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
-  init {
-    excludes.add(GenericCrafterParser::class.java)
-  }
+  override val excludes: Seq<Class<out RecipeParser<*>>> = Seq.with(GenericCrafterParser::class.java)
 
   override fun isTarget(content: Block): Boolean {
     return content is AttributeCrafter
@@ -41,7 +40,7 @@ open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
       res.addMaterial(block.getWrap(), (content.size*content.size) as Number)
         .setType(RecipeItemType.ATTRIBUTE)
         .setOptional(content.baseEfficiency > 0.001f)
-        .setEff(eff)
+        .setEfficiency(eff)
         .efficiencyFormat(content.baseEfficiency, eff)
         .setGroup(attrGroup)
     }

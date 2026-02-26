@@ -38,7 +38,7 @@ open class WallCrafterParser : ConsumerParser<WallCrafter>() {
 
       val eff = block.attributes[content.attribute]
       res.addMaterial(block.getWrap(), block.size as Number)
-        .setEff(eff)
+        .setEfficiency(eff)
         .setType(RecipeItemType.ATTRIBUTE)
         .efficiencyFormat(eff)
         .setGroup(attrGroup)
