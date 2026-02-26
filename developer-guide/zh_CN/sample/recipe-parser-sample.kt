@@ -1,16 +1,3 @@
-import arc.struct.Seq
-import mindustry.Vars
-import mindustry.world.Block
-import mindustry.world.blocks.environment.Floor
-import mindustry.world.blocks.production.AttributeCrafter
-import tmi.recipe.Recipe
-import tmi.recipe.RecipeItemGroup
-import tmi.recipe.RecipeParser
-import tmi.recipe.types.RecipeItemType
-import tmi.recipe.RecipeType
-import tmi.recipe.parser.ConsumerParser
-import tmi.recipe.parser.GenericCrafterParser
-import kotlin.math.min
 
 //此类型为TMI内部对AttributeCrafter类型的工厂方块的配方解析器。
 //此案例将向您演示如何利用Parser解析一系列方块，并说明各步骤中的操作细节。
