@@ -5,6 +5,7 @@ import arc.func.Cons
 import arc.func.Cons2
 import arc.func.Cons3
 import arc.struct.ObjectMap
+import jdk.internal.classfile.TypeAnnotation
 import mindustry.Vars
 import mindustry.world.Block
 import mindustry.world.consumers.*
@@ -41,7 +42,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
     protected var consumeParsers: ObjectMap<Boolf<Consume>, Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>> =
       ObjectMap()
 
-    fun registerConsumeParser(
+    fun registerFilteredConsumeParser(
       filter: Boolf<Consume>,
       block: Cons3<Recipe, Consume, Cons<RecipeItemStack<*>>>
     ) {
@@ -52,7 +53,7 @@ abstract class ConsumerParser<T : Block> : RecipeParser<T>() {
       filter: Boolf<Type> = { true },
       block: Cons3<Recipe, Type, Cons<RecipeItemStack<*>>>
     ){
-      registerConsumeParser(
+      registerFilteredConsumeParser(
         { it is Type && filter.get(it) },
       ){ recipe, consume, handle ->
         block.get(recipe, consume as Type, handle)

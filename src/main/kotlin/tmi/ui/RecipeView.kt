@@ -117,7 +117,7 @@ class RecipeView @JvmOverloads constructor(
         time.image(Consts.time).size(24f).pad(4f)
         time.add(
           (if (craftTime > 3600) UI.formatTime(craftTime)
-          else Strings.autoFixed(craftTime/60, 2) + StatUnit.seconds.localized()),
+          else "${Strings.autoFixed(craftTime/60, 2)} ${StatUnit.seconds.localized()}"),
           Styles.outlineLabel
         ).pad(4f)
       }

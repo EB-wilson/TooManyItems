@@ -20,6 +20,22 @@ class RecipeItemManager {
   private val recipeItems = ObjectMap<Any, RecipeItem<*>>()
   private val itemNameMap = ObjectMap<String, RecipeItem<*>>()
 
+  val wrapper = OrderedMap<Boolf<Any>, Func<*, RecipeItem<*>>>()
+
+  init {
+    registerWrapper<UnlockableContent> { RecipeUnlockableContent(it) }
+  }
+
+  @Suppress("UNCHECKED_CAST")
+  fun <T> registerWrapper(matcher: Boolf<Any>, factory: Func<T, RecipeItem<T>>) {
+    wrapper[matcher] = factory as Func<*, RecipeItem<*>>
+  }
+
+  @Suppress("UNCHECKED_CAST")
+  inline fun <reified T> registerWrapper(factory: Func<T, RecipeItem<T>>) {
+    wrapper[Boolf{ e: Any? -> e is T }] = factory as Func<*, RecipeItem<*>>
+  }
+
   fun <T, R : RecipeItem<T>> addItemWrap(item: T, recipeItem: R): R {
     recipeItems.put(item, recipeItem)
     itemNameMap.put(recipeItem.name, recipeItem)
@@ -78,23 +94,6 @@ class RecipeItemManager {
     private val ERROR = object : SingleItemMark("<error>") {
       override val icon get() = Core.atlas.find("error")
       override val hidden = true
-    }
-
-    val wrapper = OrderedMap<Boolf<Any>, Func<*, RecipeItem<*>>>()
-
-    @Suppress("UNCHECKED_CAST")
-    @JvmStatic
-    fun <T> registerWrapper(matcher: Boolf<Any>, factory: Func<T, RecipeItem<T>>) {
-      wrapper[matcher] = factory as Func<*, RecipeItem<*>>
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    inline fun <reified T> registerWrapper(factory: Func<T, RecipeItem<T>>) {
-      wrapper[Boolf{ e: Any? -> e is T }] = factory as Func<*, RecipeItem<*>>
-    }
-
-    init {
-      registerWrapper<UnlockableContent> { RecipeUnlockableContent(it) }
     }
   }
 }

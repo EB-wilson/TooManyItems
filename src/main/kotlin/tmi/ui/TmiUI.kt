@@ -76,7 +76,7 @@ object TmiUI {
           var ind = 0
 
           val sorting = recipesDialog.sortings[i].sort
-          val ls: List<RecipeItem<*>> = list.toList()
+          val ls = list.toList()
             .filter { e -> (e.name.contains(search) || e.localizedName.contains(search)) }
             .sortedWith(
               if (reverse) java.util.Comparator { a, b -> sorting.compare(b, a) }

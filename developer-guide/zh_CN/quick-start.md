@@ -74,10 +74,10 @@ val wrappedEclipse = TooManyItems.itemsManager.getItem(UnitTypes.eclipse)
 
 ### 创建并添加配方
 
-配方被定义为类型`tmi.recipe.Recipe`，所有的配方均被存储在一个配方管理器单例内，该单例被保存在`TooManyItems.recipesManager`中，您创建的配方也应当被添加至此管理器内。
+配方被定义为类型`tmi.recipe.Recipe`，所有的配方均被存储在一个配方管理器单例内，该单例被保存在`TooManyItems.recipesManager`中，您创建的配方也应当被添加至此管理器。
 
-要创建一个配方仅需要实例化一个`Recipe`对象，并在`init`阶段将其添加到配方管理器中:
-
+要创建一个配方仅需要实例化一个`Recipe`对象，并在`init`阶段将其添加到配方管理器:
+ 
 ```kotlin
 class MyEntry: RecipeEntry{
   override fun init(){

@@ -320,7 +320,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
       if (!linkList.isEmpty) {
         var sumLineCent = 0f
         val centerY = layerCenter[depth]
-        linkList.sort { it.to.x + (it.from.x - it.to.x)*0.001f }
+        linkList.sort { it.to.x + (it.from.x - it.to.x)*0.0001f }
         linkList.forEachIndexed { i, line ->
           val lineLeft = min(line.from.x, line.to.x) - 0.1
           var n = 0
@@ -369,7 +369,9 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
         val off = ave - centerY
         linkList.forEach { it.centerY -= off }
 
-        linkLines.addAll(linkList)
+        linkLines.addAll(linkList.sort {
+          it.to.x + abs(it.from.x - it.to.x)*0.0001f
+        })
       }
     }
   }
@@ -406,16 +408,16 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
       private fun drawLines() {
         Lines.stroke(Scl.scl(5f))
-        fun draw(line: LinkLine) {
+        fun draw(line: LinkLine, off: Float) {
           val from = line.from
           val to = line.to
 
-          val cent = y + line.centerY
+          val cent = y + line.centerY - off
 
-          val fromX = x + from.x
-          val fromY = y + from.y
-          val toX = x + to.x
-          val toY = y + to.y
+          val fromX = x + from.x - off
+          val fromY = y + from.y - off
+          val toX = x + to.x - off
+          val toY = y + to.y - off
 
           Lines.line(
             fromX, fromY,
@@ -433,17 +435,21 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
         tempList.clear()
 
-        Draw.color(Color.gray)
         linkLines.forEach { line ->
           if (line.isOver) {
             tempList.add(line)
             return@forEach
           }
-          draw(line)
+          Draw.color(Pal.darkestGray)
+          draw(line, Scl.scl(5f))
+          Draw.color(Color.gray)
+          draw(line, 0f)
         }
 
         Draw.color(Pal.accent)
-        tempList.forEach { line -> draw(line) }
+        tempList.forEach { line ->
+          draw(line, 0f)
+        }
 
         Draw.color()
       }
