@@ -1,5 +1,7 @@
 # Too Many Items 物品管理器（TMI）
 
+[Click here for English version](./README_en.md)
+
 ---
 
 本mod旨在提供一个便捷的界面，以供快速查询物品的生产与制造信息，在您安装了很多mod的情况下会非常有用。
