@@ -4,7 +4,7 @@ import arc.func.Cons2
 import arc.struct.ObjectMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
-import tmi.recipe.EnvParameter
+import tmi.recipe.InputTable
 import tmi.recipe.Recipe
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
@@ -32,11 +32,11 @@ class RecipeGraphNode(
   val attributes = ObjectSet<RecipeItem<*>>()
   val optionals = ObjectSet<RecipeItem<*>>()
 
-  val envParameter = EnvParameter()
+  val inputTable = InputTable()
 
   fun updateEfficiency(){
-    multiplier = recipe.calculateMultiple(envParameter)
-    efficiency = recipe.calculateEfficiency(envParameter, multiplier)
+    multiplier = recipe.calculateMultiple(inputTable)
+    efficiency = recipe.calculateEfficiency(inputTable, multiplier)
   }
 
   fun updateBalance(): Boolean{

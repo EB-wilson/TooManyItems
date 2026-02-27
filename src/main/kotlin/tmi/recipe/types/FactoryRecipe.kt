@@ -9,6 +9,7 @@ import arc.scene.style.BaseDrawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.util.Time
+import mindustry.content.Liquids
 import mindustry.graphics.Pal
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType

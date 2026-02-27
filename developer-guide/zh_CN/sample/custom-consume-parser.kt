@@ -16,7 +16,7 @@ class ConsumeSample(
 //而添加配方条目的工作即在回调函数块中进行，如下是一个简易的例子用于解析如上给出的ConsumeSample
 fun sample(){
   //这是一个实用工具重载，它意为直接使用提供的泛型参数进行类型判断，来作为本条目的过滤器，详情请参阅外部API文档
-  ConsumerParser.registerConsumeParser<ConsumeSample> { recipe, consume, handle ->
+  ConsumerParser.registerTypedConsumeParser<ConsumeSample> { recipe, consume, handle ->
     //这个回调函数体会在注册Consume时对通过过滤器的Consume调用
     //接收的三个参数分别为：
     //- recipe：正在操作的配方

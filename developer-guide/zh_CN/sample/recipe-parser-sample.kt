@@ -1,5 +1,5 @@
 
-//此类型为TMI内部对AttributeCrafter类型的工厂方块的配方解析器。
+//此类型为添加了详尽注释说明的TMI内部解析器原文，用于解析AttributeCrafter类型的工厂配方。
 //此案例将向您演示如何利用Parser解析一系列方块，并说明各步骤中的操作细节。
 open class AttributeCrafterParser : ConsumerParser<AttributeCrafter>() {
   //由于AttributeCrafter扩展自GenericCrafter类型，而对于GenericCrafter已经有一个解析器实现。

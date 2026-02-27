@@ -812,7 +812,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     graph.forEach {
       it.balanceAmount = -1f
     }
-    recipeElements.filterIsInstance<RecipeTab>().forEach { it.setupEnvParameters(it.graphNode.envParameter) }
+    recipeElements.filterIsInstance<RecipeTab>().forEach { it.setupEnvParameters(it.graphNode.inputTable) }
 
     var iterated = 0
     val nodeSet = linkedSetOf<RecipeGraphNode>()

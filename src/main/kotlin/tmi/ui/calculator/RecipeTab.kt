@@ -22,7 +22,7 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.TooManyItems
 import tmi.recipe.AmountFormatter
-import tmi.recipe.EnvParameter
+import tmi.recipe.InputTable
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItem
@@ -87,7 +87,7 @@ class RecipeTab(
   override fun getTip(): String = Core.bundle["calculator.tips.shadowed"]
   override fun tipValid(): Boolean = isShadow
 
-  fun setupEnvParameters(env: EnvParameter) {
+  fun setupEnvParameters(env: InputTable) {
     if (isShadow) return
 
     env.clear()

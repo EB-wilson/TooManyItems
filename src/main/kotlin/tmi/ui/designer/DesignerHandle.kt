@@ -5,7 +5,7 @@ import arc.math.geom.Vec2
 import arc.scene.style.Drawable
 import arc.util.Align
 import arc.util.Time
-import tmi.recipe.EnvParameter
+import tmi.recipe.InputTable
 import tmi.recipe.types.RecipeItem
 import tmi.util.vec1
 
@@ -431,7 +431,7 @@ class SetRecipeArgsHandle(
 
   var effScale: Float = originEffScl
 
-  val envArgs: EnvParameter = originEnvArgs.copy()
+  val envArgs: InputTable = originEnvArgs.copy()
   val optionals: MutableSet<RecipeItem<*>?> = originOpts.toMutableSet()
 
   override fun handle() {

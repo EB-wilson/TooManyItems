@@ -24,7 +24,7 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import tmi.TooManyItems
 import tmi.util.forEach
-import tmi.recipe.EnvParameter
+import tmi.recipe.InputTable
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
@@ -43,7 +43,7 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
   var rebuildAttrs = {}
   var rebuildSimAttrs = {}
 
-  val environments: EnvParameter = EnvParameter()
+  val environments: InputTable = InputTable()
   val optionalSelected: OrderedSet<RecipeItem<*>> = OrderedSet()
 
   override var balanceValid = false
@@ -111,7 +111,7 @@ open class RecipeCard(ownerView: DesignerView, val recipe: Recipe) : Card(ownerV
   var multiplier = 0f
     private set
 
-  private val param = EnvParameter()
+  private val param = InputTable()
 
   private var setArgsHandle: SetRecipeArgsHandle? = null
 

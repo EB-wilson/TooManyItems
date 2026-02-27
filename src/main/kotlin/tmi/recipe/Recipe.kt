@@ -14,11 +14,14 @@ import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 
-/**配方信息的存储类，该类的每一个实例都表示为一个单独的配方，用于显示配方或者计算生产数据
+/**配方信息的存储类，该类的每一个实例都表示为一个单独的配方，用于显示配方或者计算生产数据。
  *
- * @param recipeType [Recipe.recipeType]
- * @param ownerBlock [Recipe.ownerBlock]
- * @param craftTime [Recipe.craftTime]*/
+ * @param recipeType [Recipe.recipeType]该配方的配方类型，这会决定该配方的显示布局方式以及其他行为
+ * @param ownerBlock [Recipe.ownerBlock]该配方所属的方块，可为空
+ * @param craftTime [Recipe.craftTime]配方执行需要的时间，单位tick
+ *
+ * @author EBwilson
+ * @version 1.0*/
 open class Recipe @JvmOverloads constructor(
   /**该配方的类型，请参阅[RecipeType] */
   val recipeType: RecipeType,
@@ -86,7 +89,7 @@ open class Recipe @JvmOverloads constructor(
 
   /**用配方当前使用的效率计算器计算该配方在给定的环境参数下的运行效率 */
   @JvmOverloads
-  open fun calculateEfficiency(parameter: EnvParameter, multiplier: Float = calculateMultiple(parameter)): Float {
+  open fun calculateEfficiency(parameter: InputTable, multiplier: Float = calculateMultiple(parameter)): Float {
     if (multiplier <= 0f) return 0f
 
     val matN = materials.filter { it.itemType == RecipeItemType.NORMAL }
@@ -113,7 +116,8 @@ open class Recipe @JvmOverloads constructor(
     return normal*max(booster, 1f)*multiplier*isolated
   }
 
-  open fun calculateMultiple(parameter: EnvParameter, multiplier: Float = 1f): Float {
+  @JvmOverloads
+  open fun calculateMultiple(parameter: InputTable, multiplier: Float = 1f): Float {
     val powerM = materials.filter { it.itemType == RecipeItemType.POWER }
     val attr = calculateZone(
       materials.filter { it.itemType == RecipeItemType.ATTRIBUTE },
@@ -134,7 +138,7 @@ open class Recipe @JvmOverloads constructor(
   internal fun calculateZone(
     filteredStacks: List<RecipeItemStack<*>>,
     method: CalculateMethod,
-    parameter: EnvParameter,
+    parameter: InputTable,
     multiplier: Float = 1f
   ): Float {
     val groupEff = ObjectFloatMap<RecipeItemGroup>()
@@ -249,9 +253,9 @@ open class Recipe @JvmOverloads constructor(
   fun containsProduction(production: RecipeItem<*>) = productionMap.containsKey(production)
   fun containsMaterial(material: RecipeItem<*>?) = materialMap.containsKey(material)
 
-  fun RecipeItemStack<*>.efficiencyBy(env: EnvParameter, multiplier: Float): Float =
-    if (itemType == RecipeItemType.ATTRIBUTE) efficiency*min(env.getAttribute(item)/(amount*multiplier), 1f)
-    else efficiency*min(env.getInputs(item)/(amount*multiplier), 1f)
+  fun RecipeItemStack<*>.efficiencyBy(env: InputTable, multiplier: Float): Float =
+    if (itemType == RecipeItemType.ATTRIBUTE) efficiency*min(env.get(item)/(amount*multiplier), 1f)
+    else efficiency*min(env.get(item)/(amount*multiplier), 1f)
 
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
@@ -275,14 +279,14 @@ open class Recipe @JvmOverloads constructor(
   /**配方的效率计算函数，用于给定一个输入环境参数和配方数据，计算出该配方在这个输入环境下的工作效率 */
   @Deprecated("Use standard efficiency calculate method.")
   var efficiencyFunc = object: EffFunc{
-    override fun calculateEff(recipe: Recipe, env: EnvParameter, mul: Float) = 0f
-    override fun calculateMultiple(recipe: Recipe, env: EnvParameter) = 0f
+    override fun calculateEff(recipe: Recipe, env: InputTable, mul: Float) = 0f
+    override fun calculateMultiple(recipe: Recipe, env: InputTable) = 0f
   }
   @Deprecated("Use standard efficiency calculate method.")
   fun setEff(func: EffFunc) = this.also { efficiencyFunc = func }
   @Deprecated("Use standard efficiency calculate method.")
   interface EffFunc {
-    fun calculateEff(recipe: Recipe, env: EnvParameter, mul: Float): Float
-    fun calculateMultiple(recipe: Recipe, env: EnvParameter): Float
+    fun calculateEff(recipe: Recipe, env: InputTable, mul: Float): Float
+    fun calculateMultiple(recipe: Recipe, env: InputTable): Float
   }
 }
