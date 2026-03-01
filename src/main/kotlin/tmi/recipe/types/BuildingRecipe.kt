@@ -28,7 +28,7 @@ class BuildingRecipe : RecipeType() {
         img.row()
         img.timeTab().pad(4f)
       }.pad(12f)
-      build.itemCell(CellType.BLOCK, RecipeItemStack(recipe.ownerBlock!!, 1f)).size(160f)
+      build.itemCell(CellType.BLOCK, RecipeItemStack(recipe.ownerBlock, 1f)).size(160f)
 
       recipe.ownerBlock.ifInst<Block> { b ->
         build.row()
