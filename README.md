@@ -18,7 +18,7 @@
 
 ![button](assets/git/tmibutton.png)
 
-通常来说，这个mod支持所有的基于json的mod和大部分没有过多自定义生产类型的第三方mod，如果第三方mod有非基于vanilla的加工或者制造流程，那么其可能需要作者做一些适配，请参阅[本项目Wiki](https://github.com/EB-wilson/TooManyItems/wiki)。
+通常来说，这个mod支持所有的基于json的mod和大部分没有过多自定义生产类型的第三方mod，如果第三方mod有非基于vanilla的加工或者制造流程，那么其可能需要作者做一些适配，请参阅[开发者指南](https://github.com/EB-wilson/TooManyItems/blob/master/developer-guide/zh_CN/index.md)。
 
 ---
 

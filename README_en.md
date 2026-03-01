@@ -18,7 +18,7 @@ All buttons look like this:
 
 ![button](assets/git/tmibutton.png)
 
-Generally speaking, this mod supports all JSON-based mods and most third-party mods that do not have extensive custom production types. If a third-party mod has processing or manufacturing processes not based on vanilla, it may require adaptation by the author. Please refer to [this project's Wiki](https://github.com/EB-wilson/TooManyItems/wiki).
+Generally speaking, this mod supports all JSON-based mods and most third-party mods that do not have extensive custom production types. If a third-party mod has processing or manufacturing processes not based on vanilla, it may require adaptation by the author. Please refer to [developer guide](https://github.com/EB-wilson/TooManyItems/blob/master/developer-guide/en/index.md).
 
 ---
 

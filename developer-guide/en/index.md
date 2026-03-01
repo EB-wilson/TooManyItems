@@ -7,7 +7,7 @@ Note: If all the content in your mod uses vanilla content types from Mindustry (
 ### Quick Index
 
 - Check out the [quick guide](https://github.com/EB-wilson/TooManyItems/tree/master/developer-guide/zh_CN/quick-start.md) for writing adapters.
-- Refer to the [detailed TMI external API documentation](https://github.com/EB-wilson/TooManyItems/tree/master/developer-guide/zh_CN/api-document.md).
-- View example code [here](https://github.com/EB-wilson/TooManyItems/tree/master/developer-guide/sample).
+- Refer to the [detailed TMI external API documentation](https://toomanyitems-doc.github.io).
+- View example code [here](https://github.com/EB-wilson/TooManyItems/tree/master/developer-guide/en/sample).
 
 > This document primarily provides example code in Kotlin/Java. For JavaScript entry points, please refer to this [document](https://github.com/EB-wilson/TooManyItems/tree/master/developer-guide/zh_CN/javascript-entry.md).
