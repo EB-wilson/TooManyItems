@@ -470,7 +470,7 @@ class RecipeTab(
               val a = str.toIntOrNull()?.let { if (it > 10000) 0 else it } ?: 0
               graphNode.targetAmount = a
               view.balanceUpdated()
-            }.width(60f).update {
+            }.width(80f).update {
               if (it.text.isBlank()) return@update
               val a = it.text.toIntOrNull()
               it.color.set(if (a?.let { n -> n > 10000 } ?: true) Color.crimson else Color.white)

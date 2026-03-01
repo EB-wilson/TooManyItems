@@ -6,6 +6,28 @@
 
 > **注意**，若您的mod的内容使用的均是来自Mindustry内默认的内容类型（如`GenericCrafter`等），且没有使用自定义的生产形式去覆盖默认的生产行为，则TMI已经实现了对这些内容的兼容，您无需进行额外的兼容操作。
 
+### 添加依赖项
+
+在您的项目build.gralde中添加如下内容：
+
+```gradle
+dependencies {
+    compileOnly 'com.github.EB-wilson:TooManyItems:2.2'
+}
+```
+
+如果您尚未将jitpack添加到maven仓库路径，请添加如下声明：
+
+```gradle
+dependencyResolutionManagement { 
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
 ### 配方入口
 
 TMI为配方及参与配方的条目提供了规范的包装与抽象，几乎可兼容所有可能的生产消耗形式，并为第三方mod提供了独立的模块入口，以使得TMI相关的程序可以存在于一个独立的模块中，并只在用户已安装TMI的情况下才被调用。

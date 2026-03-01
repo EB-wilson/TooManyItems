@@ -88,8 +88,7 @@ object RecipeGraphLayout {
       if (node == other) findOther = true
       if (checkingSet.add(node)){
         node.children().forEach { child ->
-          if (child == this@findLoop)
-            isLoop = true
+          if (child == this@findLoop) isLoop = true
           stack.push(child)
         }
       }
@@ -107,7 +106,7 @@ object RecipeGraphLayout {
       anySorted = false
       nodes.forEach { node ->
         node.children().forEach { child ->
-          if (child.contextDepth <= node.contextDepth) {
+          if (child != node && child.contextDepth <= node.contextDepth) {
             child.contextDepth = node.contextDepth + 1
             anySorted = true
           }
@@ -126,7 +125,7 @@ object RecipeGraphLayout {
       swap.add(node)
       if (node !is RecNode) return@forEach
       node.childrenWithItem().forEach { (item, child) ->
-        if (child is RecNode && child.contextDepth < node.contextDepth && child.findLoop(node)) {
+        if (child is RecNode && ((child.contextDepth < node.contextDepth && child.findLoop(node)) || child == node)) {
           val shadowed = shadowedMap.computeIfAbsent(child) { _ ->
             ShadowNode(child).also { swap.add(it) }
           }

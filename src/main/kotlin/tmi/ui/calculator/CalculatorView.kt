@@ -94,6 +94,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
   private lateinit var ioList: Table
   private lateinit var status: Table
   private lateinit var inputs: Table
+  private lateinit var optionalInputs: Table
   private lateinit var outputs: Table
 
   private val tabSelectors = object : Group() {
@@ -619,7 +620,9 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
       i.add(Core.bundle["dialog.calculator.statInputs"])
       i.image(Icon.download).size(32f).pad(8f)
       inputs = i.table().growX().fillY().pad(8f).get()
-    }.pad(8f).padTop(16f).growX().fillY()
+      i.row()
+      optionalInputs = i.table().growX().fillY().pad(8f).get()
+    }.pad(8f).growX().fillY().padTop(16f)
   }
 
   fun rebuildIO() {
@@ -660,24 +663,22 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     }
 
     if (optional.isNotEmpty()) {
-      inputs.row()
-      inputs.table{ opt ->
-        opt.table { t ->
-          t.add(Core.bundle["misc.optional"]).pad(8f)
-          t.row()
-          t.image().color(Pal.gray).growX().height(4f).padTop(8f).padBottom(8f)
-          t.row()
-          t.table { items ->
-            optional.forEachIndexed { i, stack ->
-              if (i > 0 && i%6 == 0) inputs.row()
-              items.add(RecipeItemCell(CellType.MATERIAL, *stack.toTypedArray()).also {
-                it.style = Styles.cleart
-                it.setFormatter(formatter)
-              }).size(56f).pad(8f).padLeft(12f).padRight(12f)
-            }
+      optionalInputs.clearChildren()
+      optionalInputs.table{ t ->
+        t.add(Core.bundle["misc.optional"]).pad(8f)
+        t.row()
+        t.image().color(Pal.gray).growX().height(4f).padTop(8f).padBottom(8f)
+        t.row()
+        t.table { items ->
+          optional.forEachIndexed { i, stack ->
+            if (i > 0 && i%6 == 0) inputs.row()
+            items.add(RecipeItemCell(CellType.MATERIAL, *stack.toTypedArray()).also {
+              it.style = Styles.cleart
+              it.setFormatter(formatter)
+            }).size(56f).pad(8f).padLeft(12f).padRight(12f)
           }
-        }.fill()
-      }.colspan(6)
+        }
+      }.fill()
     }
 
     ioList.validate()
