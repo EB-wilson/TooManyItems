@@ -10,7 +10,7 @@ class ConsumeSample(
   //...
 }
 
-// You can use the companion singleton function registerConsumeParser in ConsumerParser to add parsing records.
+// You can use the companion object function registerConsumeParser in ConsumerParser to add parsing records.
 // A consumption item parsing record essentially consists of a filter and its callback function. Whenever a Consume is input, it attempts to match all records that match the filter and executes their callback blocks.
 // The work of adding recipe items is carried out within the callback block. The following is a simple example for parsing the ConsumeSample given above.
 fun sample(){

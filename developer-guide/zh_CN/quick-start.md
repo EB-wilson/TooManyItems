@@ -70,7 +70,7 @@ val wrappedEclipse = TooManyItems.itemsManager.getItem(UnitTypes.eclipse)
 
 在后文中我们均使用的是通过此方式获得的配方条目对象。
 
-> 如果您对一个没有实现配方条目包装的类型进行此操作，您会得到一个错误条目，它的所有信息都会被标记为'error'。有关自定义实现请参阅`RecipeItemManager`的外部API文档。
+> 如果您对一个没有提供包装方法的类型进行此操作，那么您会得到一个错误条目，它的所有信息都会被标记为'error'。有关自定义实现请参阅`RecipeItemManager`的外部API文档。
 
 ### 创建并添加配方
 
