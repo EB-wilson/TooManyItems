@@ -3,7 +3,6 @@ package tmi.ui.calculator
 import arc.Core
 import arc.files.Fi
 import arc.graphics.Color
-import arc.graphics.Pixmap
 import arc.graphics.PixmapIO
 import arc.graphics.g2d.TextureRegion
 import arc.graphics.gl.FrameBuffer
@@ -54,8 +53,11 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
     backgroundAlpha = 1f
 
     imageUpdated = true
-
     show()
+
+    //Must refresh to draw the first preview image properly for unknown reasons
+    act(0f)
+    imageUpdated = true
   }
 
   fun build(){
@@ -72,7 +74,7 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
           val img = prev.table(Tex.pane).margin(4f).size(340f).get()
             .image(imgPreview).scaling(Scaling.fit).update { i ->
               if (imageUpdated) {
-                flush()
+                refresh()
 
                 i.setDrawable(imgPreview)
                 imageUpdated = false
@@ -202,7 +204,7 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
     }.fill().margin(8f).pad(40f)
   }
 
-  private fun flush(){
+  private fun refresh(){
     if (exportTarget == null) {
       imgPreview.set((Tex.nomap as TextureRegionDrawable).region)
     }
