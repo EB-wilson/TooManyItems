@@ -3,11 +3,12 @@ package tmi.ui.calculator
 import arc.Core
 import arc.files.Fi
 import arc.graphics.Color
+import arc.graphics.Pixmap
+import arc.graphics.PixmapIO
 import arc.graphics.g2d.TextureRegion
 import arc.graphics.gl.FrameBuffer
 import arc.math.Mathf
 import arc.scene.style.TextureRegionDrawable
-import arc.scene.ui.Dialog
 import arc.scene.ui.layout.Scl
 import arc.util.*
 import mindustry.Vars
@@ -15,11 +16,14 @@ import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
+import tmi.graphic.ChunkedFrameBuffer
 import tmi.util.Consts
+import kotlin.math.min
 
 class ExportDialog: BaseDialog("", Consts.transparentBack) {
   private val imgPreview = TextureRegion((Tex.nomap as TextureRegionDrawable).region)
-  private val exportBuffer = FrameBuffer()
+  private val previewBuffer = FrameBuffer()
+  private val chunkedBuffer = ChunkedFrameBuffer()
 
   private var imageUpdated = false
   private var exportTarget: CalculatorView? = null
@@ -84,8 +88,8 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
                 l.setText(
                   Core.bundle.format(
                     "dialog.calculator.exportPrev",
-                    exportBuffer.width,
-                    exportBuffer.height,
+                    previewBuffer.width,
+                    previewBuffer.height,
                     Mathf.round(Scl.scl(imageScale)*100)
                   )
                 )
@@ -99,8 +103,8 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
             l.setText(
               Core.bundle.format(
                 "dialog.calculator.exportPrev",
-                exportBuffer.width,
-                exportBuffer.height,
+                previewBuffer.width,
+                previewBuffer.height,
                 Mathf.round(Scl.scl(imageScale)*100)
               )
             )
@@ -183,18 +187,20 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
         buttons.right().defaults().size(92f, 36f).pad(6f)
         buttons.button(Core.bundle["misc.cancel"], Styles.cleart) { this.hide() }
         buttons.button(Core.bundle["misc.export"], Styles.cleart) {
-          exportBuffer.beginBind()
+          previewBuffer.beginBind()
           try {
-            ScreenUtils.saveScreenshot(
-              exportFile!!,
-              0, 0, exportBuffer.width, exportBuffer.height
-            )
+            val pixmap = chunkedBuffer.toPixmap()
+            PixmapIO.writePng(exportFile!!, pixmap)
+            //ScreenUtils.saveScreenshot(
+            //  exportFile!!,
+            //  0, 0, previewBuffer.width, previewBuffer.height
+            //)
             Vars.ui.showInfo(Core.bundle["dialog.calculator.exportSuccess"])
           } catch (e: ArcRuntimeException) {
             Vars.ui.showException(Core.bundle["dialog.calculator.exportFailed"], e)
             Log.err(e)
           }
-          exportBuffer.endBind()
+          previewBuffer.endBind()
         }.disabled { exportFile == null }
       }.growX()
     }.fill().margin(8f).pad(40f)
@@ -206,24 +212,37 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
     }
     else {
       drawCalculatorView(
-        exportBuffer,
+        chunkedBuffer,
         padding,
         imageScale,
         backgroundAlpha,
       )
 
-      val texture = exportBuffer.texture
+      val wf = chunkedBuffer.imageWidth.toFloat()/ChunkedFrameBuffer.maxTextureSize
+      val hf = chunkedBuffer.imageHeight.toFloat()/ChunkedFrameBuffer.maxTextureSize
+      val rwf = if (wf < 1f) 1f else 1f/wf
+      val rhf = if (hf < 1f) 1f else 1f/hf
+      val factor = min(rwf, rhf)
+      previewBuffer.resize(
+        (chunkedBuffer.imageWidth*factor).toInt(),
+        (chunkedBuffer.imageHeight*factor).toInt(),
+      )
+      previewBuffer.begin(Color.clear)
+      chunkedBuffer.blit()
+      previewBuffer.end()
+
+      val texture = previewBuffer.texture
       imgPreview.set(texture)
       imgPreview.flip(false, true)
     }
   }
 
   private fun drawCalculatorView(
-    buff: FrameBuffer,
+    buff: ChunkedFrameBuffer,
     padding: Float,
     scl: Float,
-    backAlpha: Float
-  ): FrameBuffer {
+    backAlpha: Float,
+  ) {
     val view = exportTarget!!
     val bound = view.getBound()
 
@@ -233,10 +252,6 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
     val imageHeight = (height*scl).toInt()
 
     buff.resize(imageWidth, imageHeight)
-    buff.begin(Tmp.c1.set(Pal.darkerGray).a(backAlpha))
-    view.drawToImage(padding, backAlpha)
-    buff.end()
-
-    return buff
+    view.drawToBuffer(buff, padding, backAlpha)
   }
 }

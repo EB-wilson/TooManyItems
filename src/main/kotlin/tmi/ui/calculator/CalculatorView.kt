@@ -21,11 +21,13 @@ import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
+import arc.util.Tmp
 import arc.util.io.Reads
 import arc.util.io.Writes
 import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
+import tmi.graphic.ChunkedFrameBuffer
 import tmi.recipe.AmountFormatter
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
@@ -977,22 +979,9 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     zoom.scaleY = 1f
   }
 
-  fun drawToImage(padding: Float, backAlpha: Float) {
+  fun drawToBuffer(chunkedBuffer: ChunkedFrameBuffer, padding: Float, backAlpha: Float) {
     tmpGridAlpha = backAlpha
     val view = getBound()
-
-    val width = view.width + padding*2
-    val height = view.height + padding*2
-
-    val dx = view.x - padding
-    val dy = view.y - padding
-
-    val camera = Camera()
-    camera.width = width
-    camera.height = height
-    camera.position.x = dx + width/2f
-    camera.position.y = dy + height/2f
-    camera.update()
 
     val par = container.parent
     val x = container.x
@@ -1002,21 +991,46 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     val scW = Core.scene.viewport.worldWidth
     val scH = Core.scene.viewport.worldHeight
 
-    zoom.scaleX = 1f
-    zoom.scaleY = 1f
-    container.parent = null
-    container.x = 0f
-    container.y = 0f
-    Core.scene.viewport.worldWidth = width
-    Core.scene.viewport.worldHeight = height
-
-    Draw.proj(camera)
     imageGenerating = true
     container.forEach { it.act(0f) }
-    container.draw()
+
+    val imageWidth = (view.width + padding*2)
+    val imageHeight = (view.height + padding*2)
+
+    val originX = view.x - padding
+    val originY = view.y - padding
+
+    Core.scene.viewport.worldWidth = imageWidth
+    Core.scene.viewport.worldHeight = imageHeight
+
+    chunkedBuffer.eachChunk { chunk ->
+      val width = chunk.widthFactor*imageWidth
+      val height = chunk.heightFactor*imageHeight
+      val dx = originX + chunk.u1*imageWidth
+      val dy = originY + chunk.v1*imageHeight
+
+      val camera = Camera()
+      camera.width = width
+      camera.height = height
+      camera.position.x = dx + width/2f
+      camera.position.y = dy + height/2f
+      camera.update()
+
+      zoom.scaleX = 1f
+      zoom.scaleY = 1f
+      container.parent = null
+      container.x = 0f
+      container.y = 0f
+
+      Draw.proj(camera)
+      chunk.begin(Tmp.c1.set(Pal.darkerGray).a(backAlpha))
+      container.draw()
+      chunk.end()
+      Draw.flush()
+    }
+
     imageGenerating = false
     container.forEach { it.act(0f) }
-    Draw.flush()
 
     container.parent = par
     container.x = x
