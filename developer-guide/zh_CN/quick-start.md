@@ -12,7 +12,7 @@
 
 ```gradle
 dependencies {
-    compileOnly 'com.github.EB-wilson:TooManyItems:2.2'
+    compileOnly 'com.github.EB-wilson:TooManyItems:$tmiVerison'
 }
 ```
 
