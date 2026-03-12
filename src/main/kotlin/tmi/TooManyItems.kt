@@ -6,9 +6,12 @@ import arc.util.Time
 import mindustry.Vars
 import mindustry.game.EventType.ClientLoadEvent
 import mindustry.mod.Mod
+import tmi.recipe.AmmoModifierConfig
 import tmi.recipe.RecipeItemManager
 import tmi.recipe.RecipesManager
+import tmi.recipe.TurretAmmoCollector
 import tmi.recipe.parser.*
+import tmi.recipe.types.TurretAmmoManager
 import tmi.ui.Cursor
 import tmi.ui.EntryAssigner
 import tmi.ui.TmiUI
@@ -77,6 +80,15 @@ class TooManyItems : Mod() {
     api.init()
 
     recipesManager.init()
+    
+    // 初始化弹药修正配置
+    AmmoModifierConfig.init()
+    
+    // 初始化炮台弹药数据
+    TurretAmmoCollector.collectAllTurretAmmoData().forEach { entry ->
+      TurretAmmoManager.registerAmmoData(entry.key, entry.value)
+    }
+    TurretAmmoManager.initialized = true
 
     TmiUI.init()
   }
