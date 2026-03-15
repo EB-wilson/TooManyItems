@@ -203,6 +203,8 @@ class MyEntry: RecipeEntry{
     //addMaterialPresec同样为工具方法，用于快捷设置显示格式为单位时间内的消耗量
     //此处为添加耗电项，电力没有实例，因此由一个单例对象PowerMark提供其概念包装，热量同属此范畴为HeatMark
     recipe.addMaterialPresec(PowerMark, 4f)
+      //能量消耗有单独的配方类型，类型指定该条目的效率计算乘区
+      .setType(RecipeItemType.POWER)
     
     val attrGroup = RecipeItemGroup()
     //添加灼热地板的效率增幅环境项
