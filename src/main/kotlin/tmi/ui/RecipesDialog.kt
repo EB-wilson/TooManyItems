@@ -38,8 +38,10 @@ import mindustry.world.Block
 import tmi.TooManyItems
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
+import tmi.recipe.TurretAmmoCollector
 import tmi.recipe.types.RecipeItem
-import tmi.ui.RecipesDialog.Mode.*
+import tmi.recipe.types.TurretAmmoManager
+import tmi.ui.TurretAmmoListView
 import tmi.util.Consts
 import tmi.util.Consts.a_z
 import tmi.util.Consts.grayUIAlpha
@@ -48,6 +50,7 @@ import tmi.util.vec1
 import tmi.util.vec2
 import java.text.Collator
 import java.util.*
+import kotlin.collections.isNotEmpty
 import kotlin.math.min
 
 open class RecipesDialog : BaseDialog("") {
@@ -438,7 +441,7 @@ open class RecipesDialog : BaseDialog("") {
     val recipesTable = recipesTable?:return false
     var recipes: Seq<Recipe>? = null
 
-    if (currentSelect != null && currentSelect!!.item !is Block && recipeMode == FACTORY) _currentMode = null
+    if (currentSelect != null && currentSelect!!.item !is Block && recipeMode == Mode.FACTORY) _currentMode = null
 
     if (currentSelect == null) {
       recipesTable.clearChildren()
@@ -460,25 +463,28 @@ open class RecipesDialog : BaseDialog("") {
     else {
       val currentSelect = currentSelect!!
       if (recipeMode == null) {
-        _currentMode = if (TooManyItems.recipesManager.anyMaterial(currentSelect)) USAGE
-        else if (TooManyItems.recipesManager.anyProduction(currentSelect)) RECIPE
+        _currentMode = if (TurretAmmoManager.isAmmo(currentSelect)) Mode.AMMO
+        else if (TooManyItems.recipesManager.anyMaterial(currentSelect)) Mode.USAGE
+        else if (TooManyItems.recipesManager.anyProduction(currentSelect)) Mode.RECIPE
         else if (currentSelect.item is Block)
-          if (TooManyItems.recipesManager.getRecipesByFactory(currentSelect).any()) FACTORY
-          else RECIPE
+          if (TooManyItems.recipesManager.getRecipesByFactory(currentSelect).any()) Mode.FACTORY
+          else Mode.RECIPE
         else null
       }
 
       recipes = if (recipeMode == null) null else when (recipeMode!!) {
-        USAGE -> TooManyItems.recipesManager.getRecipesByMaterial(currentSelect)
-        RECIPE -> TooManyItems.recipesManager.getRecipesByProduction(currentSelect)
-        FACTORY -> TooManyItems.recipesManager.getRecipesByFactory(currentSelect)
+        Mode.USAGE -> TooManyItems.recipesManager.getRecipesByMaterial(currentSelect)
+        Mode.RECIPE -> TooManyItems.recipesManager.getRecipesByProduction(currentSelect)
+        Mode.FACTORY -> TooManyItems.recipesManager.getRecipesByFactory(currentSelect)
+        Mode.AMMO -> null  // 弹药模式不返回 Recipe，直接显示炮台列表
       }
     }
 
     val recipeViews = Seq<RecipeView>()
+    var turretAmmoListView: TurretAmmoListView? = null
     if (recipes != null) {
       filter?.also { f -> recipes.removeAll { !f.get(it) } }
-
+            
       for (recipe in recipes) {
         val view = RecipeView(recipe, { i, _, m ->
           if (!_selectedOnly) setCurrSelecting(i.item, m)
@@ -486,8 +492,15 @@ open class RecipesDialog : BaseDialog("") {
         recipeViews.add(view)
       }
     }
-
-    if (recipes == null || recipeViews.isEmpty) return false
+    else if (recipeMode == Mode.AMMO && currentSelect != null) {
+      // 弹药模式：创建炮台列表视图
+      val turretInfos = TurretAmmoManager.getTurretsForAmmo(currentSelect!!)
+      if (turretInfos.size > 0) {
+        turretAmmoListView = TurretAmmoListView(currentSelect!!, turretInfos)
+      }
+    }
+    
+    if ((recipes == null || recipeViews.isEmpty) && turretAmmoListView == null) return false
 
     recipesTable.clearListeners()
     recipesTable.addListener(object : InputListener() {
@@ -516,30 +529,41 @@ open class RecipesDialog : BaseDialog("") {
       recipePage = 0
       rebuildRecipe = {
         main.center()
-        main.clearChildren()
+        main.clearChildren()  // 确保每次重建前清理旧内容
         val views = Seq<RecipeView>()
 
-        if (_doubleRecipe) {
-          val page = recipePage*2
-          views.add(recipeViews[page])
-          views.add(if (page + 1 < recipeViews.size) recipeViews[page + 1] else null)
+        // 弹药模式不处理 recipeViews
+        if (recipeMode != Mode.AMMO && recipeViews.size > 0) {
+          if (_doubleRecipe) {
+            val page = recipePage*2
+            if (page < recipeViews.size) {
+              views.add(recipeViews[page])
+              views.add(if (page + 1 < recipeViews.size) recipeViews[page + 1] else null)
+            }
+          }
+          else if (recipePage < recipeViews.size) {
+            views.add(recipeViews[recipePage])
+          }
         }
-        else views.add(recipeViews[recipePage])
 
         val currSel = currentSelect!!
         main.table { modes ->
           modeTab = Table(grayUIAlpha) { ta ->
             for (mode in Mode.entries) {
-              if (mode === FACTORY && (currSel.item !is Block || TooManyItems.recipesManager.getRecipesByFactory(currSel).isEmpty)) continue
-              else if (mode === RECIPE && TooManyItems.recipesManager.getRecipesByProduction(currSel).isEmpty) continue
-              else if (mode === USAGE && TooManyItems.recipesManager.getRecipesByMaterial(currSel).isEmpty) continue
+              if (mode === Mode.FACTORY && (currSel.item !is Block || TooManyItems.recipesManager.getRecipesByFactory(currSel).isEmpty)) continue
+              else if (mode === Mode.RECIPE && TooManyItems.recipesManager.getRecipesByProduction(currSel).isEmpty) continue
+              else if (mode === Mode.USAGE && TooManyItems.recipesManager.getRecipesByMaterial(currSel).isEmpty) continue
+              else if (mode === Mode.AMMO && !TurretAmmoManager.isAmmo(currSel)) continue
 
               ta.button({ t ->
                   t.defaults().left().pad(5f)
                   t.image(mode.icon()).size(24f).scaling(Scaling.fit)
                   t.add(mode.localized()).growX()
                 }, Styles.clearNoneTogglei
-              ){ recipeMode = mode }.margin(6f).growX().fillY()
+              ){ 
+                recipeMode = mode
+                modeTab!!.visible = false  // 切换模式后关闭选项菜单
+              }.margin(6f).growX().fillY()
                 .update { e -> e.isChecked = mode == recipeMode }
               ta.row()
             }
@@ -566,41 +590,23 @@ open class RecipesDialog : BaseDialog("") {
           }).margin(8f).fill().get()
         }.fill()
         main.row()
-        main.table{ view ->
-          views.forEach { v ->
-            if (v != null) {
-              view.table { rec ->
-                rec.table { back ->
-                  back.center().add(v).center().fill().pad(20f)
-
-                  v.recipe.subInfoBuilder?.also {
-                    back.row()
-                    back.table { t ->
-                      t.center().defaults().center()
-                      it.get(t)
-                    }.fill().padTop(8f)
-                  }
-                }.fillY().growX()
-
-                rec.row()
-                rec.image().color(Pal.gray).height(2f).growX()
-
-                if (callback != null && recipeCallbackFilter?.get(v.recipe) ?: true) {
-                  rec.row()
-                  rec.table { bu ->
-                    bu.right().button(callbackIcon, Styles.clearNonei, 36f) {
-                      callback!![v.recipe]
-                    }.margin(5f).disabled {
-                      return@disabled v.recipe.recipeType == RecipeType.building
-                    }
-                  }.fillY().growX()
-                }
-              }.fillY().growX().pad(12f)
-            }
-            else view.add().grow()
-            view.row()
+        
+        // 创建内容显示区域
+        main.table { contentTable ->
+          // 如果是弹药模式，显示炮台列表
+          if (recipeMode == Mode.AMMO && turretAmmoListView != null) {
+            contentTable.add(turretAmmoListView).grow().pad(12f)
           }
-        }.center().fillY().growX().get()
+          else {
+            views.forEach { v ->
+              if (v != null) {
+                contentTable.add(v).fillY().growX().pad(12f)
+              }
+              else contentTable.add().grow()
+              contentTable.row()
+            }
+          }
+        }.center().grow().padLeft(60f)  // 整体向右偏移
 
         main.addChild(modeTab)
 
@@ -760,9 +766,9 @@ open class RecipesDialog : BaseDialog("") {
                 setCurrSelecting(
                   content,
                   if (button == KeyCode.mouseRight)
-                    if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) FACTORY
-                    else USAGE
-                  else RECIPE
+                    if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) Mode.FACTORY
+                    else Mode.USAGE
+                  else Mode.RECIPE
                 )
               }
               else {
@@ -770,9 +776,9 @@ open class RecipesDialog : BaseDialog("") {
                 setCurrSelecting(
                   content,
                   if (clicked%2 == 0)
-                    if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) FACTORY
-                    else USAGE
-                  else RECIPE
+                    if (content.item is Block && TooManyItems.recipesManager.getRecipesByFactory(content).any()) Mode.FACTORY
+                    else Mode.USAGE
+                  else Mode.RECIPE
                 )
               }
             }
@@ -878,7 +884,7 @@ open class RecipesDialog : BaseDialog("") {
       _currentSelect = old
       _currentMode = oldMode
 
-      Vars.ui.showInfoFade(Core.bundle["dialog.recipes.no_" + (if (mode == RECIPE) "recipe" else "usage")])
+      Vars.ui.showInfoFade(Core.bundle["dialog.recipes.no_" + (if (mode == Mode.RECIPE) "recipe" else "usage")])
     }
   }
 
@@ -915,6 +921,11 @@ open class RecipesDialog : BaseDialog("") {
     FACTORY {
       override fun icon(): Drawable? {
         return Icon.production
+      }
+    },
+    AMMO {
+      override fun icon(): Drawable? {
+        return Icon.tree
       }
     };
 
