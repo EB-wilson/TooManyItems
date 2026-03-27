@@ -15,8 +15,7 @@ import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.util.Consts
-import universecore.ui.elements.markdown.Markdown
-import universecore.ui.elements.markdown.Markdown.MarkdownStyle
+import universe.ui.markdown.Markdown
 
 class DocumentDialog : BaseDialog("") {
   var rebuilder: Intc? = null
@@ -31,6 +30,7 @@ class DocumentDialog : BaseDialog("") {
 
     addCloseButton()
     keyDown(KeyCode.escape) { hide() }
+    resized { rebuilder?.get(0) }
 
     hidden { doc.clearChildren() }
   }
@@ -42,7 +42,7 @@ class DocumentDialog : BaseDialog("") {
   }
 
   //showDocument
-  fun showDocument(title: String, mdStyle: MarkdownStyle, vararg markdowns: String) {
+  fun showDocument(title: String, mdStyle: Markdown.MarkdownStyle, vararg markdowns: String) {
     val pages = markdowns.map { md -> Markdown(md, mdStyle) }
 
     showDocument(title, *pages.toTypedArray())
@@ -58,7 +58,7 @@ class DocumentDialog : BaseDialog("") {
     titleTable.clearChildren()
     titleTable.add(title).color(Pal.accent)
 
-    val index = IntArray(1)
+    var currPage = 0
     doc.clearChildren()
     if (documents.isNotEmpty()) {
       doc.top().table { table ->
@@ -70,9 +70,9 @@ class DocumentDialog : BaseDialog("") {
             else t.defaults().growY().width(40f)
 
             val bu = t.button(Icon.leftOpen, Styles.clearNonei) {
-              index[0]--
-              rebuilder!!.get(-1)
-            }.disabled { _ -> index[0] <= 0 }.get()
+              currPage--
+              rebuilder?.get(-1)
+            }.disabled { currPage <= 0 }.get()
             bu.style.disabled = Consts.grayUIAlpha
             bu.style.up = bu.style.disabled
           }
@@ -84,7 +84,7 @@ class DocumentDialog : BaseDialog("") {
 
             rebuilder = Intc { i ->
               if (i != 0 && lastPane != null) {
-                lastPane!!.actions(
+                lastPane?.actions(
                   Actions.parallel(
                     Actions.alpha(0f, 0.5f, Interp.pow3In),
                     Actions.moveBy(-clip.getWidth()/2*i, 0f, 0.5f, Interp.pow3In)
@@ -92,15 +92,15 @@ class DocumentDialog : BaseDialog("") {
                   Actions.run {
                     clip.removeChild(lastPane)
                     lastPane = clip.table(Consts.padGrayUIAlpha) { page ->
-                      page.top().table().get().pane(
-                        Styles.smallPane, documents[index[0]]
-                      ).scrollX(false).get().setFillParent(true)
+                      page.top().table().grow().get().pane(
+                        Styles.smallPane, Table{ it.add(documents[currPage]).grow().pad(16f) }
+                      ).grow().scrollX(false)
                     }.scrollX(false).grow().get()
-                    lastPane!!.color.a = 0f
+                    lastPane?.color?.a = 0f
 
                     val w = clip.getWidth()
                     val h = clip.getHeight()
-                    lastPane!!.actions(
+                    lastPane?.actions(
                       Actions.parallel(
                         Actions.alpha(1f, 0.5f, Interp.pow3Out),
                         Actions.moveTo(w/2*i, 0f),
@@ -114,12 +114,12 @@ class DocumentDialog : BaseDialog("") {
               else {
                 lastPane = clip.table(Consts.padGrayUIAlpha) { page ->
                   page.top().table().grow().get().pane(
-                    Styles.smallPane, documents[index[0]]
-                  ).scrollX(false).grow().get().setFillParent(true)
+                    Styles.smallPane, Table{ it.add(documents[currPage]).grow().pad(16f) }
+                  ).grow().scrollX(false)
                 }.grow().get()
               }
             }
-            rebuilder!!.get(0)
+            rebuilder?.get(0)
           }.grow()
         }
 
@@ -135,9 +135,9 @@ class DocumentDialog : BaseDialog("") {
                 up = Consts.grayUIAlpha
               }
             }) {
-              index[0]++
-              rebuilder!!.get(1)
-            }.disabled { _ -> index[0] >= documents.size - 1 }.get()
+              currPage++
+              rebuilder?.get(1)
+            }.disabled { _ -> currPage >= documents.size - 1 }.get()
             bu.style.disabled = Consts.grayUIAlpha
             bu.style.up = bu.style.disabled
           }
@@ -159,12 +159,12 @@ class DocumentDialog : BaseDialog("") {
             buildSwitchRight(table.table().growY().fillX().get())
           }
         }
-        resize!!.run()
+        resize?.run()
         resized(resize)
       }.grow()
       doc.row()
       doc.add("").update { l ->
-        l.setText(Core.bundle.format("dialog.recipes.pages", index[0] + 1, documents.size))
+        l.setText(Core.bundle.format("dialog.recipes.pages", currPage + 1, documents.size))
       }
     }
 

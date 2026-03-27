@@ -98,10 +98,13 @@ dependencies {
   compileOnly("com.github.Anuken.Arc:arc-core:$arcVersion")
   compileOnly("com.github.Anuken.Mindustry:core:$mindustryVersion")
 
-  implementation("com.github.EB-wilson.UniverseCore:markdown:2.1.1")
+  implementation("com.github.EB-wilson.UniverseKit:markdown:1.0")
+  implementation("com.github.EB-wilson.UniverseKit:reflection:1.0")
 
   implementation(kotlin("stdlib-jdk8"))
   implementation(kotlin("reflect"))
+
+  testImplementation("com.github.EB-wilson.UniverseKit:reflection:1.0")
 }
 
 tasks {
@@ -241,8 +244,7 @@ fun String.execute(path: File? = null, vararg args: Any?): Process{
     .toTypedArray()
   val process = ProcessBuilder(*cmd)
     .directory(path?:rootDir)
-    .redirectOutput(ProcessBuilder.Redirect.INHERIT)
-    .redirectError(ProcessBuilder.Redirect.INHERIT)
+    .inheritIO()
     .start()
 
   if (process.waitFor() != 0) throw Error(InputStreamReader(process.errorStream).readText())

@@ -32,8 +32,8 @@ import tmi.ui.TmiUI
 import tmi.ui.TmiUI.showChoiceIcons
 import tmi.ui.addEventBlocker
 import tmi.util.*
-import universecore.ui.elements.markdown.Markdown
-import universecore.ui.elements.markdown.MarkdownStyles
+import universe.ui.markdown.Markdown
+import universe.ui.markdown.MarkdownStyles
 import kotlin.math.max
 
 class CalculatorDialog: BaseDialog("") {
@@ -356,36 +356,6 @@ class CalculatorDialog: BaseDialog("") {
         //TODO
       },
     )
-  }
-
-  private fun Markdown.MarkdownStyle.copy() = Markdown.MarkdownStyle().also { c ->
-    c.font = font
-    c.emFont = emFont
-    c.subFont = subFont
-    c.codeFont = codeFont
-    c.strongFont = strongFont
-
-    c.textColor = textColor
-    c.emColor = emColor
-    c.subTextColor = subTextColor
-    c.lineColor = lineColor
-    c.linkColor = lineColor
-
-    c.linesPadding = linesPadding
-    c.maxCodeBoxHeight = maxCodeBoxHeight
-    c.tablePadHor = tablePadHor
-    c.tablePadVert = tablePadVert
-    c.paragraphPadding = paragraphPadding
-
-    c.board = board
-    c.codeBack = codeBack
-    c.codeBlockBack = codeBlockBack
-    c.tableBack1 = tableBack1
-    c.tableBack2 = tableBack2
-    c.curtain = curtain
-
-    c.codeBlockStyle = codeBlockStyle
-    c.listMarks = listMarks
   }
 
   private fun showHelp(){

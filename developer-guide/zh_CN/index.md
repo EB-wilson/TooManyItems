@@ -11,3 +11,4 @@
 - [在此](https://github.com/EB-wilson/TooManyItems/tree/master/developer-guide/zh_CN/sample)内可查阅示例代码。
 
 > 本文档主要以kotlin/java编写示例代码，JavaScript的入口对照请参阅此[文档](https://github.com/EB-wilson/TooManyItems/tree/master/developer-guide/zh_CN/javascript-entry.md)
+         
