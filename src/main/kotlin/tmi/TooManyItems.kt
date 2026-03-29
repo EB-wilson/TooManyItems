@@ -80,6 +80,8 @@ class TooManyItems : Mod() {
           
           strong emp test: ***strong emphasize***
           
+          emp link test: *[emphasize link1](link)*
+          
           curtain test: $curtain 1$ $curtain 2 with `code`$
           
           ins test: ++under line test 1 - under line test 2++

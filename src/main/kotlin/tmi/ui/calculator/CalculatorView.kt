@@ -51,7 +51,6 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
   var astringentValid = false
     private set
 
-
   var padding = 24f
   var layerMargin = 160f
 

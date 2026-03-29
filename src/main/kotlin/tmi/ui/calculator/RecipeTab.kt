@@ -362,45 +362,47 @@ class RecipeTab(
     val attrs = materials.filter { it.first().itemType == RecipeItemType.ATTRIBUTE }
     val prod = productions.filter { it.itemType != RecipeItemType.POWER }
 
-    fill { x, y, _, _ ->
-      val from = blockPos.value
-      val centUp = centerUp.value
-      val centDown = centerDown.value
+    addChild(object: Element() {
+      override fun draw() {
+        val from = blockPos.value
+        val centUp = centerUp.value
+        val centDown = centerDown.value
 
-      Lines.stroke(Scl.scl(5f), Color.gray)
-      productionPos.values().forEach {
-        val off = it.value
+        Lines.stroke(Scl.scl(5f), Color.gray)
+        productionPos.values().forEach {
+          val off = it.value
 
-        Lines.line(
-          x + from.x, y + from.y,
-          x + from.x, y + centUp.y,
-        )
-        Lines.line(
-          x + from.x, y + centUp.y,
-          x + off.x, y + centUp.y,
-        )
-        Lines.line(
-          x + off.x, y + centUp.y,
-          x + off.x, y + off.y,
-        )
+          Lines.line(
+            x + from.x, y + from.y,
+            x + from.x, y + centUp.y,
+          )
+          Lines.line(
+            x + from.x, y + centUp.y,
+            x + off.x, y + centUp.y,
+          )
+          Lines.line(
+            x + off.x, y + centUp.y,
+            x + off.x, y + off.y,
+          )
+        }
+        materialPos.values().forEach {
+          val off = it.value
+
+          Lines.line(
+            x + from.x, y + from.y,
+            x + from.x, y + centDown.y,
+          )
+          Lines.line(
+            x + from.x, y + centDown.y,
+            x + off.x, y + centDown.y,
+          )
+          Lines.line(
+            x + off.x, y + centDown.y,
+            x + off.x, y + off.y,
+          )
+        }
       }
-      materialPos.values().forEach {
-        val off = it.value
-
-        Lines.line(
-          x + from.x, y + from.y,
-          x + from.x, y + centDown.y,
-        )
-        Lines.line(
-          x + from.x, y + centDown.y,
-          x + off.x, y + centDown.y,
-        )
-        Lines.line(
-          x + off.x, y + centDown.y,
-          x + off.x, y + off.y,
-        )
-      }
-    }
+    })
 
     table{ outputs ->
       outputs.table { main ->

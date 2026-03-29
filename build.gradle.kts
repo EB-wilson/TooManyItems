@@ -7,8 +7,8 @@ import java.io.StringReader
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
-val mindustryVersion = "v154"
-val arcVersion = "v154"
+val mindustryVersion = "v156"
+val arcVersion = "v156"
 
 val modOutputDir = properties["modOutputDir"] as? String
 val debugJarDir = properties["debugGamePath"] as? String
@@ -25,7 +25,7 @@ plugins {
 }
 
 group = "com.github.EB-wilson"
-version = "3.1a"
+version = "3.2"
 
 run { "java SyncBundles.java $version".execute() }
 

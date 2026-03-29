@@ -1,12 +1,14 @@
+import universe.util.reflect.Enums.accessEnum0
 
-import universe.util.reflect.Reflection.accessField
-
-class Test{
-  private val a = ""
+enum class Test{
+  A, B, C
 }
 
-val Test.a: String by accessField("a")
 
 fun main(){
+  val enumHandler = Test::class.accessEnum0()
+  enumHandler.appendEnumInstance("D")
+  enumHandler.newEnumInstance("E", 2)
 
+  Test.entries.forEach { println(it.name) }
 }
