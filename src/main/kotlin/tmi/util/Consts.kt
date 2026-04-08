@@ -26,16 +26,10 @@ import mindustry.world.blocks.environment.Floor
 import java.lang.reflect.Field
 
 object Consts {
-  private val emp: Seq<*> = Seq<Any>()
-
   val buildTimeAlter: Field = try {
     Block::class.java.getField("buildTime")
   } catch (e: NoSuchFieldException) {
     Block::class.java.getField("buildCost")
-  }
-
-  val foldCardIcons: List<Drawable> by lazy {
-    Icon.icons.map { it.key to it.value }.sortedBy { it.first }.filter { !it.first.contains("Small") }.map { it.second }
   }
 
   val grayUI: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Tmp.c1.set(Pal.darkerGray)) }
@@ -142,10 +136,5 @@ object Consts {
       build.team = team
       build.rotation = rotation
     }
-  }
-
-  @Suppress("UNCHECKED_CAST")
-  fun <T> empSeq(): Seq<T> {
-    return emp as Seq<T>
   }
 }

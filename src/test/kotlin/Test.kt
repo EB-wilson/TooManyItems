@@ -1,4 +1,4 @@
-import universe.util.reflect.Enums.accessEnum0
+import universe.util.reflect.accessEnum0
 
 enum class Test{
   A, B, C

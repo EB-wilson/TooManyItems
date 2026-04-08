@@ -608,20 +608,18 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     ioList.table { i -> status = i }.growX().fillY()
 
     ioList.row()
-    ioList.table { o ->
-      o.add(Core.bundle["dialog.calculator.statOutputs"])
-      o.image(Icon.upload).size(32f).pad(8f)
-      outputs = o.table().growY().fillY().pad(8f).get()
-    }.pad(8f).growX().fillY()
+    ioList.table { info ->
+      info.add(Core.bundle["dialog.calculator.statOutputs"])
+      info.image(Icon.upload).size(32f).pad(8f)
+      outputs = info.table().growX().fillY().pad(8f).get()
 
-    ioList.row()
-    ioList.table { i ->
-      i.add(Core.bundle["dialog.calculator.statInputs"])
-      i.image(Icon.download).size(32f).pad(8f)
-      inputs = i.table().growX().fillY().pad(8f).get()
-      i.row()
-      optionalInputs = i.table().growX().fillY().pad(8f).get()
-    }.pad(8f).growX().fillY().padTop(16f)
+      info.row()
+      info.add(Core.bundle["dialog.calculator.statInputs"])
+      info.image(Icon.download).size(32f).pad(8f).padTop(16f)
+      inputs = info.table().growX().fillY().pad(8f).get()
+      info.row()
+      optionalInputs = info.table().growX().fillY().pad(8f).colspan(3).get()
+    }.pad(8f).growX().fillY()
   }
 
   fun rebuildIO() {

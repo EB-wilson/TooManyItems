@@ -7,7 +7,7 @@ import arc.graphics.gl.FrameBuffer
 import arc.graphics.gl.GLFrameBuffer
 import arc.graphics.gl.Shader
 import arc.util.ScreenUtils
-import universe.util.reflect.Reflection.accessField
+import universe.util.reflect.accessField
 import kotlin.math.ceil
 
 class ChunkedFrameBuffer(
