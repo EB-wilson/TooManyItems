@@ -54,7 +54,10 @@ jobs:
 
       - name: Upload to Steam Workshop
         uses: buildalon/upload-steam@v1
+        id: upload
         with:
-          username: ${{ secrets.STEAM_USERNAME }}
-          password: ${{ secrets.STEAM_PASSWORD }}
           workshop_item: 'workshop_item.vdf'
+      - run: |
+          manifest="${{ steps.upload.outputs.manifest }}"
+          cat $manifest
+        shell: bash
