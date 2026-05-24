@@ -49,25 +49,13 @@ open class DrillParser : ConsumerParser<Drill>() {
 
         r.addProductionInteger(drop.itemDrop.getWrap(), 1)
 
-        if (content.liquidBoostIntensity != 1f) {
-          registerCons(r, *Seq.with(*content.consumers).select { e ->
-            !(e.optional && e is ConsumeLiquidBase && e.booster)
-          }.toArray(Consume::class.java))
-
-          val consBase = content.findConsumer<Consume> { f -> f is ConsumeLiquidBase && f.optional && f.booster }
-          if (consBase is ConsumeLiquidBase) {
-            registerCons(r, { s ->
-              val eff = content.liquidBoostIntensity*content.liquidBoostIntensity
-              s!!.setEfficiency(eff)
-                .setType(RecipeItemType.BOOSTER)
-                .setOptional()
-                .boostAndConsFormat(eff)
-            }, consBase)
+        registerCons(r, { c, s ->
+          if (content.liquidBoostIntensity != 1f && c is ConsumeLiquidBase && c.booster) {
+            val eff = content.liquidBoostIntensity*content.liquidBoostIntensity
+            s.setEfficiency(eff)
+              .boostAndConsFormat(eff)
           }
-        }
-        else {
-          registerCons(r, *content.consumers)
-        }
+        }, *content.consumers)
         r
       }
 

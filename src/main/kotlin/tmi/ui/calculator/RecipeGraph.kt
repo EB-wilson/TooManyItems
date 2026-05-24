@@ -24,6 +24,11 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
 
   fun removeNode(node: RecipeGraphNode) {
     if (node.graph == this) {
+      node.parentsWithItem().forEach { (i, n) -> n.forEach {
+        it.disInput(i, false)
+      } }
+      node.childrenWithItem().forEach { (i, n) -> node.disInput(i, false) }
+
       node.graph = null
       node.graphIndex = -1
       recipeNodes.remove(node)
@@ -42,14 +47,6 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
     recipeNodes.forEach { callBack.get(it) }
   }
 
-  private fun RecipeGraphNode.visitFlow(set: MutableSet<RecipeGraphNode>, callBack: Cons<RecipeGraphNode>){
-    if (set.add(this)) {
-      callBack.get(this)
-      parents().forEach { it.visitFlow(set, callBack) }
-      children().forEach { it.visitFlow(set, callBack) }
-    }
-  }
-
   fun eachNode(callBack: Cons2<Int, RecipeGraphNode>){
     val set = linkedSetOf<RecipeGraphNode>()
 
@@ -61,27 +58,19 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
       if (!flowed.contains(it)) {
         val nodes = mutableListOf<RecipeGraphNode>()
         isolated.add(nodes)
-        it.visitFlow(flowed) { node ->
+        it.visit(0, flowed) { dep, node ->
+          node.contextDepth = dep
           nodes.add(node)
         }
       }
     }
 
-    val top = mutableListOf<RecipeGraphNode>()
-    isolated.forEach { sub ->
-      val roots = sub.filter { it.parents().isEmpty() }
-      if (!sub.isEmpty() && roots.isEmpty()){
-        top.add(sub.first())
-      }
-      else {
-        top.addAll(roots)
-      }
-    }
+    val top = isolated.map { sub -> sub.minBy { it.contextDepth } }
 
     for (root in top) {
       root.visit(0){ depth, node ->
         set.add(node)
-        node.contextDepth = max(node.contextDepth, depth)
+        node.contextDepth = if (node.parents().isEmpty()) 0 else max(node.contextDepth, depth)
       }
     }
 

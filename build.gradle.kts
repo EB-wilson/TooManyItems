@@ -98,14 +98,14 @@ dependencies {
   compileOnly("com.github.Anuken.Arc:arc-core:$arcVersion")
   compileOnly("com.github.Anuken.Mindustry:core:$mindustryVersion")
 
-  implementation("com.github.EB-wilson.UniverseKit:utilities:1.1")
-  implementation("com.github.EB-wilson.UniverseKit:markdown:1.1")
-  implementation("com.github.EB-wilson.UniverseKit:reflection:1.1")
+  implementation("com.github.EB-wilson.UniverseKit:utilities:1.2")
+  implementation("com.github.EB-wilson.UniverseKit:markdown:1.2")
+  implementation("com.github.EB-wilson.UniverseKit:reflection:1.2")
 
   implementation(kotlin("stdlib-jdk8"))
   implementation(kotlin("reflect"))
 
-  testImplementation("com.github.EB-wilson.UniverseKit:reflection:1.1")
+  testImplementation("com.github.EB-wilson.UniverseKit:reflection:1.2")
 }
 
 tasks {

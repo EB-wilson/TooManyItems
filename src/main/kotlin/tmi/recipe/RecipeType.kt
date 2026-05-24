@@ -1,12 +1,8 @@
 package tmi.recipe
 
-import arc.Core
 import arc.scene.ui.layout.Table
 import arc.struct.Seq
-import tmi.recipe.types.BuildingRecipe
-import tmi.recipe.types.CollectingRecipe
-import tmi.recipe.types.FactoryRecipe
-import tmi.recipe.types.GeneratorRecipe
+import tmi.recipe.types.*
 import tmi.ui.RecipeView
 
 /**配方表类型，用于描述一个配方如何被显示或者计算等 */
@@ -14,14 +10,16 @@ abstract class RecipeType {
   companion object {
     val all = Seq<RecipeType>()
 
-    @JvmField
+    @JvmStatic
     val factory = FactoryRecipe()
-    @JvmField
+    @JvmStatic
     val building = BuildingRecipe()
-    @JvmField
+    @JvmStatic
     val collecting = CollectingRecipe()
-    @JvmField
+    @JvmStatic
     val generator = GeneratorRecipe()
+    @JvmStatic
+    val ammo = AmmoRecipe()
   }
 
   init {

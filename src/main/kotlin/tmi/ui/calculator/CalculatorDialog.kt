@@ -26,6 +26,7 @@ import mindustry.content.Blocks
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
+import mindustry.ui.Fonts
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.ui.TmiUI
@@ -63,6 +64,11 @@ class CalculatorDialog: BaseDialog("") {
   private val menuTable = Table().apply{ visible = false }
 
   init {
+    style = DialogStyle().apply {
+      background = Styles.black
+      titleFont = Fonts.def
+    }
+
     setupTools()
     setupMenu()
 
@@ -832,8 +838,8 @@ class CalculatorDialog: BaseDialog("") {
         })
         btn.setDisabled { currPage == null }
         btn.touchable { Touchable.enabled.takeIf{ currPage != null }?: Touchable.disabled }
-        btn.fill { x, y, w, h ->
-          if (!btn.isDisabled) return@fill
+        btn.fillRect { x, y, w, h ->
+          if (!btn.isDisabled) return@fillRect
           Consts.grayUIAlpha.draw(x, y, w, h)
         }.touchable = Touchable.disabled
         list.row()

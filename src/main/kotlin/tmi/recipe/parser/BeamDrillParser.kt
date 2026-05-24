@@ -46,25 +46,12 @@ open class BeamDrillParser : ConsumerParser<BeamDrill>() {
 
         r.addProductionInteger(drop.itemDrop.getWrap(), 1)
 
-        if (content.optionalBoostIntensity != 1f) {
-          registerCons(
-            r, *Seq.with(*content.consumers).select { e ->
-              !e.booster || e !is ConsumeLiquidBase
-            }.toArray(
-              Consume::class.java
-            )
-          )
-          val consBase = content.findConsumer<ConsumeLiquidBase> { e -> e.booster && e is ConsumeLiquidBase }
-          registerCons(r, { s ->
+        registerCons(r, { c, s ->
+          if (content.optionalBoostIntensity != 1f && c.booster) {
             s.setEfficiency(content.optionalBoostIntensity)
-              .setType(RecipeItemType.BOOSTER)
-              .setOptional()
               .boostAndConsFormat(content.optionalBoostIntensity)
-          }, consBase)
-        }
-        else {
-          registerCons(r, *content.consumers)
-        }
+          }
+        }, *content.consumers)
         r
       }
 

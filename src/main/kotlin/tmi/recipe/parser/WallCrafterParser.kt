@@ -5,6 +5,7 @@ import mindustry.Vars
 import mindustry.world.Block
 import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.production.WallCrafter
+import mindustry.world.consumers.ConsumeLiquidBase
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
 import tmi.recipe.types.RecipeItemType
@@ -26,7 +27,11 @@ open class WallCrafterParser : ConsumerParser<WallCrafter>() {
 
     val itemCons = content.itemConsumer
     registerCons(res, { c, s ->
-      if (c == itemCons){
+      if (content.liquidBoostIntensity != 1f && content.hasLiquidBooster && c is ConsumeLiquidBase && c.booster) {
+        s.setEfficiency(content.liquidBoostIntensity)
+          .boostAndConsFormat(content.liquidBoostIntensity)
+      }
+      else if (c == itemCons){
         s.amount = s.amount*content.drillTime/content.boostItemUseTime
         s.integerFormat(content.boostItemUseTime)
       }

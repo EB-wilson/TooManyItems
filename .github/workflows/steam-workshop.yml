@@ -1,0 +1,60 @@
+name: Publish Release to Steam Workshop
+
+# 触发条件：当一个新的 Release 被发布时
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-workshop-item:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download JAR release asset
+        uses: robinraju/release-downloader@v1
+        with:
+          tag: ${{ github.event.release.tag_name }}
+          fileName: "*.jar"
+          out-file-path: "./downloads"
+
+      - name: Prepare Workshop Content
+        run: |
+          mkdir -p workshop_content
+          mkdir -p images
+
+          unzip -o ./downloads/*.jar -d workshop_content/
+
+          cp steam/preview.png images/
+
+      - name: Generate Workshop VDF
+        env:
+          RELEASE_BODY_JSON: ${{ toJSON(github.event.release.body) }}
+        run: |
+          WORKSPACE_PATH="${{ github.workspace }}"
+          DESCRIPTION=$(printf '%s' "$RELEASE_BODY_JSON" | sed 's/^"//; s/"$//')
+
+          cat > workshop_item.vdf << EOF
+          "workshopitem"
+          {
+              "appid"              "1127400"
+              "publishedfileid"    "3090883895"
+              "contentfolder"      "${WORKSPACE_PATH}/workshop_content"
+              "previewfile"        "${WORKSPACE_PATH}/images/preview.png"
+              "visibility"         "0"
+              "title"              "TooManyItems"
+              "description"        "${DESCRIPTION}"
+              "changenote"         "Release ${{ github.event.release.tag_name }}"
+          }
+          EOF
+
+      - name: Setup SteamCMD
+        uses: buildalon/setup-steamcmd@v1
+
+      - name: Upload to Steam Workshop
+        uses: buildalon/upload-steam@v1
+        with:
+          username: ${{ secrets.STEAM_USERNAME }}
+          password: ${{ secrets.STEAM_PASSWORD }}
+          workshop_item: 'workshop_item.vdf'

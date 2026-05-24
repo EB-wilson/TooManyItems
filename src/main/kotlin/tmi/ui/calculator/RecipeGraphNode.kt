@@ -80,7 +80,7 @@ class RecipeGraphNode(
 
   fun remove() {
     parentsWithItem().forEach { (i, nodes) -> nodes.forEach { it.disInput(i, false) } }
-    childrenWithItem().forEach { (i, _) -> disInput(i) }
+    childrenWithItem().forEach { (i, _) -> disInput(i, false) }
 
     graph?.removeNode(this)
   }
@@ -107,7 +107,7 @@ class RecipeGraphNode(
     if (parents.isEmpty) child.outputs.remove(item)
 
     if (removeHovering) {
-      if (child.isHovering()) graph?.removeNode(child)
+      if (child.isHovering()) child.remove()
     }
   }
 
@@ -127,6 +127,9 @@ class RecipeGraphNode(
       block.get(currDepth, this)
       inputs.values().forEach {
         it.visit(currDepth + 1, visitedSet, block)
+      }
+      outputs.values().forEach {
+        it.forEach { p -> p.visit(currDepth - 1, visitedSet, block) }
       }
     }
   }

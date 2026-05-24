@@ -4,9 +4,11 @@ import arc.Events
 import arc.files.Fi
 import arc.util.Time
 import mindustry.Vars
+import mindustry.entities.bullet.LaserBulletType
 import mindustry.game.EventType.ClientLoadEvent
 import mindustry.mod.Mod
 import mindustry.ui.dialogs.BaseDialog
+import mindustry.world.blocks.defense.turrets.LaserTurret
 import tmi.recipe.RecipeItemManager
 import tmi.recipe.RecipesManager
 import tmi.recipe.parser.*
@@ -54,19 +56,8 @@ class TooManyItems : Mod() {
     val dialog = BaseDialog("markdown")
     val markdown = Markdown(
 $$"""
-# 标题1 - Heading1
-## 标题2 - Heading2
-### 标题3 - Heading3
-#### 标题4 - Heading4
-##### 标题5 - Heading4
-
-标题样本 - Heading Sample
-
-正文样本 - Sample
-
-![Web Image](https://avatars.githubusercontent.com/u/77141581){width=160 scaling=fillX}
-![Web Image](https://avatars.githubusercontent.com/u/77141581){width=120 height=180 scaling=stretch}
-""",
+      一个辅助mod，为您提供快速检索材料，单位，建筑和矿$物等的生产与采$集引导信息，让您不再因为安装了太多mod而不知所措（缩写为 `$`）
+      """.trimIndent(),
       MarkdownStyles.defaultMD
     )
 
@@ -98,6 +89,9 @@ $$"""
     recipesManager.registerParser(HeatProducerParser())
     recipesManager.registerParser(AttributeCrafterParser())
     recipesManager.registerParser(WallCrafterParser())
+    recipesManager.registerParser(ItemTurretParser())
+    recipesManager.registerParser(LiquidTurretParser())
+    recipesManager.registerParser(PowerTurretParser())
     recipesManager.registerParser(BuildingParser())
   }
 

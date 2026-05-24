@@ -5,6 +5,7 @@ import arc.func.Prov
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
+import arc.graphics.g2d.TextureRegion
 import arc.scene.style.BaseDrawable
 import arc.scene.style.Drawable
 import arc.scene.style.TextureRegionDrawable
@@ -89,6 +90,13 @@ object Consts {
   val side_top: Drawable by lazy { Core.atlas.getDrawable("tmi-side_top") }
   val side_left: Drawable by lazy { Core.atlas.getDrawable("tmi-side_left") }
   val side_right: Drawable by lazy { Core.atlas.getDrawable("tmi-side_right") }
+
+  val ammo_normal: TextureRegion by lazy { Core.atlas.find("tmi-ammo_normal") }
+  val ammo_spate: TextureRegion by lazy { Core.atlas.find("tmi-ammo_spate") }
+  val ammo_canister: TextureRegion by lazy { Core.atlas.find("tmi-ammo_canister") }
+  val ammo_laser: TextureRegion by lazy { Core.atlas.find("tmi-ammo_laser") }
+  val ammo_canister_laser: TextureRegion by lazy { Core.atlas.find("tmi-ammo_canister_laser") }
+  val ammo_lightning: TextureRegion by lazy { Core.atlas.find("tmi-ammo_lightning") }
 
   val transparent: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Color.clear) }
 

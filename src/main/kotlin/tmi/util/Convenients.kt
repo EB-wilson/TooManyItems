@@ -2,11 +2,12 @@ package tmi.util
 
 import arc.func.Prov
 import arc.scene.Element
+import arc.scene.Group
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
+import arc.scene.event.Touchable
+import arc.scene.ui.layout.Table
 import arc.util.pooling.Pools
-import kotlin.jvm.java
-import kotlin.let
 
 inline fun <reified T> poolObtain(block: Prov<T>): T = Pools.obtain(T::class.java, block)
 
@@ -32,4 +33,17 @@ fun Element.exitSt(block: Runnable){
       }
     }
   })
+}
+
+fun Group.fillRect(rect: Table.DrawRect): Element {
+  val e = object : Element() {
+    override fun draw() {
+      rect.draw(x, y, width, height)
+    }
+  }
+  e.setFillParent(true)
+
+  e.touchable = Touchable.disabled
+  addChild(e)
+  return e
 }

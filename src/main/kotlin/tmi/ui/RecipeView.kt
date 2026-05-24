@@ -23,6 +23,7 @@ import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
 import tmi.util.Consts
+import tmi.util.fillRect
 import kotlin.math.min
 
 /**配方表显示的布局元素，用于为添加的[RecipeItemCell]设置正确的位置并将他们显示到界面容器当中 */
@@ -90,15 +91,19 @@ class RecipeView @JvmOverloads constructor(
     val normalCons = materials.filter { group -> group.first().itemType == RecipeItemType.NORMAL }
     val boosterCons = materials.filter { group -> group.first().itemType == RecipeItemType.BOOSTER }
     val isolatedCons = materials.filter { group -> group.first().itemType == RecipeItemType.ISOLATED }
+    val ammoCons = materials.filter { group -> group.first().itemType == RecipeItemType.AMMO }
+    val specialCons = materials.filter { group -> group.first().itemType == RecipeItemType.SPECIAL }
 
     val powerProd = productions.filter { it.itemType == RecipeItemType.POWER }
     val mainProd = productions.filter { it.itemType == RecipeItemType.NORMAL }
+    val bulletProd = productions.filter { it.itemType == RecipeItemType.AMMO }
     val isolatedProd = productions.filter { it.itemType == RecipeItemType.ISOLATED }
     val sideProd = productions.filter { it.itemType == RecipeItemType.SIDEPRODUCT }
     val garbage = productions.filter { it.itemType == RecipeItemType.GARBAGE }
 
     fun Table.itemCell(type: CellType, vararg groupItems: RecipeItemStack<*>): Cell<RecipeItemCell> {
       val recipeCell = RecipeItemCell(type, *groupItems, clickListener = cellClicked)
+      recipeCell.setFontScl(0.86f)
 
       nodes.add(recipeCell)
       groupItems.forEach { stack ->
@@ -136,7 +141,7 @@ class RecipeView @JvmOverloads constructor(
     fun Table.clipRect(progress: Floatp): Rect {
       val rect = Rect()
 
-      fill { x, y, width, height ->
+      fillRect { x, y, width, height ->
         val d = progress.get()*width + 8
         val v1 = Tmp.v1.set(x - 8, y)
         val v2 = Tmp.v2.set(v1).add(d, height)
