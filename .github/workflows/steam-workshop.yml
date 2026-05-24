@@ -48,6 +48,8 @@ jobs:
               "changenote"         "Release ${{ github.event.release.tag_name }}"
           }
           EOF
+          
+          cat workshop_item.vdf
 
       - name: Setup SteamCMD
         uses: buildalon/setup-steamcmd@v1
