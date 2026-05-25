@@ -55,7 +55,7 @@ jobs:
         uses: buildalon/setup-steamcmd@v1
 
       - name: Upload to Steam Workshop
-        uses: buildalon/upload-steam@v1
+        uses: buildalon/upload-steam@v2.1.0
         id: upload
         with:
           username: ${{ secrets.STEAM_USERNAME }}
