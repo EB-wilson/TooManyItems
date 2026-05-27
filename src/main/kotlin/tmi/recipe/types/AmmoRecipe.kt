@@ -6,26 +6,31 @@ import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
 import arc.scene.style.BaseDrawable
+import arc.scene.style.Drawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectMap
 import arc.util.Time
 import mindustry.ctype.UnlockableContent
+import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import mindustry.ui.Styles
 import mindustry.world.meta.StatValues
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
-import tmi.recipe.parser.TurretParser
 import tmi.ui.CellType
 import tmi.ui.RecipeView
 import tmi.util.Consts
 import kotlin.math.ceil
-import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
 class AmmoRecipe: RecipeType() {
+  override val name: String
+    get() = "ammo"
+  override val icon: Drawable
+    get() = Icon.turret
+
   override fun RecipeView.BuilderScope.buildRecipeView(
     view: Table,
     recipe: Recipe,

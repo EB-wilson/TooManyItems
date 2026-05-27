@@ -19,7 +19,7 @@ val buildDir = layout.buildDirectory.get()
 val projectName = project.name
 
 plugins {
-  kotlin("jvm") version "2.3.10"
+  kotlin("jvm") version "2.3.21"
   `maven-publish`
   id("org.jetbrains.dokka") version "2.1.0"
 }

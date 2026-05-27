@@ -1,5 +1,7 @@
 package tmi.recipe
 
+import arc.Core
+import arc.scene.style.Drawable
 import arc.scene.ui.layout.Table
 import arc.struct.Seq
 import tmi.recipe.types.*
@@ -26,8 +28,12 @@ abstract class RecipeType {
     all.add(this@RecipeType)
   }
 
+  abstract val name: String
+  abstract val icon: Drawable
+
   /**此类型的ID，必须是唯一的，此类型的所有实例共用此id*/
   open val id: Int get() = this::class.qualifiedName.hashCode()
+  open val localizedName: String get() = Core.bundle["recipeType.$name.name"]
 
   /**构建配方视图的布局空间*/
   abstract fun RecipeView.BuilderScope.buildRecipeView(view: Table, recipe: Recipe)

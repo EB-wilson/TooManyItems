@@ -5,10 +5,12 @@ import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
 import arc.scene.style.BaseDrawable
+import arc.scene.style.Drawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.util.Time
 import arc.util.Tmp
+import mindustry.gen.Icon
 import mindustry.graphics.Pal
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
@@ -20,6 +22,11 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 open class CollectingRecipe : RecipeType() {
+  override val name: String
+    get() = "collecting"
+  override val icon: Drawable
+    get() = Icon.production
+
   override fun RecipeView.BuilderScope.buildRecipeView(
     view: Table,
     recipe: Recipe,

@@ -13,13 +13,11 @@ import tmi.util.set
 import kotlin.math.max
 
 class RecipeGraph: Iterable<RecipeGraphNode>{
-  private var lastIndex = 0
   private val recipeNodes = Seq<RecipeGraphNode>()
 
   fun addNode(node: RecipeGraphNode){
     recipeNodes.add(node)
     node.graph = this
-    node.graphIndex = lastIndex++
   }
 
   fun removeNode(node: RecipeGraphNode) {
@@ -36,7 +34,6 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
   }
 
   fun clear(){
-    lastIndex = 0
     recipeNodes.forEach { it.graph = null }
     recipeNodes.clear()
   }
@@ -65,12 +62,26 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
       }
     }
 
-    val top = isolated.map { sub -> sub.minBy { it.contextDepth } }
+    val top = isolated.map { sub ->
+      sub.filter { it.parents().isEmpty() }.takeIf { it.any() }?: listOf(sub.minBy { it.contextDepth })
+    }
 
-    for (root in top) {
-      root.visit(0){ depth, node ->
-        set.add(node)
-        node.contextDepth = if (node.parents().isEmpty()) 0 else max(node.contextDepth, depth)
+    top.forEach { list ->
+      val visited = mutableSetOf<RecipeGraphNode>()
+      val anyRoot = list.any { it.parents().isEmpty() }
+      list.forEach { root ->
+        root.visit(0, visited){ depth, node ->
+          set.add(node)
+          node.contextDepth = max(node.contextDepth, depth)
+        }
+      }
+
+      val min = set.minOf { it.contextDepth }
+      if (anyRoot) {
+        visited.forEach { it.contextDepth = if (it.parents().isEmpty()) 0 else it.contextDepth - min + 1 }
+      }
+      else {
+        visited.forEach { it.contextDepth -= min }
       }
     }
 
@@ -112,9 +123,12 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
     (0 until numNodes).forEach { _ ->
       val index = reader.i()
       val recipe = TooManyItems.recipesManager.getByID(reader.i())
+      val amount = reader.i()
       val node = RecipeGraphNode(recipe)
+      val tmp = Temp(node)
+
       node.graphIndex = index
-      node.targetAmount = reader.i()
+      node.targetAmount = amount
 
       indexMap[node.graphIndex] = node
 
@@ -127,8 +141,6 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
       (0 until opts).forEach { _ ->
         node.optionals.add(TooManyItems.itemsManager.getByName<Any>(reader.str()))
       }
-
-      val tmp = Temp(node)
 
       val numChildren = reader.i()
       (0 until numChildren).forEach { _ ->

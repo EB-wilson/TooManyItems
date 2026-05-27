@@ -22,7 +22,6 @@ import arc.util.Align
 import arc.util.Log
 import arc.util.Scaling
 import mindustry.Vars
-import mindustry.content.Blocks
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
@@ -33,7 +32,6 @@ import tmi.ui.TmiUI
 import tmi.ui.TmiUI.showChoiceIcons
 import tmi.ui.addEventBlocker
 import tmi.util.*
-import universe.ui.markdown.Markdown
 import universe.ui.markdown.MarkdownStyles
 import kotlin.math.max
 
@@ -148,6 +146,18 @@ class CalculatorDialog: BaseDialog("") {
     if (!fi.exists()) return
     if (recentPages.contains { it.fi == fi }) return
     recentPages.add(ViewPage(fi, fi.nameWithoutExtension()){ CalculatorView() })
+
+    Core.settings.put(
+      "tmi-calculator-recent-pages",
+      recentPages.joinToString(";") { it.fi!!.path() }
+    )
+  }
+
+  private fun removeRecentPage(fi: Fi) {
+    recentPages.removeAll { it.fi?.exists()?.let { b -> !b }?: true }
+
+    if (!fi.exists()) return
+    if (!recentPages.remove { it.fi == fi }) return
 
     Core.settings.put(
       "tmi-calculator-recent-pages",
@@ -699,16 +709,18 @@ class CalculatorDialog: BaseDialog("") {
               }
             }
 
-            if (recentPages.any{ a -> !pages.contains { b -> a.fi == b.fi } }) {
+            val recents = recentPages
+              .filter { a -> a.fi?.exists()?: false }
+              .filter { a -> !pages.contains { b -> a.fi == b.fi } }
+
+            if (recents.isNotEmpty()) {
               m.row()
               m.image().color(Pal.darkerGray).height(4f).growX().padTop(4f).padBottom(4f)
               m.row()
               m.add(Core.bundle["dialog.calculator.recentFile"]).pad(4f).color(Color.darkGray)
               m.row()
 
-              recentPages.forEach { p ->
-                if (pages.contains { e -> e.fi == p.fi }) return@forEach
-
+              recents.forEach { p ->
                 buildPageTab(m, p, true)
                 m.row()
               }
@@ -744,7 +756,7 @@ class CalculatorDialog: BaseDialog("") {
   private fun buildPageTab(
     pane: Table,
     page: ViewPage,
-    recentMark: Boolean,
+    isRecent: Boolean,
   ): Button {
     return pane.button(
       { b ->
@@ -758,7 +770,7 @@ class CalculatorDialog: BaseDialog("") {
             fi.left().defaults().left()
             fi.table {
               it.add(page.title).padLeft(12f).pad(4f).update{ l -> updateColor(l) }
-              if (!recentMark) it.add("*").padLeft(2f).padRight(4f).visible { page.shouldSave() }
+              if (!isRecent) it.add("*").padLeft(2f).padRight(4f).visible { page.shouldSave() }
             }
             fi.row()
             fi.add(page.fi?.path() ?: "no directed file", 0.9f).padLeft(12f).pad(4f)
@@ -768,7 +780,7 @@ class CalculatorDialog: BaseDialog("") {
 
         b.add().grow()
 
-        if (!recentMark) {
+        if (!isRecent) {
           b.button(Icon.cancelSmall, Styles.clearNonei, 20f) {
             if (page.shouldSave()) {
               showChoiceIcons(
@@ -788,7 +800,7 @@ class CalculatorDialog: BaseDialog("") {
                   }
                   hideMenu()
                 },
-                Core.bundle["misc.close"] to Icon.cancel to Runnable {
+                Core.bundle["misc.discard"] to Icon.cancel to Runnable {
                   deletePage(page)
                   hideMenu()
                 },
@@ -800,12 +812,30 @@ class CalculatorDialog: BaseDialog("") {
             }
           }.margin(5f).visible { page.hovered || page == currPage }
         }
+        else {
+          b.button(Icon.trashSmall, Styles.clearNonei, 20f) {
+            showChoiceIcons(
+              Core.bundle["dialog.calculator.removeRecent"],
+              Core.bundle["dialog.calculator.deleteFileAlso"],
+              true,
+              Core.bundle["dialog.calculator.delete"] to Icon.trash to Runnable {
+                removeRecentPage(page.fi!!)
+                page.fi!!.deleteDirectory()
+                hideMenu()
+              },
+              Core.bundle["dialog.calculator.save"] to Icon.file to Runnable {
+                removeRecentPage(page.fi!!)
+                hideMenu()
+              }
+            )
+          }.margin(5f).visible { page.hovered }
+        }
       },
       Button.ButtonStyle(Styles.cleart)
     ) {
       hideMenu()
 
-      if (recentMark) pages.add(page)
+      if (isRecent) pages.add(page)
       currPage = page
       buildView()
     }.grow().margin(4f).marginLeft(10f).marginRight(10f)
@@ -857,19 +887,31 @@ class CalculatorDialog: BaseDialog("") {
   private fun buildView(){
     viewTable.clear()
     if (currPage != null){
-      val viewPage = currPage!!
-      if (!viewPage.loaded) {
-        viewPage.view.build()
-        if (viewPage.fi != null) viewPage.view.load(viewPage.fi!!)
-        viewPage.loaded = true
-      }
+      try {
+        val viewPage = currPage!!
+        if (!viewPage.loaded) {
+          viewPage.view.build()
+          if (viewPage.fi != null) viewPage.view.load(viewPage.fi!!)
+          viewPage.loaded = true
+        }
 
-      viewTable.add(viewPage.view).grow()
+        viewTable.add(viewPage.view).grow()
+      } catch (e: Exception) {
+        Log.err(e)
+        viewTable.table{ t ->
+          t.left().defaults().fill().left()
+          t.add(Core.bundle["dialog.calculator.fileCorruption"]).fontScale(1.2f).color(Color.crimson)
+          t.row()
+          t.pane{ p ->
+            p.add(e.stackTraceToString()).padTop(8f)
+          }
+        }.fill()
+      }
     }
     else {
       viewTable.table{ t ->
         t.left().defaults().fill().left()
-        t.add(Core.bundle["dialog.calculator.noPage"]).fontScale(1.2f)
+        t.add(Core.bundle["dialog.calculator.noPage"]).fontScale(1.2f).pad(8f)
         t.row()
         t.add(Core.bundle["dialog.calculator.openPage"]).padTop(8f)
       }.fill()
@@ -1012,12 +1054,7 @@ class CalculatorDialog: BaseDialog("") {
     Vars.platform.showFileChooser(true, "shd") { file ->
       val existed = pages.find { it.fi == file }
       if (existed == null){
-        try {
-          createNewPage(file)
-        } catch (e: Exception) {
-          Vars.ui.showException(e)
-          Log.err(e)
-        }
+        createNewPage(file)
       }
       else {
         setCurrPage(existed)

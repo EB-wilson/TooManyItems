@@ -92,6 +92,7 @@ object Consts {
   val side_right: Drawable by lazy { Core.atlas.getDrawable("tmi-side_right") }
 
   val ammo_normal: TextureRegion by lazy { Core.atlas.find("tmi-ammo_normal") }
+  val ammo_missile: TextureRegion by lazy { Core.atlas.find("tmi-ammo_missile") }
   val ammo_spate: TextureRegion by lazy { Core.atlas.find("tmi-ammo_spate") }
   val ammo_canister: TextureRegion by lazy { Core.atlas.find("tmi-ammo_canister") }
   val ammo_laser: TextureRegion by lazy { Core.atlas.find("tmi-ammo_laser") }

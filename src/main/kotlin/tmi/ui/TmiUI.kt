@@ -114,7 +114,6 @@ object TmiUI {
     dialog.buttons.defaults().size(200f, 54f).pad(2f)
     dialog.setFillParent(false)
 
-    if (closeButton) dialog.buttons.button("@cancel", Icon.cancel) { dialog.hide() }
     options.forEach {
       if (it.first.second == null){
         dialog.buttons.button(it.first.first) {
@@ -129,6 +128,7 @@ object TmiUI {
         }
       }
     }
+    if (closeButton) dialog.buttons.button("@cancel", Icon.cancel) { dialog.hide() }
 
     dialog.keyDown(KeyCode.escape) { dialog.hide() }
     dialog.keyDown(KeyCode.back) { dialog.hide() }

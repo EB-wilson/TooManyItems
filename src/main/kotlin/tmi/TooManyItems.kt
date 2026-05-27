@@ -8,6 +8,7 @@ import mindustry.entities.bullet.LaserBulletType
 import mindustry.game.EventType.ClientLoadEvent
 import mindustry.mod.Mod
 import mindustry.ui.dialogs.BaseDialog
+import mindustry.world.blocks.defense.turrets.ContinuousLiquidTurret
 import mindustry.world.blocks.defense.turrets.LaserTurret
 import tmi.recipe.RecipeItemManager
 import tmi.recipe.RecipesManager
@@ -46,24 +47,8 @@ class TooManyItems : Mod() {
         Vars.ui.settings.game.checkPref("tmi_items_pane", false)
         Vars.ui.settings.graphics.sliderPref("tmi_gridSize", 150, 50, 300, 10) { i -> i.toString() }
         api.afterInit()
-
-        sample()
       }
     }
-  }
-
-  private fun sample(){
-    val dialog = BaseDialog("markdown")
-    val markdown = Markdown(
-$$"""
-      一个辅助mod，为您提供快速检索材料，单位，建筑和矿$物等的生产与采$集引导信息，让您不再因为安装了太多mod而不知所措（缩写为 `$`）
-      """.trimIndent(),
-      MarkdownStyles.defaultMD
-    )
-
-    dialog.addCloseButton()
-    dialog.cont.add(markdown).grow().pad(20f)
-    dialog.show()
   }
 
   private fun registerDefaultParser() {
@@ -91,6 +76,7 @@ $$"""
     recipesManager.registerParser(WallCrafterParser())
     recipesManager.registerParser(ItemTurretParser())
     recipesManager.registerParser(LiquidTurretParser())
+    recipesManager.registerParser(ContinuousLiquidTurretParser())
     recipesManager.registerParser(PowerTurretParser())
     recipesManager.registerParser(BuildingParser())
   }

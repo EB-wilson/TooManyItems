@@ -48,6 +48,7 @@ import tmi.util.vec1
 import tmi.util.vec2
 import java.text.Collator
 import java.util.*
+import kotlin.math.ceil
 import kotlin.math.min
 
 open class RecipesDialog : BaseDialog("") {
@@ -119,6 +120,18 @@ open class RecipesDialog : BaseDialog("") {
         }
       }
     }
+  var currentSelect: RecipeItem<*>?
+    get() = _currentSelect
+    set(content) {
+      if (currentSelect == content) return
+      val old = currentSelect
+
+      _currentSelect = content
+      if (currentSelect == null) return
+      if (!buildRecipes()) {
+        _currentSelect = old
+      }
+    }
 
   private var filter: Boolf<Recipe>? = null
 
@@ -133,18 +146,6 @@ open class RecipesDialog : BaseDialog("") {
   private var mainView: Table? = null
 
   private var _currentSelect: RecipeItem<*>? = null
-  var currentSelect: RecipeItem<*>?
-    get() = _currentSelect
-    set(content) {
-      if (currentSelect == content) return
-      val old = currentSelect
-
-      _currentSelect = content
-      if (currentSelect == null) return
-      if (!buildRecipes()) {
-        _currentSelect = old
-      }
-    }
   private var _currentMode: Mode? = null
   private var _selectedOnly: Boolean = false
 
@@ -155,6 +156,8 @@ open class RecipesDialog : BaseDialog("") {
 
   private var sorting = sortings.first()
   private val ucSeq = Seq<RecipeItem<*>>()
+
+  private val filteredRecipeType = mutableSetOf<RecipeType>()
 
   private var contentSearch = ""
   private var reverse = false
@@ -171,6 +174,7 @@ open class RecipesDialog : BaseDialog("") {
   private var contentsRebuild = {}
   private var refreshSeq = {}
   private var rebuildRecipe = {}
+  private var recipeFilterUpdated = {}
 
   fun build(){
     addCloseButton()
@@ -475,19 +479,33 @@ open class RecipesDialog : BaseDialog("") {
       }
     }
 
+    filteredRecipeType.clear()
+
+    if (recipes == null || recipes.isEmpty) return false
+
+    val recipesMap = recipes.groupBy { it.recipeType }
+    val validRecipeTypes = recipesMap.keys
+    val sortedRecipes = recipesMap.values.flatten()
+
     val recipeViews = Seq<RecipeView>()
-    if (recipes != null) {
-      filter?.also { f -> recipes.removeAll { !f.get(it) } }
 
-      for (recipe in recipes) {
-        val view = RecipeView(recipe, { i, _, m ->
-          if (!_selectedOnly) setCurrSelecting(i.item, m)
-        })
-        recipeViews.add(view)
-      }
+    recipeFilterUpdated = {
+      recipeViews.clear()
+      (filter?.let { f -> sortedRecipes.filter { f.get(it) } }?: sortedRecipes)
+        .filter { filteredRecipeType.isEmpty() || filteredRecipeType.contains(it.recipeType) }
+        .forEach { recipe ->
+          val view = RecipeView(recipe, { i, _, m ->
+            if (!_selectedOnly) setCurrSelecting(i.item, m)
+          })
+          recipeViews.add(view)
+        }
+
+      recipePage =
+        if (_doubleRecipe) min(recipePage, (recipeViews.size + 1)/2 - 1)
+        else min(recipePage, recipeViews.size - 1)
+
+      rebuildRecipe()
     }
-
-    if (recipes == null || recipeViews.isEmpty) return false
 
     recipesTable.clearListeners()
     recipesTable.addListener(object : InputListener() {
@@ -646,14 +664,52 @@ open class RecipesDialog : BaseDialog("") {
     recipesTable.add().grow()
     recipesTable.row()
     recipesTable.table { butt ->
-      val maxPage = if(_doubleRecipe) (recipeViews.size + 1)/2 else recipeViews.size
+      if (validRecipeTypes.size > 1) {
+        val filterTable = Table(Consts.darkGrayUI)
+        filterTable.visible = false
+
+        butt.button(Icon.filter, Styles.clearNonei, 32f){}
+          .size(45f).padRight(8f)
+          .get().also { b ->
+            b.clicked {
+              filterTable.visible = !filterTable.visible
+              filterTable.clear()
+
+              validRecipeTypes.forEach { type ->
+                filterTable.button(
+                  { t ->
+                    t.defaults().left().pad(5f)
+                    t.image(type.icon).size(24f).scaling(Scaling.fit)
+                    t.add(type.localizedName).growX().padLeft(8f).minWidth(80f).labelAlign(Align.left)
+                  }, Styles.clearTogglet
+                ){
+                  if (!filteredRecipeType.remove(type)) filteredRecipeType.add(type)
+
+                  recipeFilterUpdated()
+                }.pad(4f)
+                  .margin(6f)
+                  .growX()
+                  .fillY()
+                  .update { e -> e.isChecked = filteredRecipeType.contains(type) }
+
+                filterTable.row()
+              }
+
+              filterTable.pack()
+              filterTable.x = 0f
+              filterTable.y = b.height + 4f
+            }
+            b.addChild(filterTable)
+          }
+      }
+
       buildPage(butt, { recipePage }, { page ->
         recipePage = page
         rebuildRecipe()
-      }, { maxPage })
+      }, { if(_doubleRecipe) (recipeViews.size + 1)/2 else recipeViews.size })
     }.pad(8f).growX().fillY()
 
-    Core.app.post(rebuildRecipe)
+    Core.app.post(recipeFilterUpdated)
 
     return true
   }
@@ -711,12 +767,18 @@ open class RecipesDialog : BaseDialog("") {
     }.disabled { currPage.get() >= maxPage.get() - 1 }.size(45f)
 
     table.row()
-    val slider = table.slider(0f, maxPage.get().toFloat(), 0.001f, 1f) { f -> setPage[Mathf.round(f)] }
-      .grow().colspan(5)
+    val slider = table.slider(0f, maxPage.get().toFloat(), 0.001f, 1f) { f ->
+      setPage[Mathf.round(f)]
+    }.growX()
+      .colspan(6)
       .update { s ->
         s.setRange(0f, Mathf.maxZero((maxPage.get() - 1).toFloat()))
         if (!s.isDragging) s.setValue(currPage.get().toFloat())
-      }.visible { maxPage.get() > 1 }.pad(4f, 12f, 4f, 12f).get()
+      }
+      .visible { maxPage.get() > 1 }
+      .pad(4f, 12f, 4f, 12f)
+      .get()
+
     slider.setStyle(pageSlider(maxPage))
   }
 
@@ -895,7 +957,7 @@ open class RecipesDialog : BaseDialog("") {
     show()
   }
 
-  data class Sorting(
+  data class  Sorting(
     val localized: String,
     val icon: Drawable,
     val sort: Comparator<RecipeItem<*>>,

@@ -6,6 +6,7 @@ import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
 import arc.scene.style.BaseDrawable
+import arc.scene.style.Drawable
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.util.Time
@@ -21,6 +22,11 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 class GeneratorRecipe : RecipeType() {
+  override val name: String
+    get() = "generator"
+  override val icon: Drawable
+    get() = Icon.power
+
   override fun RecipeView.BuilderScope.buildRecipeView(
     view: Table,
     recipe: Recipe,

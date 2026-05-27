@@ -942,29 +942,30 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
   //IO
   fun save(file: Fi): Boolean {
+    val writer = Writes(DataOutputStream(file.write(false)))
+
     try {
-      val writer = Writes(DataOutputStream(file.write(false)))
       graph.write(writer)
 
       isUpdated = false
-    } catch (e: IOException) {
-      Log.err(e)
-      return false
+    } finally {
+      writer.close()
     }
 
     return true
   }
 
   fun load(file: Fi): Boolean {
+    val reader = Reads(DataInputStream(file.read()))
+
     try {
-      val reader = Reads(DataInputStream(file.read()))
       graph.read(reader)
+      isUpdated = false
 
       graphUpdated()
+    } finally {
       isUpdated = false
-    } catch (e: IOException) {
-      Log.err(e)
-      return false
+      reader.close()
     }
 
     return true

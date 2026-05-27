@@ -1,6 +1,7 @@
 package tmi.recipe.types
 
 import arc.Core
+import arc.scene.style.Drawable
 import arc.scene.ui.layout.Table
 import mindustry.gen.Icon
 import mindustry.world.Block
@@ -12,6 +13,11 @@ import tmi.ui.RecipeView
 import tmi.util.ifInst
 
 class BuildingRecipe : RecipeType() {
+  override val name: String
+    get() = "building"
+  override val icon: Drawable
+    get() = Icon.hammer
+
   override fun RecipeView.BuilderScope.buildRecipeView(view: Table, recipe: Recipe) {
     view.table { mats ->
       recipe.materials.forEachIndexed { i, mat ->

@@ -1,5 +1,6 @@
 package tmi.recipe.parser
 
+import arc.Core
 import arc.func.Boolf
 import arc.graphics.g2d.TextureRegion
 import mindustry.content.Items
@@ -8,8 +9,10 @@ import mindustry.entities.bullet.BulletType
 import mindustry.entities.bullet.ContinuousLaserBulletType
 import mindustry.entities.bullet.LaserBulletType
 import mindustry.entities.bullet.LightningBulletType
+import mindustry.entities.bullet.MissileBulletType
 import mindustry.entities.pattern.ShootPattern
 import mindustry.type.Liquid
+import mindustry.type.unit.MissileUnitType
 import mindustry.world.blocks.defense.turrets.Turret
 import mindustry.world.consumers.Consume
 import mindustry.world.consumers.ConsumeLiquidBase
@@ -45,6 +48,7 @@ abstract class TurretParser<T: Turret>: ConsumerParser<T>() {
     bulletTypes.find { it.first.get(bulletType) }?.let { return it.second }
 
     return when {
+      bulletType is MissileBulletType || bulletType.spawnUnit is MissileUnitType -> DefaultBulletType.MISSILE_AMMO
       bulletType is LaserBulletType || bulletType is ContinuousLaserBulletType -> if (shoot.shots > 1) DefaultBulletType.CANISTER_LASER_AMMO else DefaultBulletType.LASER_AMMO
       bulletType is LightningBulletType -> DefaultBulletType.LIGHTNING_AMMO
       shoot.shots > 1 -> if (shoot.shotDelay > 0) DefaultBulletType.SPATE_AMMO else DefaultBulletType.CANISTER_AMMO
@@ -78,11 +82,12 @@ abstract class TurretParser<T: Turret>: ConsumerParser<T>() {
     override val localizedName: String,
     override val icon: TextureRegion
   ) : BulletItemType {
-    NORMAL_AMMO("", Consts.ammo_normal),
-    SPATE_AMMO("", Consts.ammo_spate),
-    CANISTER_AMMO("", Consts.ammo_canister),
-    LASER_AMMO("", Consts.ammo_laser),
-    CANISTER_LASER_AMMO("", Consts.ammo_canister_laser),
-    LIGHTNING_AMMO("", Consts.ammo_lightning),
+    NORMAL_AMMO(Core.bundle["misc.ammo_normal"], Consts.ammo_normal),
+    MISSILE_AMMO(Core.bundle["misc.ammo_missile"], Consts.ammo_missile),
+    SPATE_AMMO(Core.bundle["misc.ammo_spate"], Consts.ammo_spate),
+    CANISTER_AMMO(Core.bundle["misc.ammo_canister"], Consts.ammo_canister),
+    LASER_AMMO(Core.bundle["misc.ammo_laser"], Consts.ammo_laser),
+    CANISTER_LASER_AMMO(Core.bundle["misc.ammo_canister_laser"], Consts.ammo_canister_laser),
+    LIGHTNING_AMMO(Core.bundle["misc.ammo_lightning"], Consts.ammo_lightning),
   }
 }

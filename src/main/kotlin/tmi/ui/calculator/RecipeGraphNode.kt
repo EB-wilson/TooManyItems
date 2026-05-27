@@ -1,6 +1,7 @@
 package tmi.ui.calculator
 
 import arc.func.Cons2
+import arc.math.Mathf
 import arc.struct.ObjectMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
@@ -18,7 +19,7 @@ class RecipeGraphNode(
   private val outputs = ObjectMap<RecipeItem<*>, Seq<RecipeGraphNode>>()
   private val inputs = ObjectMap<RecipeItem<*>, RecipeGraphNode>()
 
-  internal var graphIndex = 0
+  internal var graphIndex = Mathf.random(2147483645)
   internal var graph: RecipeGraph? = null
   internal var contextDepth = 0
 
@@ -125,12 +126,32 @@ class RecipeGraphNode(
   ){
     if (visitedSet.add(this)) {
       block.get(currDepth, this)
-      inputs.values().forEach {
-        it.visit(currDepth + 1, visitedSet, block)
-      }
-      outputs.values().forEach {
-        it.forEach { p -> p.visit(currDepth - 1, visitedSet, block) }
+      visitFlow(currDepth, visitedSet, block)
+    }
+  }
+
+  private fun visitFlow(
+    currDepth: Int,
+    visitedSet: MutableSet<RecipeGraphNode>,
+    block: Cons2<Int, RecipeGraphNode>,
+  ) {
+    val queue = mutableListOf<RecipeGraphNode>()
+    inputs.values().forEach {
+      if (visitedSet.add(it)) {
+        block.get(currDepth + 1, it)
+        queue.add(it)
       }
     }
+    queue.forEach { it.visitFlow(currDepth + 1, visitedSet, block) }
+    queue.clear()
+    outputs.values().forEach { seq ->
+      seq.forEach { p ->
+        if (visitedSet.add(p)) {
+          block.get(currDepth - 1, p)
+          queue.add(p)
+        }
+      }
+    }
+    queue.forEach { it.visitFlow(currDepth - 1, visitedSet, block) }
   }
 }
