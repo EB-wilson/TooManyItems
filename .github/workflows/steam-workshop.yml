@@ -26,7 +26,7 @@ jobs:
 
           unzip -o ./downloads/*.jar -d workshop_content/
 
-          cp steam/preview.png images/
+          cp steam/preview.png ./
 
       - name: Generate Workshop VDF
         env:
@@ -41,11 +41,8 @@ jobs:
               "appid"              "1127400"
               "publishedfileid"    "3090883895"
               "contentfolder"      "${WORKSPACE_PATH}/workshop_content"
-              "previewfile"        "${WORKSPACE_PATH}/images/preview.png"
-              "visibility"         "0"
-              "title"              "TooManyItems"
-              "description"        "${DESCRIPTION}"
-              "changenote"         "Release ${{ github.event.release.tag_name }}"
+              "previewfile"        "${WORKSPACE_PATH}/preview.png"
+              "changenote"         "${DESCRIPTION}"
           }
           EOF
           
