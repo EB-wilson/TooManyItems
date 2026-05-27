@@ -47,6 +47,7 @@ jobs:
           EOF
           
           cat build_item/workshop_item.vdf
+          ls build_item
 
       - name: Setup SteamCMD
         uses: buildalon/setup-steamcmd@v1
