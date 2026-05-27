@@ -26,6 +26,8 @@ jobs:
           mkdir -p build_item/workshop_content
 
           unzip -o ./downloads/*.jar -d build_item/workshop_content/
+          # Steam Workshop never runs on android, so dex files are not needed
+          rm build_item/workshop_content/classes.dex
 
           cp steam/preview.png build_item/
 
@@ -54,5 +56,4 @@ jobs:
 
       - name: Upload to Steam Workshop
         run: |
-          ls -la build_item/
           steamcmd +login ${{ secrets.STEAM_USERNAME }} ${{ secrets.STEAM_PASSWORD }} +workshop_build_item ${GITHUB_WORKSPACE}/build_item/workshop_item.vdf +quit
