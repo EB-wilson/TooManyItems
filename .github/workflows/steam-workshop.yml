@@ -50,7 +50,7 @@ jobs:
           ls build_item
 
       - name: Setup SteamCMD
-        uses: buildalon/setup-steamcmd@v1
+        uses: buildalon/setup-steamcmd@v1.4.0
 
       - name: Upload to Steam Workshop
         run: |
