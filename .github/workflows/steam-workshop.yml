@@ -7,6 +7,8 @@ on:
 jobs:
   publish-workshop-item:
     runs-on: self-hosted
+    env:
+      GITHUB_WORKSPACE: ${{ github.workspace }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,7 +32,6 @@ jobs:
       - name: Generate Workshop VDF
         env:
           RELEASE_BODY_JSON: ${{ toJSON(github.event.release.body) }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           WORKSPACE_PATH="${GITHUB_WORKSPACE}/build_item"
           DESCRIPTION=$(printf '%s' "$RELEASE_BODY_JSON" | sed 's/^"//; s/"$//')
@@ -47,11 +48,11 @@ jobs:
           EOF
           
           cat build_item/workshop_item.vdf
-          ls build_item
 
       - name: Setup SteamCMD
         uses: buildalon/setup-steamcmd@v1.4.0
 
       - name: Upload to Steam Workshop
         run: |
-          steamcmd +login ${{ secrets.STEAM_USERNAME }} ${{ secrets.STEAM_PASSWORD }} +workshop_build_item build_item/workshop_item.vdf +quit
+          ls -la build_item/
+          steamcmd +login ${{ secrets.STEAM_USERNAME }} ${{ secrets.STEAM_PASSWORD }} +workshop_build_item ${GITHUB_WORKSPACE}/build_item/workshop_item.vdf +quit
