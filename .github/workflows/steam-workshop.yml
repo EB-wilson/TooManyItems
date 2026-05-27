@@ -1,6 +1,5 @@
 name: Publish Release to Steam Workshop
 
-# 触发条件：当一个新的 Release 被发布时
 on:
   release:
     types: [published]
@@ -52,5 +51,5 @@ jobs:
         uses: buildalon/setup-steamcmd@v1
 
       - name: Upload to Steam Workshop
-      - run: |
+        run: |
           steamcmd +login ${{ secrets.STEAM_USERNAME }} ${{ secrets.STEAM_PASSWORD }} +workshop_build_item workshop_item.vdf +quit
