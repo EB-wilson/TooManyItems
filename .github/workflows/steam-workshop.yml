@@ -20,22 +20,22 @@ jobs:
 
       - name: Prepare Workshop Content
         run: |
-          mkdir -p build
-          mkdir -p build/workshop_content
+          mkdir -p build_item
+          mkdir -p build_item/workshop_content
 
-          unzip -o ./downloads/*.jar -d build/workshop_content/
+          unzip -o ./downloads/*.jar -d build_item/workshop_content/
 
-          cp steam/preview.png build/
+          cp steam/preview.png build_item/
 
       - name: Generate Workshop VDF
         env:
           RELEASE_BODY_JSON: ${{ toJSON(github.event.release.body) }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          WORKSPACE_PATH="${GITHUB_WORKSPACE}/build"
+          WORKSPACE_PATH="${GITHUB_WORKSPACE}/build_item"
           DESCRIPTION=$(printf '%s' "$RELEASE_BODY_JSON" | sed 's/^"//; s/"$//')
 
-          cat > build/workshop_item.vdf << EOF
+          cat > build_item/workshop_item.vdf << EOF
           "workshopitem"
           {
               "appid"              "1127400"
@@ -46,11 +46,11 @@ jobs:
           }
           EOF
           
-          cat build/workshop_item.vdf
+          cat build_item/workshop_item.vdf
 
       - name: Setup SteamCMD
         uses: buildalon/setup-steamcmd@v1
 
       - name: Upload to Steam Workshop
         run: |
-          steamcmd +login ${{ secrets.STEAM_USERNAME }} ${{ secrets.STEAM_PASSWORD }} +workshop_build_item build/workshop_item.vdf +quit
+          steamcmd +login ${{ secrets.STEAM_USERNAME }} ${{ secrets.STEAM_PASSWORD }} +workshop_build_item build_item/workshop_item.vdf +quit
