@@ -9,10 +9,15 @@ import mindustry.world.blocks.defense.turrets.LiquidTurret
 import mindustry.world.consumers.ConsumeItemFilter
 import mindustry.world.consumers.ConsumeLiquidFilter
 import tmi.recipe.Recipe
+import tmi.recipe.RecipeParser
 import tmi.recipe.RecipeType
 import tmi.recipe.types.RecipeItemType
 
 class ContinuousLiquidTurretParser: TurretParser<ContinuousLiquidTurret>() {
+  override val excludes: Seq<Class<out RecipeParser<*>>> = Seq.with(
+    ContinuousTurretParser::class.java
+  )
+
   override fun isTarget(content: Block): Boolean {
     return content is ContinuousLiquidTurret
   }

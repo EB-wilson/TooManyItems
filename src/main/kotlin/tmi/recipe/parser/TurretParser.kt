@@ -45,7 +45,8 @@ abstract class TurretParser<T: Turret>: ConsumerParser<T>() {
     return when {
       bulletType is ContinuousFlameBulletType -> DefaultBulletType.FLAME_AMMO
       bulletType is MissileBulletType || bulletType.spawnUnit is MissileUnitType -> DefaultBulletType.MISSILE_AMMO
-      bulletType is LaserBulletType || bulletType is ContinuousLaserBulletType -> if (shoot.shots > 1) DefaultBulletType.CANISTER_LASER_AMMO else DefaultBulletType.LASER_AMMO
+      bulletType is LaserBulletType || bulletType is ContinuousLaserBulletType || bulletType is PointLaserBulletType ->
+        if (shoot.shots > 1) DefaultBulletType.CANISTER_LASER_AMMO else DefaultBulletType.LASER_AMMO
       bulletType is LightningBulletType -> DefaultBulletType.LIGHTNING_AMMO
       shoot.shots > 1 -> if (shoot.shotDelay > 0) DefaultBulletType.SPATE_AMMO else DefaultBulletType.CANISTER_AMMO
       bulletType.status == StatusEffects.burning -> DefaultBulletType.FLAME_AMMO

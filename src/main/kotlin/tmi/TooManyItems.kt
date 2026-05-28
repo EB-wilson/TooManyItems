@@ -76,6 +76,7 @@ class TooManyItems : Mod() {
     recipesManager.registerParser(WallCrafterParser())
     recipesManager.registerParser(ItemTurretParser())
     recipesManager.registerParser(LiquidTurretParser())
+    recipesManager.registerParser(ContinuousTurretParser())
     recipesManager.registerParser(ContinuousLiquidTurretParser())
     recipesManager.registerParser(PowerTurretParser())
     recipesManager.registerParser(BuildingParser())
