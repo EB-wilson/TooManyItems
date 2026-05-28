@@ -554,6 +554,7 @@ open class RecipesDialog : BaseDialog("") {
 
     mainView = Table{ main ->
       recipePage = 0
+
       rebuildRecipe = b@{
         main.center()
         main.clearChildren()
@@ -720,10 +721,10 @@ open class RecipesDialog : BaseDialog("") {
               }
 
               filterTable.pack()
-              filterTable.x = 0f
-              filterTable.y = b.height + 4f
+              filterTable.x = b.x
+              filterTable.y = b.y + b.height + 4f
             }
-            b.addChild(filterTable)
+            butt.addChild(filterTable)
           }
       }
 
