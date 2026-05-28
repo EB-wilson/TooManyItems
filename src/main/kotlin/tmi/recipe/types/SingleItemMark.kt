@@ -17,7 +17,7 @@ abstract class SingleItemMark(name: String) : RecipeItem<String>(name) {
   }
 
   override val ordinal = -1
-  override val typeOrdinal = -1
+  override val typeTag = "default"
   override val typeID = -1
   override val name = item
   override val localizedName: String = Core.bundle["mark.$item.name"]

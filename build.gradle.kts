@@ -102,6 +102,8 @@ dependencies {
   implementation("com.github.EB-wilson.UniverseKit:markdown:1.2")
   implementation("com.github.EB-wilson.UniverseKit:reflection:1.2")
 
+  implementation("com.belerweb:pinyin4j:2.5.1")
+
   implementation(kotlin("stdlib-jdk8"))
   implementation(kotlin("reflect"))
 

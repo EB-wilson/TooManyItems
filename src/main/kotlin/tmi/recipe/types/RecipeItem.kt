@@ -1,12 +1,14 @@
 package tmi.recipe.types
 
-import arc.Core
 import arc.graphics.g2d.TextureRegion
 
 abstract class RecipeItem<T> protected constructor(@JvmField val item: T) : Comparable<RecipeItem<*>> {
   abstract val ordinal: Int
-  abstract val typeOrdinal: Int
   abstract val typeID: Int
+  @Deprecated(message = "Use typeTag instead", replaceWith = ReplaceWith("typeTag"), level = DeprecationLevel.HIDDEN)
+  open val typeOrdinal: Int get() = typeID
+  abstract val ownMod: String
+  abstract val typeTag: String
   abstract val name: String
   abstract val localizedName: String
   abstract val icon: TextureRegion
@@ -17,7 +19,7 @@ abstract class RecipeItem<T> protected constructor(@JvmField val item: T) : Comp
   open fun displayDetails() {}
 
   override fun compareTo(other: RecipeItem<*>): Int {
-    val n = typeOrdinal.compareTo(other.typeOrdinal)
+    val n = typeTag.compareTo(other.typeTag)
 
     if (n == 0) {
       return ordinal - other.ordinal

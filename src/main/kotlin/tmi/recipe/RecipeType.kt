@@ -32,7 +32,7 @@ abstract class RecipeType {
   abstract val icon: Drawable
 
   /**此类型的ID，必须是唯一的，此类型的所有实例共用此id*/
-  open val id: Int get() = this::class.qualifiedName.hashCode()
+  open val id: Int get() = name.hashCode()
   open val localizedName: String get() = Core.bundle["recipeType.$name.name"]
 
   /**构建配方视图的布局空间*/

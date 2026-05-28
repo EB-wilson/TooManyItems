@@ -122,49 +122,6 @@ class RecipeItemStack<T>(
     }
   }
 
-  //Deprecated
-  @Deprecated(message = "Use isOptional instead.", replaceWith = ReplaceWith("isOptional"))
-  var optionalCons by ::isOptional
-  /**该条目是否为属性乘区计算项，若为真则在计算效率基础倍率时进行加算*/
-  @Deprecated(message = "Use RecipeItemType in constructor to declare type, not post.")
-  var isAttribute = false
-    private set
-  /**该条目是否是倍增乘区计算项，若为真则在计算效率基础倍率上进行乘算*/
-  @Deprecated(message = "Use RecipeItemType in constructor to declare type, not post.")
-  var isBooster = false
-    private set
-  /**条目从属的属性组，一个属性组内的项目在工作效率计算时，会以最高的那一个作为计算结果。
-   *
-   * 属性组的划分按照提供的对象确定，任意时候当两个条目的属性组对象[Object.equals]为真时就会被视为从属于同一属性组。
-   * 该字段默认空，为空时表示该条目不从属于任何属性组 */
-  @Deprecated(
-    message = "Group no longer only apply on attributes, use generic group.",
-    replaceWith = ReplaceWith("group")
-  )
-  var attributeGroup by ::group
-  @JvmOverloads
-  @Deprecated(
-    message = "Use RecipeItemType to declare type, not post.",
-    replaceWith = ReplaceWith("setType(RecipeItemType.ATTRIBUTE)")
-  )
-  fun setAttribute(isAttr: Boolean = true) = also { isAttribute = isAttr }
-  @JvmOverloads
-  @Deprecated(
-    message = "Use RecipeItemType to declare type, not post.",
-    replaceWith = ReplaceWith("setType(RecipeItemType.BOOSTER)")
-  )
-  fun setBooster(boost: Boolean = true) = also { isBooster = boost }
-  @Deprecated(
-    message = "Group no longer only apply on attributes, use generic group.",
-    replaceWith = ReplaceWith("setGroup(group)")
-  )
-  fun setAttribute(group: Any?){ /**no action*/ }
-  @Deprecated(
-    message = "Method name standardized, use setEfficiency() instead.",
-    replaceWith = ReplaceWith("setEfficiency(efficiency)")
-  )
-  fun setEff(efficiency: Float) = setEfficiency(efficiency)
-
   override fun toString() = "(item: $item amount: ${amountFormat.format(amount)})"
 
   fun copy() = RecipeItemStack(item, amount).also{

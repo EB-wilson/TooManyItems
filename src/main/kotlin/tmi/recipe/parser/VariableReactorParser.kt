@@ -29,7 +29,7 @@ open class VariableReactorParser : ConsumerParser<VariableReactor>() {
       .setType(RecipeItemType.POWER)
 
     if (content.maxHeat > 0) {
-      res.addProduction(HeatMark, content.maxHeat as Number)
+      res.addMaterial(HeatMark, content.maxHeat as Number)
         .setType(RecipeItemType.POWER)
         .floatFormat()
     }

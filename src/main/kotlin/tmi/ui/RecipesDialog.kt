@@ -18,13 +18,13 @@ import arc.scene.style.BaseDrawable
 import arc.scene.style.Drawable
 import arc.scene.ui.*
 import arc.scene.ui.Slider.SliderStyle
+import arc.scene.ui.layout.Cell
 import arc.scene.ui.layout.Scl
 import arc.scene.ui.layout.Table
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Scaling
 import arc.util.Time
-import arc.util.Tmp
 import mindustry.Vars
 import mindustry.core.GameState
 import mindustry.ctype.Content
@@ -35,6 +35,7 @@ import mindustry.ui.Fonts
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import mindustry.world.Block
+import net.sourceforge.pinyin4j.PinyinHelper
 import tmi.TooManyItems
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeType
@@ -44,11 +45,8 @@ import tmi.util.Consts
 import tmi.util.Consts.a_z
 import tmi.util.Consts.grayUIAlpha
 import tmi.util.Consts.padGrayUIAlpha
-import tmi.util.vec1
-import tmi.util.vec2
 import java.text.Collator
 import java.util.*
-import kotlin.math.ceil
 import kotlin.math.min
 
 open class RecipesDialog : BaseDialog("") {
@@ -58,52 +56,61 @@ open class RecipesDialog : BaseDialog("") {
 
   var sortings: Seq<Sorting> = Seq.with(
     Sorting(
+      "default",
       Core.bundle["misc.defaultSort"],
       Icon.menu
-    ){ a, b -> a compareTo b },
+    ){ list ->
+      val sorted = list.sorted()
+      mapOf("default" to sorted)
+    },
     Sorting(
+      "name",
       Core.bundle["misc.nameSort"],
       a_z
-    ){ a, b ->
-      nameComparator.compare(a.localizedName, b.localizedName)
+    ){ list ->
+      val grouped = list.groupBy {
+        if (it.localizedName.uppercase().first() in 'A'..'Z') it.localizedName.uppercase().first()
+        else PinyinHelper.toHanyuPinyinStringArray(it.localizedName.first())?.first()?.uppercase()?.first()?:'#'
+      }
+      grouped.map { (key, value) ->
+        key.toString() to value.sortedWith { a, b -> nameComparator.compare(a.localizedName, b.localizedName) }
+      }.sortedBy { it.first }.toMap()
     },
     Sorting(
+      "mod",
       Core.bundle["misc.modSort"],
       Icon.book
-    ){ a, b ->
-      if (a.item is Content && b.item is Content) {
-        val ca = a.item
-        val cb = b.item
+    ){ list ->
+      val grouped = list.groupBy { "@${it.ownMod}" }
 
-        if (ca.minfo.mod == null) if (cb.minfo.mod == null) 0 else -1
-        else if (cb.minfo.mod != null) nameComparator.compare(
-          ca.minfo.mod.name,
-          cb.minfo.mod.name
-        )
-        else 1
-      }
-      else 0
+      grouped.map { (key, value) ->
+        key to value.sorted()
+      }.sortedWith { a, b ->
+        when {
+          a.first == b.first -> 0
+          a.first == "@Mindustry" -> -1
+          b.first == "@Mindustry" -> 1
+          else -> a.first.compareTo(b.first)
+        }
+      }.toMap()
     },
     Sorting(
+      "type",
       Core.bundle["misc.typeSort"],
       Icon.file
-    ){ a, b ->
-      val n = a.typeOrdinal compareTo b.typeOrdinal
-      if (n == 0) {
-        if (a.item is Block && b.item is Block) {
-          val ca = a.item
-          val cb = b.item
+    ){ list ->
+      val grouped = list.groupBy { it.typeTag }
 
-          if (ca.hasBuilding() && cb.hasBuilding()) {
-            if (ca.update && cb.update) return@Sorting 0
-            else if (ca.update) return@Sorting 1
-            else if (cb.update) return@Sorting -1
-          }
-          else if (ca.hasBuilding()) return@Sorting 1
-          else if (cb.hasBuilding()) return@Sorting -1
+      grouped.map { (key, value) ->
+        key to value.sorted()
+      }.sortedWith { a, b ->
+        when {
+          a.first == b.first -> 0
+          a.first == "default" -> -1
+          b.first == "default" -> 1
+          else -> a.first.compareTo(b.first)
         }
-      }
-      n
+      }.toMap()
     }
   )
 
@@ -154,16 +161,25 @@ open class RecipesDialog : BaseDialog("") {
 
   private var _title: String = Core.bundle["dialog.recipes.title"]
 
-  private var sorting = sortings.first()
-  private val ucSeq = Seq<RecipeItem<*>>()
+  private var sorting = sortings.find{
+    it.name == Core.settings.getString("tmi.content_sorting", "default")
+  }
+    set(value) {
+      if (field == value) return
+      field = value
+
+      Core.settings.put("tmi.content_sorting", value.name)
+    }
+
+  private val itemsList = mutableListOf<RecipeItem<*>>()
+
+  private var sortedItems: Map<String, List<RecipeItem<*>>> = emptyMap()
 
   private val filteredRecipeType = mutableSetOf<RecipeType>()
 
   private var contentSearch = ""
-  private var reverse = false
   private var total = 0
   private var fold = 0
-  private var pageItems = 0
 
   private var recipePage = 0
   private var itemPages = 0
@@ -204,7 +220,6 @@ open class RecipesDialog : BaseDialog("") {
       _title = Core.bundle["dialog.recipes.title"]
       currPage = 0
       lastZoom = -1f
-      sorting = sortings.first()
       cont.clear()
 
       if (!Vars.net.active() && Vars.state.isPaused) {
@@ -286,20 +301,13 @@ open class RecipesDialog : BaseDialog("") {
     })
 
     contentsTable!!.table { filter ->
-      filter.add(Core.bundle["misc.search"])
-      filter.image(Icon.zoom).size(36f).scaling(Scaling.fit)
-      filter.field(contentSearch) { str ->
-        contentSearch = str.lowercase(Locale.getDefault())
-        refreshSeq()
-      }.growX()
-
       sortingTab = Table(grayUIAlpha) { ta ->
         for (sort in sortings) {
           ta.button({ t ->
-            t.defaults().left().pad(5f)
-            t.image(sort.icon).size(24f).scaling(Scaling.fit)
-            t.add(sort.localized).growX()
-          }, Styles.clearNoneTogglei){
+                      t.defaults().left().pad(5f)
+                      t.image(sort.icon).size(24f).scaling(Scaling.fit)
+                      t.add(sort.localized).growX()
+                    }, Styles.clearNoneTogglei){
             sorting = sort
             refreshSeq()
           }.margin(6f).growX().fillY()
@@ -320,22 +328,19 @@ open class RecipesDialog : BaseDialog("") {
         sortingTab!!.setPosition(b.x, filter.y, Align.top)
       }
 
-      filter.button({ bu ->
-        bu.image().size(32f).scaling(Scaling.fit)
-          .update { i -> i.drawable = if (reverse) Icon.up else Icon.down }
-      }, Styles.clearNonei, {
-        reverse = !reverse
+      filter.add(Core.bundle["misc.search"]).padLeft(8f)
+      filter.field(contentSearch) { str ->
+        contentSearch = str.lowercase(Locale.getDefault())
         refreshSeq()
-      }).size(36f)
-      filter.add("").color(Pal.accent)
-        .update { l -> l.setText(Core.bundle[if (reverse) "misc.reverse" else "misc.order"]) }
+      }.growX()
+      filter.image(Icon.zoom).size(36f).scaling(Scaling.fit)
     }.padBottom(12f).growX()
     contentsTable!!.row()
     contentsTable!!.table { t ->
       refreshSeq = {
         fold = 0
         total = 0
-        ucSeq.clear()
+        itemsList.clear()
 
         TooManyItems.itemsManager.list.forEach { item ->
           if (TooManyItems.recipesManager.anyRecipe(item)) {
@@ -345,12 +350,12 @@ open class RecipesDialog : BaseDialog("") {
               fold++
               return@forEach
             }
-            ucSeq.add(item)
+            itemsList.add(item)
           }
         }
 
-        if (reverse) ucSeq.sort { a, b -> sorting.sort.compare(b, a) }
-        else ucSeq.sort(sorting.sort)
+        sortedItems = sorting.sortGrouper.get(itemsList)
+
         contentsRebuild()
       }
       contentsRebuild = {
@@ -360,12 +365,28 @@ open class RecipesDialog : BaseDialog("") {
           t.clearChildren()
           t.pane { pane ->
             pane.left().top().defaults().size(60f, 90f)
-            for (i in 0 until ucSeq.size) {
-              val content = ucSeq[i]
-              buildItem(pane, content)
-
-              if ((i + 1)%num == 0) {
+            sortedItems.forEach { (tag, items) ->
+              if (tag != "default") {
                 pane.row()
+                pane.table { sep ->
+                  sep.left().defaults().left()
+                  sep.add(tag).color(Color.gray).pad(8f)
+                  sep.row()
+                  sep.image().color(Color.darkGray).height(4f).growX()
+                }.set(Cell.defaults())
+                  .growX()
+                  .colspan(num)
+                pane.row()
+              }
+
+              var i = 0
+              items.forEach { item ->
+                buildItem(pane, item)
+
+                i++
+                if (i > 0 && i%num == 0) {
+                  pane.row()
+                }
               }
             }
           }.grow()
@@ -379,13 +400,14 @@ open class RecipesDialog : BaseDialog("") {
           val xn = (width/Scl.scl(60f)).toInt()
           val yn = (height/Scl.scl(90f)).toInt()
 
-          pageItems = xn*yn
-          itemPages = Mathf.ceil(ucSeq.size.toFloat()/pageItems)
+          val list = sortedItems.flatMap { it.value }
+          val pageItems = xn*yn
+          itemPages = Mathf.ceil(list.size.toFloat()/pageItems)
 
           var curX = 0
 
           if (currPage < 0) {
-            val index = ucSeq.indexOf(currentSelect)
+            val index = list.indexOf(currentSelect)
             currPage = index/pageItems
           }
 
@@ -393,9 +415,9 @@ open class RecipesDialog : BaseDialog("") {
           val from = currPage*pageItems
           val to = currPage*pageItems + pageItems
           for (i in from until to) {
-            if (i >= ucSeq.size) break
+            if (i >= list.size) break
 
-            val content = ucSeq[i]
+            val content = list[i]
             buildItem(t, content)
 
             curX++
@@ -532,10 +554,12 @@ open class RecipesDialog : BaseDialog("") {
 
     mainView = Table{ main ->
       recipePage = 0
-      rebuildRecipe = {
+      rebuildRecipe = b@{
         main.center()
         main.clearChildren()
         val views = Seq<RecipeView>()
+
+        if (recipeViews.isEmpty) return@b
 
         if (_doubleRecipe) {
           val page = recipePage*2
@@ -957,10 +981,11 @@ open class RecipesDialog : BaseDialog("") {
     show()
   }
 
-  data class  Sorting(
+  data class Sorting(
+    val name: String,
     val localized: String,
     val icon: Drawable,
-    val sort: Comparator<RecipeItem<*>>,
+    val sortGrouper: Func<List<RecipeItem<*>>, Map<String, List<RecipeItem<*>>>>,
   )
 
   enum class Mode {

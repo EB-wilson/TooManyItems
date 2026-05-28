@@ -30,8 +30,10 @@ open class Recipe @JvmOverloads constructor(
   /**配方的标准耗时，具体来说即该配方在100%的工作效率下执行一次生产的耗时，任意小于0的数字都被认为生产过程是连续的*/ //meta
   val craftTime: Float = -1f,
 ) {
+  lateinit var flattenID: String
+    private set
+
   private var completed = false
-  private var hash = -1
 
   private val productionMap = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
   private val materialMap = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
@@ -77,12 +79,21 @@ open class Recipe @JvmOverloads constructor(
     productionMap.orderedKeys().sort()
     materialMap.orderedKeys().sort()
 
-    hash = Objects.hash(
-      recipeType.id,
-      productionMap.keys().toList(),
-      materialMap.keys().toList(),
-      ownerBlock
-    )
+    val matValues = materialMap.orderedKeys().map { materialMap[it]!! }
+    val prodValues = productionMap.orderedKeys().map { productionMap[it]!! }
+
+    val idBuilder = StringBuilder()
+    idBuilder.append("R-")
+    idBuilder.append(recipeType.name)
+    idBuilder.append("@")
+    idBuilder.append(ownerBlock.name)
+    idBuilder.append("[")
+    matValues.forEach { idBuilder.append(it.item.name).append(":").append(it.amount).append(";") }
+    idBuilder.append("->")
+    prodValues.forEach { idBuilder.append(it.item.name).append(":").append(it.amount).append(";") }
+    idBuilder.append("]")
+
+    flattenID = idBuilder.toString()
 
     completed = true
   }
@@ -269,24 +280,10 @@ open class Recipe @JvmOverloads constructor(
 
   override fun hashCode(): Int {
     if (!completed) throw IllegalStateException("Recipe is not completed")
-    return hash
+    return flattenID.hashCode()
   }
 
   override fun toString(): String {
     return "recipe(type: $recipeType block: $ownerBlock, time: $craftTime){materials: ${materialMap.orderedKeys()}, productions: ${productionMap.orderedKeys()}}"
-  }
-
-  /**配方的效率计算函数，用于给定一个输入环境参数和配方数据，计算出该配方在这个输入环境下的工作效率 */
-  @Deprecated("Use standard efficiency calculate method.")
-  var efficiencyFunc = object: EffFunc{
-    override fun calculateEff(recipe: Recipe, env: InputTable, mul: Float) = 0f
-    override fun calculateMultiple(recipe: Recipe, env: InputTable) = 0f
-  }
-  @Deprecated("Use standard efficiency calculate method.")
-  fun setEff(func: EffFunc) = this.also { efficiencyFunc = func }
-  @Deprecated("Use standard efficiency calculate method.")
-  interface EffFunc {
-    fun calculateEff(recipe: Recipe, env: InputTable, mul: Float): Float
-    fun calculateMultiple(recipe: Recipe, env: InputTable): Float
   }
 }

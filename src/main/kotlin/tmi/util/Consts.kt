@@ -3,7 +3,6 @@ package tmi.util
 import arc.Core
 import arc.func.Prov
 import arc.graphics.Color
-import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Lines
 import arc.graphics.g2d.TextureRegion
 import arc.scene.style.BaseDrawable
@@ -12,12 +11,10 @@ import arc.scene.style.TextureRegionDrawable
 import arc.scene.ui.Button
 import arc.scene.ui.Dialog.DialogStyle
 import arc.scene.ui.layout.Scl
-import arc.struct.Seq
 import arc.util.Tmp
 import mindustry.content.Blocks
 import mindustry.game.Team
 import mindustry.gen.Building
-import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
 import mindustry.ui.Fonts
@@ -27,6 +24,8 @@ import mindustry.world.blocks.environment.Floor
 import java.lang.reflect.Field
 
 object Consts {
+  const val VANILLA = "Mindustry"
+
   val buildTimeAlter: Field = try {
     Block::class.java.getField("buildTime")
   } catch (e: NoSuchFieldException) {
@@ -92,12 +91,14 @@ object Consts {
   val side_right: Drawable by lazy { Core.atlas.getDrawable("tmi-side_right") }
 
   val ammo_normal: TextureRegion by lazy { Core.atlas.find("tmi-ammo_normal") }
+  val ammo_pierce: TextureRegion by lazy { Core.atlas.find("tmi-ammo_pierce") }
   val ammo_missile: TextureRegion by lazy { Core.atlas.find("tmi-ammo_missile") }
   val ammo_spate: TextureRegion by lazy { Core.atlas.find("tmi-ammo_spate") }
   val ammo_canister: TextureRegion by lazy { Core.atlas.find("tmi-ammo_canister") }
   val ammo_laser: TextureRegion by lazy { Core.atlas.find("tmi-ammo_laser") }
   val ammo_canister_laser: TextureRegion by lazy { Core.atlas.find("tmi-ammo_canister_laser") }
   val ammo_lightning: TextureRegion by lazy { Core.atlas.find("tmi-ammo_lightning") }
+  val ammo_flame: TextureRegion by lazy { Core.atlas.find("tmi-ammo_flame") }
 
   val transparent: Drawable by lazy { (Tex.whiteui as TextureRegionDrawable).tint(Color.clear) }
 

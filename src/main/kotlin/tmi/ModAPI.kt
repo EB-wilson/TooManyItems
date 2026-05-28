@@ -140,8 +140,9 @@ class ModAPI {
         name: "$name",
         localizeNamePath: "$bundle_name", // default: "name.$name"
         icon: "$atlasName",
-        ordinal: "#ordinal", // default: -1
-        typeID: "#typeID", // default: -1
+        ordinal: #ordinal, // default: -1
+        typeID: #typeID, // default: -1
+        typeTag: "$typeTag", // default: default
         hidden: boolean // default: false
       },
       ...
@@ -150,9 +151,9 @@ class ModAPI {
     recipeList: [
       {
         type: "$recipeTypeName",
-        craftTime: "#craftTime",
+        craftTime: #craftTime,
         ownerBlock: "$ownerBlockName", // default: null
-        baseEfficiency: "#efficiency", // default: 1.0f
+        baseEfficiency: #efficiency, // default: 1.0f
         normalMethod: "add"/"multiple"/"min"/"max". // default: "min"
         powerMethod: "add"/"multiple"/"min"/"max". // default: "multiple"
         attributeMethod: "add"/"multiple"/"min"/"max". // default: "min"
@@ -162,10 +163,10 @@ class ModAPI {
         materials: [
           {
             item: "$itemName",
-            amount: "#number",
+            amount: #number,
             // or item: "$itemName:#number",
             amountFormat: "none"/"integer"/"float"/"persecond"/"raw", // default: "none"
-            efficiency: "#efficiency", // default: 1.0f
+            efficiency: #efficiency, // default: 1.0f
             isOptional: boolean, // default: false
             itemType: "normal"/"attribute"/"booster"/"probability"/"garbage", // default: "normal"
             attributeGroup: "$attributeGroupName", // default: null
@@ -176,7 +177,7 @@ class ModAPI {
         productions: [
           {
             item: "$itemName",
-            amount: "#number",
+            amount: #number,
             // or item: "$itemName:#number",
             amountFormat: "none"/"integer"/"float"/"persecond"/"raw", // default: "none"
           },
@@ -200,7 +201,7 @@ class ModAPI {
 
       TooManyItems.itemsManager.addItemWrap(name, object: RecipeItem<String>(name) {
         override val ordinal = it.getInt("ordinal", -1)
-        override val typeOrdinal = it.getInt("typeID", -1)
+        override val typeTag = it.getString("typeTag", "default")
         override val typeID = it.getInt("typeID", -1)
         override val name = name
         override val localizedName = Core.bundle[recipeInfos.getString(

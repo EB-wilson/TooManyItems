@@ -2,6 +2,7 @@ package tmi.recipe
 
 import arc.func.Boolf
 import arc.struct.IntMap
+import arc.struct.ObjectMap
 import arc.struct.ObjectSet
 import arc.struct.Seq
 import mindustry.Vars
@@ -27,7 +28,7 @@ open class RecipesManager {
   private val materials = ObjectSet<RecipeItem<*>>()
   private val productions = ObjectSet<RecipeItem<*>>()
   private val blocks = ObjectSet<RecipeItem<*>>()
-  private val idMap = IntMap<Recipe>()
+  private val idMap = ObjectMap<String, Recipe>()
 
   /**向管理器注册一个[RecipeParser]用于分析方块可用的配方 */
   fun registerParser(parser: RecipeParser<*>) {
@@ -52,7 +53,7 @@ open class RecipesManager {
   fun addRecipe(recipe: Recipe, completeRecipe: Boolean = true) {
     if (completeRecipe) recipe.complete()
 
-    idMap.put(recipe.hashCode(), recipe)
+    idMap.put(recipe.flattenID, recipe)
 
     recipes.add(recipe)
     for (stack in recipe.materials) {
@@ -84,8 +85,16 @@ open class RecipesManager {
     return recipes.select { e -> e.recipeType == RecipeType.building && e.ownerBlock == block }
   }
 
-  fun getByID(id: Int): Recipe {
+  fun getByID(id: String): Recipe {
+    return idMap[id]?: throw NoSuchElementException("No recipe found with id $id.")
+  }
+
+  fun getByIDorError(id: String): Recipe {
     return idMap[id]?: errorRecipe
+  }
+
+  fun getByIDorNull(id: String): Recipe? {
+    return idMap[id]
   }
 
   fun filterRecipe(filter: Boolf<Recipe>): Seq<Recipe>{

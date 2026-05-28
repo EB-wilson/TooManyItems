@@ -92,7 +92,7 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
     writer.i(recipeNodes.size)
     recipeNodes.forEach { node ->
       writer.i(node.graphIndex)
-      writer.i(node.recipe.hashCode())
+      writer.str(node.recipe.flattenID)
       writer.i(node.targetAmount)
 
       writer.i(node.attributes.size)
@@ -122,7 +122,7 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
     val numNodes = reader.i()
     (0 until numNodes).forEach { _ ->
       val index = reader.i()
-      val recipe = TooManyItems.recipesManager.getByID(reader.i())
+      val recipe = TooManyItems.recipesManager.getByID(reader.str())
       val amount = reader.i()
       val node = RecipeGraphNode(recipe)
       val tmp = Temp(node)

@@ -11,9 +11,11 @@ import arc.struct.Seq
 import mindustry.Vars
 import mindustry.ctype.ContentType
 import mindustry.ctype.UnlockableContent
+import mindustry.world.Block
 import tmi.util.invoke
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.SingleItemMark
+import tmi.util.Consts
 import tmi.util.set
 
 class RecipeItemManager {
@@ -67,8 +69,12 @@ class RecipeItemManager {
 
   private class RecipeUnlockableContent(item: UnlockableContent) : RecipeItem<UnlockableContent>(item) {
     override val ordinal = item.id.toInt()
-    override val typeOrdinal = mirror[item.contentType, item.contentType.ordinal]
+    override val typeTag: String by lazy {
+      if (item is Block) Core.bundle["database-tag." + item.databaseTag, item.databaseTag]
+      else Core.bundle["database-category." + item.databaseCategory, item.databaseCategory]
+    }
     override val typeID: Int = item.contentType.ordinal
+    override val ownMod: String = item.minfo.mod?.name?: Consts.VANILLA
     override val name: String = item.name
     override val localizedName: String = item.localizedName
     override val icon: TextureRegion = item.uiIcon?:throw IllegalStateException("Item $name no icon")
@@ -92,6 +98,7 @@ class RecipeItemManager {
 
   companion object {
     private val ERROR = object : SingleItemMark("<error>") {
+      override val ownMod: String get() = "<error>"
       override val icon get() = Core.atlas.find("error")
       override val hidden = true
     }
