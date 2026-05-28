@@ -203,6 +203,7 @@ class ModAPI {
         override val ordinal = it.getInt("ordinal", -1)
         override val typeTag = it.getString("typeTag", "default")
         override val typeID = it.getInt("typeID", -1)
+        override val ownMod = mod.name
         override val name = name
         override val localizedName = Core.bundle[recipeInfos.getString(
           "localizeNamePath",
