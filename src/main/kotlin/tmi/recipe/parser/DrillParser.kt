@@ -8,13 +8,13 @@ import mindustry.type.Item
 import mindustry.world.Block
 import mindustry.world.blocks.environment.Floor
 import mindustry.world.blocks.environment.OreBlock
+import mindustry.world.blocks.production.BurstDrill
 import mindustry.world.blocks.production.Drill
-import mindustry.world.consumers.Consume
 import mindustry.world.consumers.ConsumeLiquidBase
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
-import tmi.recipe.types.RecipeItemType
 import tmi.recipe.RecipeType
+import tmi.recipe.types.RecipeItemType
 import tmi.util.Consts.markerTile
 
 open class DrillParser : ConsumerParser<Drill>() {
@@ -51,7 +51,10 @@ open class DrillParser : ConsumerParser<Drill>() {
 
         registerCons(r, { c, s ->
           if (content.liquidBoostIntensity != 1f && c is ConsumeLiquidBase && c.booster) {
-            val eff = content.liquidBoostIntensity*content.liquidBoostIntensity
+            val eff =
+              if (content is BurstDrill) content.liquidBoostIntensity // Why???
+              else content.liquidBoostIntensity*content.liquidBoostIntensity
+
             s.setEfficiency(eff)
               .boostAndConsFormat(eff)
           }
