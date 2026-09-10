@@ -236,18 +236,23 @@ tasks {
   }
 }
 
-fun String.execute(path: File? = null, vararg args: Any?): Process{
-  val cmd = split(Regex("\\s+"))
-    .toMutableList()
-    .apply { addAll(args.map { it?.toString()?:"null" }) }
-    .toTypedArray()
-  val process = ProcessBuilder(*cmd)
-    .directory(path?:rootDir)
-    .inheritIO()
+fun String.execute(path: File? = null, vararg args: Any?): Process {
+  val cmd = split(Regex("\\s+")).filter { it.isNotEmpty() }.toMutableList()
+    .apply { addAll(args.map { it?.toString() ?: "null" }) }
+
+  val process = ProcessBuilder(cmd)
+    .directory(path ?: rootDir)
+    .redirectErrorStream(true)
     .start()
 
-  if (process.waitFor() != 0) throw Error(InputStreamReader(process.errorStream).readText())
+  val output = StringBuilder()
+  process.inputStream.bufferedReader().forEachLine {
+    output.appendLine(it)
+    logger.lifecycle("[${cmd.first()}] $it")
+  }
 
+  val code = process.waitFor()
+  if (code != 0) throw Error("exit=$code\n$output")
   return process
 }
 
