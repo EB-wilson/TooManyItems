@@ -74,7 +74,7 @@ class RecipeItemManager {
       else Core.bundle["database-category." + item.databaseCategory, item.databaseCategory]
     }
     override val typeID: Int = item.contentType.ordinal
-    override val ownMod: String = item.minfo.mod?.name?: Consts.VANILLA
+    override val mod: String = item.minfo.mod?.name ?: Consts.VANILLA
     override val name: String = item.name
     override val localizedName: String = item.localizedName
     override val icon: TextureRegion = item.uiIcon?:throw IllegalStateException("Item $name no icon")
@@ -98,7 +98,7 @@ class RecipeItemManager {
 
   companion object {
     private val ERROR = object : SingleItemMark("<error>") {
-      override val ownMod: String get() = "<error>"
+      override val mod: String get() = "<error>"
       override val icon get() = Core.atlas.find("error")
       override val hidden = true
     }

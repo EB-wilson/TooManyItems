@@ -13,6 +13,7 @@ import arc.util.*
 import mindustry.Vars
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
+import mindustry.ui.FileChooser
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
 import tmi.graphic.ChunkedFrameBuffer
@@ -179,9 +180,11 @@ class ExportDialog: BaseDialog("", Consts.transparentBack) {
         file.add("").color(Color.lightGray).ellipsis(true).growX()
           .update { l -> l.setText(if (exportFile == null) Core.bundle["misc.unset"] else exportFile!!.absolutePath()) }
         file.button({ it.add(Core.bundle["misc.select"]).pad(6f).padLeft(12f).padRight(12f) }, Styles.cleart) {
-          Vars.platform.showFileChooser(false, "png") { f ->
-            exportFile = f
-          }
+          FileChooser.FileChooserParams()
+            .extensions("png")
+            .submit { f ->
+              exportFile = f
+            }
         }
       }.fill()
       t.row()

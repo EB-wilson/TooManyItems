@@ -27,7 +27,6 @@ import arc.util.Scaling
 import arc.util.Time
 import mindustry.Vars
 import mindustry.core.GameState
-import mindustry.ctype.Content
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
@@ -81,7 +80,7 @@ open class RecipesDialog : BaseDialog("") {
       Core.bundle["misc.modSort"],
       Icon.book
     ){ list ->
-      val grouped = list.groupBy { "@${it.ownMod}" }
+      val grouped = list.groupBy { "@${it.mod}" }
 
       grouped.map { (key, value) ->
         key to value.sorted()
@@ -506,8 +505,8 @@ open class RecipesDialog : BaseDialog("") {
     if (recipes == null || recipes.isEmpty) return false
 
     val recipesMap = recipes.groupBy { it.recipeType }
-    val validRecipeTypes = recipesMap.keys
-    val sortedRecipes = recipesMap.values.flatten()
+    val validRecipeTypes = recipesMap.keys()
+    val sortedRecipes = recipesMap.values().flatten()
 
     val recipeViews = Seq<RecipeView>()
 
@@ -689,7 +688,7 @@ open class RecipesDialog : BaseDialog("") {
     recipesTable.add().grow()
     recipesTable.row()
     recipesTable.table { butt ->
-      if (validRecipeTypes.size > 1) {
+      if (recipesMap.size > 1) {
         val filterTable = Table(Consts.darkGrayUI)
         filterTable.visible = false
 

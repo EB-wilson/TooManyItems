@@ -10,5 +10,5 @@ object PowerMark: SingleItemMark("power-mark") {
   override val icon: TextureRegion get() = Icon.power.region
   override val ordinal: Int get() = 10000
   override val typeTag: String by lazy { Core.bundle["type.power.name"] }
-  override val ownMod: String get() = Consts.VANILLA
+  override val mod: String get() = Consts.VANILLA
 }

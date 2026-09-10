@@ -14,5 +14,5 @@ object HeatMark: SingleItemMark("heat-mark") {
   override val icon: TextureRegion get() = Icon.waves.region
   override val typeTag: String get() = Core.bundle["type.power.name"]
   override val ordinal: Int get() = 20000
-  override val ownMod: String get() = Consts.VANILLA
+  override val mod: String get() = Consts.VANILLA
 }

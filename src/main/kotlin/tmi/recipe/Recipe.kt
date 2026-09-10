@@ -4,13 +4,13 @@ import arc.func.Cons
 import arc.scene.ui.layout.Table
 import arc.struct.ObjectFloatMap
 import arc.struct.OrderedMap
+import arc.struct.OrderedSet
 import tmi.util.invoke
 import tmi.recipe.types.CalculateMethod
 import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
 import tmi.util.set
 import tmi.util.mto
-import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 
@@ -35,11 +35,13 @@ open class Recipe @JvmOverloads constructor(
 
   private var completed = false
 
+  private val _requiredMods = OrderedSet<String>()
   private val productionMap = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
   private val materialMap = OrderedMap<RecipeItem<*>, RecipeItemStack<*>>()
 
   val productions get() = productionMap.values().toList()
   val materials get() = materialMap.values().toList()
+  val requiredMods get() = _requiredMods.toList()
 
   val materialGroups: List<List<RecipeItemStack<*>>> get() = run {
     var n = 0
@@ -79,8 +81,9 @@ open class Recipe @JvmOverloads constructor(
     productionMap.orderedKeys().sort()
     materialMap.orderedKeys().sort()
 
-    val matValues = materialMap.orderedKeys().map { materialMap[it]!! }
-    val prodValues = productionMap.orderedKeys().map { productionMap[it]!! }
+    _requiredMods.add(ownerBlock.mod)
+    productionMap.orderedKeys().forEach { i -> _requiredMods.add(i.mod) }
+    materialMap.orderedKeys().forEach { i -> _requiredMods.add(i.mod) }
 
     val idBuilder = StringBuilder()
     idBuilder.append("R-")
@@ -88,9 +91,9 @@ open class Recipe @JvmOverloads constructor(
     idBuilder.append("@")
     idBuilder.append(ownerBlock.name)
     idBuilder.append("[")
-    matValues.forEach { idBuilder.append(it.item.name).append(":").append(it.amount).append(";") }
+    productionMap.orderedKeys().forEach { idBuilder.append(it.name).append(";") }
     idBuilder.append("->")
-    prodValues.forEach { idBuilder.append(it.item.name).append(":").append(it.amount).append(";") }
+    materialMap.orderedKeys().forEach { idBuilder.append(it.name).append(";") }
     idBuilder.append("]")
 
     flattenID = idBuilder.toString()
@@ -167,7 +170,7 @@ open class Recipe @JvmOverloads constructor(
       }
     }
 
-    val arr = groupEff.values().toArray().also { seq ->
+    val arr = groupEff.values().toSeq().also { seq ->
       seq.addAll(*effs.filter { it.first.group == null }.map { it.second }.toFloatArray())
     }
 

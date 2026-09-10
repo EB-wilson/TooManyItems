@@ -7,12 +7,17 @@ import arc.struct.ObjectIntMap
 import arc.struct.Seq
 import arc.util.io.Reads
 import arc.util.io.Writes
+import mindustry.Vars
 import tmi.TooManyItems
 import tmi.recipe.types.RecipeItem
+import tmi.util.Consts
 import tmi.util.set
 import kotlin.math.max
 
+const val SAVE_VERSION = 0
+
 class RecipeGraph: Iterable<RecipeGraphNode>{
+
   private val recipeNodes = Seq<RecipeGraphNode>()
 
   fun addNode(node: RecipeGraphNode){
@@ -89,6 +94,17 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
   }
 
   fun write(writer: Writes){
+    writer.i(SAVE_VERSION)
+
+    val requiredMods = recipeNodes.flatMap { node ->
+      node.recipe.requiredMods
+    }.toSet()
+
+    writer.i(requiredMods.size)
+    requiredMods.forEach { mod ->
+      writer.str(mod)
+    }
+
     writer.i(recipeNodes.size)
     recipeNodes.forEach { node ->
       writer.i(node.graphIndex)
@@ -109,8 +125,25 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
     }
   }
 
-  fun read(reader: Reads){
+  fun read(reader: Reads, reversion: Int){
     clear()
+
+    val existedMods = mutableSetOf<String>()
+    Vars.mods.list().forEach { mod ->
+      existedMods.add(mod.name)
+    }
+
+    val mods = reader.i()
+    val requiredMods = mutableListOf<String>()
+    (0 until mods).forEach { _ ->
+      val requiredMod = reader.str()
+      requiredMods.add(requiredMod)
+    }
+
+    requiredMods.forEach { mod ->
+      if (mod != Consts.VANILLA && !existedMods.contains(mod))
+        throw MissingModException("Mod $mod does not exist.", requiredMods)
+    }
 
     class Temp(val node: RecipeGraphNode){
       val children = ObjectIntMap<RecipeItem<*>>()
@@ -169,4 +202,6 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
   }
 
   override fun iterator() = recipeNodes.iterator()
+
+  class MissingModException(msg: String, val requiredMods: List<String>) : Exception(msg)
 }

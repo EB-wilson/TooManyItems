@@ -17,6 +17,7 @@ import arc.scene.ui.Button
 import arc.scene.ui.Label
 import arc.scene.ui.Tooltip
 import arc.scene.ui.layout.Table
+import arc.struct.ObjectMap
 import arc.struct.Seq
 import arc.util.Align
 import arc.util.Log
@@ -25,6 +26,7 @@ import mindustry.Vars
 import mindustry.gen.Icon
 import mindustry.gen.Tex
 import mindustry.graphics.Pal
+import mindustry.ui.FileChooser
 import mindustry.ui.Fonts
 import mindustry.ui.Styles
 import mindustry.ui.dialogs.BaseDialog
@@ -290,12 +292,15 @@ class CalculatorDialog: BaseDialog("") {
           if (page.shouldSave()) save(page, page.fi!!)
         }
         else {
-          Vars.platform.showFileChooser(false, page.title, "shd") { file ->
-            if (save(page, file)) {
-              page.fi = file
-              page.title = file.nameWithoutExtension()
+          FileChooser.FileChooserParams()
+            .title(page.title)
+            .extensions("shd")
+            .submit { file ->
+              if (save(page, file)) {
+                page.fi = file
+                page.title = file.nameWithoutExtension()
+              }
             }
-          }
         }
       },
       MenuTab(
@@ -305,12 +310,15 @@ class CalculatorDialog: BaseDialog("") {
         keyBind = CombinedKeys(KeyCode.altLeft, KeyCode.s),
       ){ currPage ->
         val page = currPage!!
-        Vars.platform.showFileChooser(false, page.title, "shd") { file ->
-          if (save(page, file)) {
-            page.fi = file
-            page.title = file.nameWithoutExtension()
+        FileChooser.FileChooserParams()
+          .title(page.title)
+          .extensions("shd")
+          .submit { file ->
+            if (save(page, file)) {
+              page.fi = file
+              page.title = file.nameWithoutExtension()
+            }
           }
-        }
       },
       MenuTab(
         Core.bundle["misc.saveAll"], "file", Icon.saveSmall,
@@ -416,10 +424,13 @@ class CalculatorDialog: BaseDialog("") {
                 deletePage(it)
               }
               else {
-                Vars.platform.showFileChooser(false, it.title, "shd") { file ->
-                  it.view.save(file)
-                  deletePage(it)
-                }
+                FileChooser.FileChooserParams()
+                  .title(it.title)
+                  .extensions("shd")
+                  .submit { file ->
+                    it.view.save(file)
+                    deletePage(it)
+                  }
               }
             }
           }
@@ -479,9 +490,9 @@ class CalculatorDialog: BaseDialog("") {
       it.image(Consts.tmi).scaling(Scaling.fit).size(32f)
     }.growY().marginLeft(8f).marginRight(8f)
 
-    val tabs = topMenuTabSet.groupBy { it.tabName }
-      .map{ groups -> groups.key to groups.value.groupBy { it.group } }
-      .toMap()
+    val tabs =
+      topMenuTabSet.groupBy { it.tabName }
+        .associate { groups -> groups.key to groups.value.groupBy { it.group } }
 
     var menuTable: Table? = null
 
@@ -518,7 +529,7 @@ class CalculatorDialog: BaseDialog("") {
   }
 
   private fun buildUnfoldedMenuTabs(
-    tabs: Map<String, Map<String, List<MenuTab>>>,
+    tabs: Map<String, ObjectMap<String, Seq<MenuTab>>>,
     menu: Table,
   ) {
     var currHover: Button? = null
@@ -539,7 +550,7 @@ class CalculatorDialog: BaseDialog("") {
           showMenu(this, Align.bottomLeft, Align.topLeft, true) { menu ->
             menu.table(Consts.padDarkGrayUI) { m ->
               m.defaults().growX().fillY().minWidth(300f)
-              buildMenuTab(m, groups.values)
+              buildMenuTab(m, groups.values())
             }.fill()
           }
         }
@@ -743,12 +754,15 @@ class CalculatorDialog: BaseDialog("") {
         if (currPage.shouldSave()) save(currPage, currPage.fi!!)
       }
       else {
-        Vars.platform.showFileChooser(false, currPage.title, "shd") { file ->
-          if (save(currPage, file)) {
-            currPage.fi = file
-            currPage.title = file.nameWithoutExtension()
+        FileChooser.FileChooserParams()
+          .title(currPage.title)
+          .extensions("shd")
+          .submit { file ->
+            if (save(currPage, file)) {
+              currPage.fi = file
+              currPage.title = file.nameWithoutExtension()
+            }
           }
-        }
       }
     }.disabled { currPage == null }.growY().padLeft(6f).marginLeft(8f).marginRight(12f)
   }
@@ -793,10 +807,12 @@ class CalculatorDialog: BaseDialog("") {
                     deletePage(page)
                   }
                   else {
-                    Vars.platform.showFileChooser(false, "shd") { file ->
-                      save(page, file)
-                      deletePage(page)
-                    }
+                    FileChooser.FileChooserParams()
+                      .extensions("shd")
+                      .submit { file ->
+                        save(page, file)
+                        deletePage(page)
+                      }
                   }
                   hideMenu()
                 },
@@ -896,7 +912,17 @@ class CalculatorDialog: BaseDialog("") {
         }
 
         viewTable.add(viewPage.view).grow()
-      } catch (e: Exception) {
+      }
+      catch (e: RecipeGraph.MissingModException) {
+        viewTable.table { t ->
+          t.left().defaults().fill().left()
+          t.add(Core.bundle["dialog.calculator.missingMod"]).fontScale(1.2f).color(Pal.accent)
+          t.row()
+          val mods = e.requiredMods.joinToString(";\n")
+          t.add(Core.bundle.format("dialog.calculator.mods", mods))
+        }
+      }
+      catch (e: Exception) {
         Log.err(e)
         viewTable.table{ t ->
           t.left().defaults().fill().left()
@@ -1051,16 +1077,19 @@ class CalculatorDialog: BaseDialog("") {
   }
 
   private fun openFile(){
-    Vars.platform.showFileChooser(true, "shd") { file ->
-      val existed = pages.find { it.fi == file }
-      if (existed == null){
-        createNewPage(file)
+    FileChooser.FileChooserParams()
+      .open(true)
+      .extensions("shd")
+      .submit { file ->
+        val existed = pages.find { it.fi == file }
+        if (existed == null){
+          createNewPage(file)
+        }
+        else {
+          setCurrPage(existed)
+          Vars.ui.showInfo(Core.bundle["dialog.calculator.fileOpened"])
+        }
       }
-      else {
-        setCurrPage(existed)
-        Vars.ui.showInfo(Core.bundle["dialog.calculator.fileOpened"])
-      }
-    }
   }
 
   private fun deletePage(page: ViewPage) {

@@ -959,7 +959,8 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     val reader = Reads(DataInputStream(file.read()))
 
     try {
-      graph.read(reader)
+      val ver = reader.i()
+      graph.read(reader, ver)
       isUpdated = false
 
       graphUpdated()

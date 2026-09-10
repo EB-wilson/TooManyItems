@@ -1,14 +1,16 @@
 
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.BufferedOutputStream
+import java.io.BufferedWriter
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.io.StringReader
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
-val mindustryVersion = "v156"
-val arcVersion = "v156"
+val mindustryVersion = "v159.6"
+val arcVersion = "v159.6"
 
 val modOutputDir = properties["modOutputDir"] as? String
 val debugJarDir = properties["debugGamePath"] as? String
@@ -25,20 +27,20 @@ plugins {
 }
 
 group = "com.github.EB-wilson"
-version = "3.2"
+version = "3.3"
 
 run { "java SyncBundles.java $version".execute() }
 
 java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
 }
 
 kotlin {
   jvmToolchain(21)
 
   compilerOptions {
-    jvmTarget.set(JvmTarget.JVM_1_8)
+    jvmTarget.set(JvmTarget.JVM_17)
   }
 }
 
@@ -98,9 +100,9 @@ dependencies {
   compileOnly("com.github.Anuken.Arc:arc-core:$arcVersion")
   compileOnly("com.github.Anuken.Mindustry:core:$mindustryVersion")
 
-  implementation("com.github.EB-wilson.UniverseKit:utilities:1.2")
-  implementation("com.github.EB-wilson.UniverseKit:markdown:1.2")
-  implementation("com.github.EB-wilson.UniverseKit:reflection:1.2")
+  implementation("com.github.EB-wilson.UniverseKit:utilities:1.4")
+  implementation("com.github.EB-wilson.UniverseKit:markdown:1.4")
+  implementation("com.github.EB-wilson.UniverseKit:reflection:1.4")
 
   implementation("com.belerweb:pinyin4j:2.5.1")
 
@@ -160,7 +162,6 @@ tasks {
             setOf(platformRoot)
         ).joinToString(" ") { "--classpath $it" }
 
-        //dex and desugar files - this requires d8 in your PATH
         "${d8.absolutePath} $dependencies --min-api 14 --output ${project.name}-android.jar ${project.name}-desktop.jar"
           .execute(File("$buildDir/libs"))
       }
@@ -179,16 +180,11 @@ tasks {
 
         val out = JarOutputStream(FileOutputStream("${buildDir}/libs/${project.name}-android.jar"))
         out.putNextEntry(JarEntry("non-androidMod.txt"))
-        val reader = StringReader(
-          "this mod is don't have classes.dex for android, please consider recompile with a SDK or run this mod on desktop only"
-        )
 
-        var r = reader.read()
-        while (r != -1) {
-          out.write(r)
-          out.flush()
-          r = reader.read()
-        }
+        val writer = out.bufferedWriter()
+        writer.write("this mod is don't have classes.dex for android, please consider recompile with a SDK or run this mod on desktop only")
+        writer.close()
+
         out.close()
       }
     }

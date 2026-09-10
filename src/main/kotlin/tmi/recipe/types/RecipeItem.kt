@@ -7,7 +7,7 @@ abstract class RecipeItem<T> protected constructor(@JvmField val item: T) : Comp
   abstract val typeID: Int
   @Deprecated(message = "Use typeTag instead", replaceWith = ReplaceWith("typeTag"), level = DeprecationLevel.HIDDEN)
   open val typeOrdinal: Int get() = typeID
-  abstract val ownMod: String
+  abstract val mod: String
   abstract val typeTag: String
   abstract val name: String
   abstract val localizedName: String
@@ -19,7 +19,7 @@ abstract class RecipeItem<T> protected constructor(@JvmField val item: T) : Comp
   open fun displayDetails() {}
 
   override fun compareTo(other: RecipeItem<*>): Int {
-    val n = typeTag.compareTo(other.typeTag)
+    val n = typeID.compareTo(other.typeID)
 
     if (n == 0) {
       return ordinal - other.ordinal
