@@ -31,12 +31,17 @@ import tmi.recipe.types.RecipeItem
 import tmi.util.Consts
 import tmi.util.Shapes
 
+
 /**在[tmi.recipe.RecipeType]进行布局时所操作的元素对象，用于显示单个条目信息和提供控制逻辑 */
 open class RecipeItemCell(
   val type: CellType,
   vararg val groupItems: RecipeItemStack<*>,
   val clickListener: (RecipeItemCell.(RecipeItemStack<*>, CellType, RecipesDialog.Mode) -> Unit)? = null,
 ) : Button() {
+  companion object{
+    private const val LONG_PRESS_TIME = 30f
+  }
+
   private var lastTouchedTime = 0f
   private var progress: Float = 0f
   private var alpha: Float = 0f
@@ -293,7 +298,7 @@ open class RecipeItemCell(
 
     val stack = groupItems[itemIndex]
     alpha = Mathf.lerpDelta(alpha, (if (touched || activity) 1 else 0).toFloat(), 0.08f)
-    progress = Mathf.approachDelta(progress, if (stack.item.hasDetails && click != null && touched) 1f else 0f, 1/60f)
+    progress = Mathf.approachDelta(progress, if (stack.item.hasDetails && click != null && touched) 1f else 0f, 1/LONG_PRESS_TIME)
 
     if (clickListener != null && Time.globalTime - lastTouchedTime > 12 && clicked == 1) {
       if (Core.input.keyDown(TooManyItems.binds.hotKey) || chosenItem != null) clickListener(
