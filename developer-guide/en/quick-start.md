@@ -6,6 +6,26 @@ For convenience, *TooManyItems* will be referred to as *TMI* below. To avoid con
 
 > **Note**: If all the content in your mod uses default content types from Mindustry (such as `GenericCrafter`, etc.) and you have not used custom production methods to override default production behavior, TMI already provides compatibility for these contents, so no additional compatibility work is required.
 
+### Add Dependencies
+
+Add the following to your project's build.gradle: 
+
+```gradle 
+dependencies { 
+  compileOnly 'com.github.EB-wilson:TooManyItems:tmiVersion' 
+} 
+``` 
+If you have not yet added jitpack to your maven repository path, add the following declaration: 
+
+```gradle 
+dependencyResolutionManagement { 
+  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS) repositories { 
+    mavenCentral() 
+    maven { url 'https:jitpack.io' } 
+  }
+}
+```
+
 ### Recipe Entry
 
 TMI provides standardized wrappers and abstractions for recipes and the items involved in recipes, making it compatible with almost all possible production and consumption forms. It also offers independent submodule entry points for third-party mods, allowing TMI-related programs to exist in a separate submodule and be called only when the user has TMI installed.

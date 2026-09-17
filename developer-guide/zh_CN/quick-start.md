@@ -8,11 +8,11 @@
 
 ### 添加依赖项
 
-在您的项目build.gralde中添加如下内容：
+在您的项目build.gradle中添加如下内容：
 
 ```gradle
 dependencies {
-    compileOnly 'com.github.EB-wilson:TooManyItems:$tmiVerison'
+    compileOnly 'com.github.EB-wilson:TooManyItems:$tmiVersion'
 }
 ```
 

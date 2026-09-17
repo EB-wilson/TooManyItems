@@ -32,8 +32,6 @@ class TooManyItems : Mod() {
     var itemsManager: RecipeItemManager = RecipeItemManager()
     @JvmField
     var api: ModAPI = ModAPI()
-    @JvmField
-    val binds = KeyBinds()
   }
 
   init {
@@ -84,7 +82,7 @@ class TooManyItems : Mod() {
 
   override fun init() {
     Cursor.init()
-    binds.load()
+    KeyBinds.load()
     api.init()
 
     recipesManager.init()

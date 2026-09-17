@@ -6,14 +6,24 @@ import java.io.Serializable
 
 /**一个记录特定格式的标准组合键的标记对象
  *
- * 一个组合键由主键和控制键构成，其中控制键为`Ctrl`，*/
-class CombinedKeys(vararg keys: KeyCode): Serializable {
-  val isCtrl: Boolean
-  val isAlt: Boolean
-  val isShift: Boolean
-  val key: KeyCode
+ * 一个组合键由主键和控制键构成，控制键包括`Ctrl`、`Shift`、`Alt`*/
+class CombinedKeys: Serializable {
+  var isCtrl: Boolean = false
+    private set
+  var isAlt: Boolean = false
+    private set
+  var isShift: Boolean = false
+    private set
+  var key: KeyCode? = null
+    private set
 
-  init {
+  constructor()
+
+  constructor(vararg keys: KeyCode){
+    set(*keys)
+  }
+
+  fun set(vararg keys: KeyCode) {
     val ctrl = keys.filter { it.isCtrl() }
     val alt = keys.filter { it.isAlt() }
     val shift = keys.filter { it.isShift() }
@@ -28,31 +38,33 @@ class CombinedKeys(vararg keys: KeyCode): Serializable {
     if ((isCtrl && !input.ctrl()) || (!isCtrl && input.alt())) return false
     if ((isAlt && !input.alt()) || (!isAlt && input.alt())) return false
     if ((isShift && !input.shift()) || (!isShift && input.shift())) return false
-    return input.keyDown(key)
+    return input.keyDown(key?: throw IllegalStateException("CombinedKeys does not set keys list."))
   }
 
   fun isReleased(input: Input): Boolean{
     if ((isCtrl && !input.ctrl()) || (!isCtrl && input.alt())) return false
     if ((isAlt && !input.alt()) || (!isAlt && input.alt())) return false
     if ((isShift && !input.shift()) || (!isShift && input.shift())) return false
-    return input.keyRelease(key)
+    return input.keyRelease(key?: throw IllegalStateException("CombinedKeys does not set keys list."))
   }
 
   fun isTap(input: Input): Boolean{
     if ((isCtrl && !input.ctrl()) || (!isCtrl && input.alt())) return false
     if ((isAlt && !input.alt()) || (!isAlt && input.alt())) return false
     if ((isShift && !input.shift()) || (!isShift && input.shift())) return false
-    return input.keyTap(key)
+    return input.keyTap(key?: throw IllegalStateException("CombinedKeys does not set keys list."))
   }
 
   override fun toString(): String {
+    if (key == null) return "<No keys set>"
+
     val builder = StringBuilder()
 
     if (isCtrl) builder.append("Ctrl").append(" + ")
     if (isAlt) builder.append("Alt").append(" + ")
     if (isShift) builder.append("Shift").append(" + ")
 
-    builder.append(key.value)
+    builder.append(key!!.value)
 
     return builder.toString()
   }

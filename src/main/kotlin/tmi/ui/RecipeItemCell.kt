@@ -29,6 +29,7 @@ import tmi.recipe.AmountFormatter
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
 import tmi.util.Consts
+import tmi.util.KeyBinds
 import tmi.util.Shapes
 
 
@@ -110,7 +111,7 @@ open class RecipeItemCell(
 
         if (clickListener != null && Time.globalTime - lastTouchedTime < 12) {
           if (!Vars.mobile || Core.settings.getBool("keyboard")) {
-            if (Core.input.keyDown(TooManyItems.binds.hotKey) || chosenItem != null) clickListener(
+            if (Core.input.keyDown(KeyBinds.hotKey) || chosenItem != null) clickListener(
               this@RecipeItemCell,
               currentItem(),
               type,
@@ -134,7 +135,7 @@ open class RecipeItemCell(
           else {
             clicked++
             if (clicked >= 2) {
-              if (Core.input.keyDown(TooManyItems.binds.hotKey) || chosenItem != null) clickListener(
+              if (Core.input.keyDown(KeyBinds.hotKey) || chosenItem != null) clickListener(
                 this@RecipeItemCell,
                 currentItem(),
                 type,
@@ -183,7 +184,7 @@ open class RecipeItemCell(
           .apply {
             var last = false
             update { l ->
-              val isDown = Core.input.keyDown(TooManyItems.binds.hotKey)
+              val isDown = Core.input.keyDown(KeyBinds.hotKey)
               if (last != isDown || updateText) {
                 l.setText(formatAmount(isDown, stack))
                 updateText = false
@@ -284,7 +285,7 @@ open class RecipeItemCell(
   override fun act(delta: Float) {
     super.act(delta)
 
-    if (groupItems.size > 1 && chosenItem == null && !Core.input.keyDown(TooManyItems.binds.hotKey)){
+    if (groupItems.size > 1 && chosenItem == null && !Core.input.keyDown(KeyBinds.hotKey)){
       timer += delta
     }
 
@@ -301,7 +302,7 @@ open class RecipeItemCell(
     progress = Mathf.approachDelta(progress, if (stack.item.hasDetails && click != null && touched) 1f else 0f, 1/LONG_PRESS_TIME)
 
     if (clickListener != null && Time.globalTime - lastTouchedTime > 12 && clicked == 1) {
-      if (Core.input.keyDown(TooManyItems.binds.hotKey) || chosenItem != null) clickListener(
+      if (Core.input.keyDown(KeyBinds.hotKey) || chosenItem != null) clickListener(
         this,
         currentItem(),
         type,

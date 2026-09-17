@@ -6,7 +6,7 @@ import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
 import arc.struct.Seq
 
-open class CombineKeyListener<Rec>(
+abstract class CombineKeyListener<Rec>(
   val keysTree: CombineKeyTree<Rec>,
   val fuzzed: Boolean = false
 ): InputListener(){

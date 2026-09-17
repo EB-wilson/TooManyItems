@@ -25,12 +25,18 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
     node.graph = this
   }
 
+  /**把 [node] 插回 [index] 位置；用于撤销删除时保持节点在表内的原顺序（顺序会影响布局）。*/
+  fun addNode(node: RecipeGraphNode, index: Int){
+    recipeNodes.insert(index.coerceIn(0, recipeNodes.size), node)
+    node.graph = this
+  }
+
   fun removeNode(node: RecipeGraphNode) {
     if (node.graph == this) {
-      node.parentsWithItem().forEach { (i, n) -> n.forEach {
+      node.childrenWithItem().forEach { (i, n) -> n.forEach {
         it.disInput(i, false)
       } }
-      node.childrenWithItem().forEach { (i, n) -> node.disInput(i, false) }
+      node.parentsWithItem().forEach { (i, _) -> node.disInput(i, false) }
 
       node.graph = null
       node.graphIndex = -1
@@ -51,8 +57,7 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
 
   fun eachNode(callBack: Cons2<Int, RecipeGraphNode>){
     val set = linkedSetOf<RecipeGraphNode>()
-
-    recipeNodes.forEach { it.contextDepth = 0 }
+    val depthOf = HashMap<RecipeGraphNode, Int>()
 
     val flowed = mutableSetOf<RecipeGraphNode>()
     val isolated = mutableSetOf<MutableList<RecipeGraphNode>>()
@@ -61,36 +66,36 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
         val nodes = mutableListOf<RecipeGraphNode>()
         isolated.add(nodes)
         it.visit(0, flowed) { dep, node ->
-          node.contextDepth = dep
+          depthOf[node] = dep
           nodes.add(node)
         }
       }
     }
 
     val top = isolated.map { sub ->
-      sub.filter { it.parents().isEmpty() }.takeIf { it.any() }?: listOf(sub.minBy { it.contextDepth })
+      sub.filter { it.children().isEmpty() }.takeIf { it.any() }?: listOf(sub.minBy { depthOf[it] ?: 0 })
     }
 
     top.forEach { list ->
       val visited = mutableSetOf<RecipeGraphNode>()
-      val anyRoot = list.any { it.parents().isEmpty() }
+      val anyRoot = list.any { it.children().isEmpty() }
       list.forEach { root ->
         root.visit(0, visited){ depth, node ->
           set.add(node)
-          node.contextDepth = max(node.contextDepth, depth)
+          depthOf[node] = max(depthOf[node] ?: 0, depth)
         }
       }
 
-      val min = set.minOf { it.contextDepth }
+      val min = set.minOf { depthOf[it] ?: 0 }
       if (anyRoot) {
-        visited.forEach { it.contextDepth = if (it.parents().isEmpty()) 0 else it.contextDepth - min + 1 }
+        visited.forEach { depthOf[it] = if (it.children().isEmpty()) 0 else (depthOf[it] ?: 0) - min + 1 }
       }
       else {
-        visited.forEach { it.contextDepth -= min }
+        visited.forEach { depthOf[it] = (depthOf[it] ?: 0) - min }
       }
     }
 
-    set.forEach { callBack.get(it.contextDepth, it) }
+    set.forEach { callBack.get(depthOf[it] ?: 0, it) }
   }
 
   fun write(writer: Writes){
@@ -116,11 +121,11 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
       writer.i(node.optionals.size)
       node.optionals.forEach { writer.str(it.name) }
 
-      val children = node.childrenWithItem()
-      writer.i(children.size)
-      children.forEach { (item, child) ->
+      val parents = node.parentsWithItem()
+      writer.i(parents.size)
+      parents.forEach { (item, parent) ->
         writer.str(item.name)
-        writer.i(child.graphIndex)
+        writer.i(parent.graphIndex)
       }
     }
   }
@@ -146,7 +151,7 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
     }
 
     class Temp(val node: RecipeGraphNode){
-      val children = ObjectIntMap<RecipeItem<*>>()
+      val parents = ObjectIntMap<RecipeItem<*>>()
     }
 
     val list = mutableListOf<Temp>()
@@ -175,12 +180,12 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
         node.optionals.add(TooManyItems.itemsManager.getByName<Any>(reader.str()))
       }
 
-      val numChildren = reader.i()
-      (0 until numChildren).forEach { _ ->
+      val numParents = reader.i()
+      (0 until numParents).forEach { _ ->
         val item = TooManyItems.itemsManager.getByName<Any>(reader.str())
         val targetIndex = reader.i()
 
-        tmp.children.put(item, targetIndex)
+        tmp.parents.put(item, targetIndex)
       }
 
       list.add(tmp)
@@ -191,7 +196,7 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
       node.node.graph = this
     }
     list.forEach {
-      it.children.forEach { entry ->
+      it.parents.forEach { entry ->
         val item = entry.key
         val index = entry.value
         val target = indexMap[index]

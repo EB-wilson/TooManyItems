@@ -42,21 +42,21 @@ class RecipeStatistic(
         val item = stack.item
         val out = node.recipe.getProduction(item)!!
         val nodeOut = out.amount*node.balanceAmount*if(out.itemType == RecipeItemType.ISOLATED) 1f else node.efficiency
-        val parents = node.getOutputs(item)
+        val consumers = node.getOutputs(item)
         var requireAmount = 0f
 
-        if (!parents.isNullOrEmpty()) {
-          parents.forEach { parent ->
-            parent.recipe.getMaterial(item)?.also { stack ->
+        if (!consumers.isNullOrEmpty()) {
+          consumers.forEach { consumer ->
+            consumer.recipe.getMaterial(item)?.also { stack ->
               val mul =
-                if (stack.itemType == RecipeItemType.BOOSTER || stack.itemType == RecipeItemType.NORMAL) parent.multiplier
+                if (stack.itemType == RecipeItemType.BOOSTER || stack.itemType == RecipeItemType.NORMAL) consumer.multiplier
                 else 1f
 
               requireAmount +=
-                if (stack.itemType == RecipeItemType.BOOSTER) stack.amount*ceil(parent.balanceAmount)*mul
-                else stack.amount*parent.balanceAmount*mul
+                if (stack.itemType == RecipeItemType.BOOSTER) stack.amount*ceil(consumer.balanceAmount)*mul
+                else stack.amount*consumer.balanceAmount*mul
 
-              inputs.computeIfAbsent(parent){ mutableSetOf() }.add(item)
+              inputs.computeIfAbsent(consumer){ mutableSetOf() }.add(item)
             }
           }
 

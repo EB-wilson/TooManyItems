@@ -21,7 +21,6 @@ class RecipeGraphNode(
 
   internal var graphIndex = Mathf.random(2147483645)
   internal var graph: RecipeGraph? = null
-  internal var contextDepth = 0
 
   /**Only usable on root nodes*/
   var targetAmount = 1
@@ -40,21 +39,21 @@ class RecipeGraphNode(
     efficiency = recipe.calculateEfficiency(inputTable, multiplier)
   }
 
-  fun updateBalance(): Boolean{
-    if (contextDepth > 0) {
+  fun updateBalance(isRoot: Boolean): Boolean{
+    if (!isRoot) {
       var amount = 0f
-      parentsWithItem().forEach { (item, parents) ->
+      childrenWithItem().forEach { (item, children) ->
         val out = recipe.getProduction(item)!!
 
         var requireAmount = 0f
-        parents.forEach { parent ->
-          parent.recipe.getMaterial(item)?.also { stack ->
+        children.forEach { child ->
+          child.recipe.getMaterial(item)?.also { stack ->
             val mul = if (stack.itemType == RecipeItemType.BOOSTER || stack.itemType == RecipeItemType.NORMAL)
-              parent.multiplier else 1f
+              child.multiplier else 1f
 
             requireAmount +=
-              if (stack.itemType == RecipeItemType.BOOSTER) stack.amount*ceil(parent.balanceAmount)*mul
-              else stack.amount*parent.balanceAmount*mul
+              if (stack.itemType == RecipeItemType.BOOSTER) stack.amount*ceil(child.balanceAmount)*mul
+              else stack.amount*child.balanceAmount*mul
           }
         }
         val balance = requireAmount/(out.amount*if(out.itemType == RecipeItemType.ISOLATED) 1f else efficiency)
@@ -71,44 +70,44 @@ class RecipeGraphNode(
     return false
   }
 
-  fun children() = inputs.values().toList()
-  fun childrenWithItem() = inputs.map { it.key to it.value }.sortedBy { it.first }
+  fun parents() = inputs.values().toList()
+  fun parentsWithItem() = inputs.map { it.key to it.value }.sortedBy { it.first }
 
-  fun parents() = outputs.values().flatMap { it }
-  fun parentsWithItem() = outputs.map { it.key to it.value.copy() }.filter { it.second.any() }.sortedBy { it.first }
+  fun children() = outputs.values().flatMap { it }
+  fun childrenWithItem() = outputs.map { it.key to it.value.copy() }.filter { it.second.any() }.sortedBy { it.first }
 
   fun isHovering() = inputs.isEmpty && outputs.sumOf { it.value.size } <= 0
 
   fun remove() {
-    parentsWithItem().forEach { (i, nodes) -> nodes.forEach { it.disInput(i, false) } }
-    childrenWithItem().forEach { (i, _) -> disInput(i, false) }
+    childrenWithItem().forEach { (i, nodes) -> nodes.forEach { it.disInput(i, false) } }
+    parentsWithItem().forEach { (i, _) -> disInput(i, false) }
 
     graph?.removeNode(this)
   }
 
-  fun setInput(item: RecipeItem<*>, child: RecipeGraphNode){
+  fun setInput(item: RecipeItem<*>, parent: RecipeGraphNode){
     if (!recipe.containsMaterial(item)) throw IllegalArgumentException("This recipe does not consume item $item.")
-    if (!child.recipe.containsProduction(item)) throw IllegalArgumentException("Used recipe does not product item $item.")
+    if (!parent.recipe.containsProduction(item)) throw IllegalArgumentException("Used recipe does not product item $item.")
 
-    inputs[item] = child
-    child.outputs.get(item){ Seq() }.add(this)
+    inputs[item] = parent
+    parent.outputs.get(item){ Seq() }.add(this)
   }
 
-  fun setOutput(item: RecipeItem<*>, parent: RecipeGraphNode){
-    parent.setInput(item, this)
+  fun setOutput(item: RecipeItem<*>, child: RecipeGraphNode){
+    child.setInput(item, this)
   }
 
   fun disInput(item: RecipeItem<*>, removeHovering: Boolean = true) {
-    val child = inputs.get(item)?: return
+    val parent = inputs.get(item)?: return
     inputs.remove(item)
 
-    val parents = child.outputs.get(item)?: return
-    parents.remove(this)
+    val consumers = parent.outputs.get(item)?: return
+    consumers.remove(this)
 
-    if (parents.isEmpty) child.outputs.remove(item)
+    if (consumers.isEmpty) parent.outputs.remove(item)
 
     if (removeHovering) {
-      if (child.isHovering()) child.remove()
+      if (parent.isHovering()) parent.remove()
     }
   }
 

@@ -17,6 +17,6 @@ class LineMark(
   override fun outputOffset(item: RecipeItem<*>) = Vec2()
   override fun inputOffset(item: RecipeItem<*>) = Vec2()
 
-  override fun setupInputOverListener(line: CalculatorView.LinkLine) = to.setupInputOverListener(line)
-  override fun setupOutputOverListener(line: CalculatorView.LinkLine) = from.setupOutputOverListener(line)
+  override fun setupInputOverListener(line: CalculatorLayout.LinkLine) = to.setupInputOverListener(line)
+  override fun setupOutputOverListener(line: CalculatorLayout.LinkLine) = from.setupOutputOverListener(line)
 }

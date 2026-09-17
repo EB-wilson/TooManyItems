@@ -23,11 +23,13 @@ interface RecipeGraphElement {
   var nodeY: Float
 
   fun centerOffset(): Vec2
-  fun outputOffset(item: RecipeItem<*>): Vec2
-  fun inputOffset(item: RecipeItem<*>): Vec2
 
-  fun setupInputOverListener(line: CalculatorView.LinkLine)
-  fun setupOutputOverListener(line: CalculatorView.LinkLine)
+  fun outputOffset(item: RecipeItem<*>): Vec2?
+
+  fun inputOffset(item: RecipeItem<*>): Vec2?
+
+  fun setupInputOverListener(line: CalculatorLayout.LinkLine)
+  fun setupOutputOverListener(line: CalculatorLayout.LinkLine)
 
   class AddRecipeButton(
     val view: CalculatorView
@@ -60,10 +62,7 @@ interface RecipeGraphElement {
       clicked {
         TmiUI.recipesDialog.showWith {
           callbackRecipe(Icon.add) { rec ->
-            val node = RecipeGraphNode(rec)
-            view.graph.addNode(node)
-            view.linkExisted(node)
-            view.graphUpdated()
+            view.commitTransaction(CalculatorTransactions.AddRecipeCard(view, RecipeGraphNode(rec)))
             hide()
           }
           showDoubleRecipe(true)
@@ -76,12 +75,12 @@ interface RecipeGraphElement {
 
     override val node = object: RecipeGraphLayout.Node() {
       override fun parents(): List<RecipeGraphLayout.Node> = emptyList()
-      override fun parentsWithItem(): Map<RecipeItem<*>, List<RecipeGraphLayout.Node>> = emptyMap()
+      override fun parentsWithItem(): Map<RecipeItem<*>, RecipeGraphLayout.Node> = emptyMap()
       override fun children(): List<RecipeGraphLayout.Node> = emptyList()
-      override fun childrenWithItem(): Map<RecipeItem<*>, RecipeGraphLayout.Node> = emptyMap()
-      override fun setOutput(item: RecipeItem<*>, ins: RecipeGraphLayout.Node) = throw UnsupportedOperationException()
-      override fun unOutput(item: RecipeItem<*>, ins: RecipeGraphLayout.Node) = throw UnsupportedOperationException()
-      override fun setInput(item: RecipeItem<*>, ins: RecipeGraphLayout.Node) = throw UnsupportedOperationException()
+      override fun childrenWithItem(): Map<RecipeItem<*>, List<RecipeGraphLayout.Node>> = emptyMap()
+      override fun setOutput(item: RecipeItem<*>, child: RecipeGraphLayout.Node) = throw UnsupportedOperationException()
+      override fun unOutput(item: RecipeItem<*>, child: RecipeGraphLayout.Node) = throw UnsupportedOperationException()
+      override fun setInput(item: RecipeItem<*>, parent: RecipeGraphLayout.Node) = throw UnsupportedOperationException()
       override fun unInput(item: RecipeItem<*>) = throw UnsupportedOperationException()
     }
     override val nodeWidth: Float by::width
@@ -92,7 +91,7 @@ interface RecipeGraphElement {
     override fun centerOffset(): Vec2 = Vec2(nodeWidth/2, nodeHeight/2)
     override fun outputOffset(item: RecipeItem<*>): Vec2 = Vec2()
     override fun inputOffset(item: RecipeItem<*>): Vec2 = Vec2()
-    override fun setupInputOverListener(line: CalculatorView.LinkLine) { /*no action*/ }
-    override fun setupOutputOverListener(line: CalculatorView.LinkLine) { /*no action*/ }
+    override fun setupInputOverListener(line: CalculatorLayout.LinkLine) { /*no action*/ }
+    override fun setupOutputOverListener(line: CalculatorLayout.LinkLine) { /*no action*/ }
   }
 }
