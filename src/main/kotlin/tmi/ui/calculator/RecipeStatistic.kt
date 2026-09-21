@@ -3,6 +3,7 @@ package tmi.ui.calculator
 import arc.struct.*
 import mindustry.content.Items
 import tmi.TooManyItems
+import tmi.recipe.AmountFormatter
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemStack
 import tmi.recipe.types.RecipeItem
@@ -103,7 +104,9 @@ class RecipeStatistic(
       val buildRecipe = TooManyItems.recipesManager.getRecipesByBuilding(block.item)
       buildRecipe.forEach { r ->
         r.materials.forEach { item ->
-          buildMaterials.get(item.item){ RecipeItemStack(item.item) }.amount += item.amount
+          buildMaterials.get(item.item){
+            RecipeItemStack(item.item).setFormat(AmountFormatter.integerFormatter())
+          }.amount += item.amount
         }
       }
     }

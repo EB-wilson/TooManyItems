@@ -3,10 +3,13 @@ package tmi.recipe.parser
 import arc.struct.Seq
 import mindustry.world.Block
 import tmi.TooManyItems
+import tmi.recipe.AmountFormatter
 import tmi.recipe.Recipe
+import tmi.recipe.RecipeItemStack
 import tmi.recipe.RecipeParser
 import tmi.recipe.RecipeType
 import tmi.util.Consts
+import kotlin.math.roundToInt
 
 class BuildingParser: RecipeParser<Block>() {
   override fun isTarget(content: Block): Boolean = content.requirements.isNotEmpty() && content.placeablePlayer
@@ -19,7 +22,8 @@ class BuildingParser: RecipeParser<Block>() {
     )
 
     for (stack in content.requirements) {
-      recipe.addMaterialInteger(TooManyItems.itemsManager.getItem(stack.item), stack.amount)
+      recipe.addMaterial(TooManyItems.itemsManager.getItem(stack.item), stack.amount)
+        .setFormat(AmountFormatter.integerFormatter())
     }
 
     return Seq.with(recipe)

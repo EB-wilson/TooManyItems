@@ -72,36 +72,39 @@ class StatisticDialog: BaseDialog(Core.bundle["dialog.statistic.title"]) {
     val redu = statistic.resultRedundant()
     val buildCost = statistic.resultBuildMaterials()
 
-    inputs.clear()
-    showInput = false
-    optionalInputs.clear()
-    showOptional = false
-    outputs.clear()
-    showOutput = false
-    redundant.clear()
-    showRedundant = false
-    buildCosts.clear()
-    showCosts = false
+    clearListeners()
+    resizedShown {
+      inputs.clear()
+      showInput = false
+      optionalInputs.clear()
+      showOptional = false
+      outputs.clear()
+      showOutput = false
+      redundant.clear()
+      showRedundant = false
+      buildCosts.clear()
+      showCosts = false
 
-    if (input.any()) {
-      inputs.buildInputs(input)
-      showInput = true
-    }
-    if (optionalInput.any()) {
-      optionalInputs.buildInputs(optionalInput)
-      showOptional = true
-    }
-    if (output.any()) {
-      outputs.buildOutput(output)
-      showOutput = true
-    }
-    if (redu.any()) {
-      redundant.buildOutput(redu)
-      showRedundant = true
-    }
-    if (buildCost.any()) {
-      buildCosts.buildBuildCost(buildCost)
-      showCosts = true
+      if (input.any()) {
+        inputs.buildInputs(input)
+        showInput = true
+      }
+      if (optionalInput.any()) {
+        optionalInputs.buildInputs(optionalInput)
+        showOptional = true
+      }
+      if (output.any()) {
+        outputs.buildOutput(output)
+        showOutput = true
+      }
+      if (redu.any()) {
+        redundant.buildOutput(redu)
+        showRedundant = true
+      }
+      if (buildCost.any()) {
+        buildCosts.buildBuildCost(buildCost)
+        showCosts = true
+      }
     }
   }
 
@@ -157,7 +160,19 @@ class StatisticDialog: BaseDialog(Core.bundle["dialog.statistic.title"]) {
   }
 
   private fun Table.buildBuildCost(buildCost: List<RecipeItemStack<*>>) {
+    val cols = if (Core.graphics.isPortrait) 2 else 4
 
+    buildCost.forEachIndexed { index, stack ->
+      if (index > 0 && index%cols == 0) row()
+      table(Consts.darkGrayUIAlpha) { rec ->
+        val item = stack.item
+        val name = item.localizedName
+
+        rec.left().defaults().left()
+        rec.itemIcon(stack).size(36f).pad(4f)
+        rec.add(name, Styles.outlineLabel).padLeft(6f)
+      }.left().fillY().growX().pad(8f).margin(8f)
+    }
   }
 
   private fun Table.itemIcon(stack: RecipeItemStack<*>) = stack(
@@ -168,7 +183,7 @@ class StatisticDialog: BaseDialog(Core.bundle["dialog.statistic.title"]) {
       it.left().bottom()
       it.add(formatAmount(stack), Styles.outlineLabel)
         .apply {
-          fontScale(0.8f)
+          fontScale(0.85f)
         }
       it.pack()
     },
@@ -177,7 +192,7 @@ class StatisticDialog: BaseDialog(Core.bundle["dialog.statistic.title"]) {
       it.right().top().defaults().right().bottom().pad(4f)
       it.image(Icon.lock).scaling(Scaling.fit).size(10f).color(Color.lightGray)
     }
-  ).grow().pad(5f)
+  )
 
   private fun Table.sepLine(
     icon: Drawable,
