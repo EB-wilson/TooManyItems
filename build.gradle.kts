@@ -162,7 +162,7 @@ tasks {
             setOf(platformRoot)
         ).joinToString(" ") { "--classpath $it" }
 
-        "${d8.absolutePath} $dependencies --min-api 14 --output ${project.name}-android.jar ${project.name}-desktop.jar"
+        "${d8.absolutePath} $dependencies --min-api 26 --output ${project.name}-android.jar ${project.name}-desktop.jar"
           .execute(File("$buildDir/libs"))
       }
       catch (e: Throwable) {

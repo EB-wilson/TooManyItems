@@ -6,7 +6,7 @@ on:
 
 jobs:
   publish-workshop-item:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     env:
       GITHUB_WORKSPACE: ${{ github.workspace }}
     steps:
