@@ -41,11 +41,12 @@ class CalculatorDialog: BaseDialog("") {
     val exportDialog = ExportDialog()
 
     fun showCalculatorHelp(){
-      val docText = TmiAssets.getDocument("calculator-help.md")
+      val docFile = TmiAssets.getDocumentFile("calculator-help.md")
       document.showDocument(
         Core.bundle["misc.calculatorHelp"],
+        docFile.parent(),
         MarkdownStyles.defaultMD,
-        docText
+        docFile.readString()
       )
     }
   }

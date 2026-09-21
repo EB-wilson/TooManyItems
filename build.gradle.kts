@@ -100,9 +100,9 @@ dependencies {
   compileOnly("com.github.Anuken.Arc:arc-core:$arcVersion")
   compileOnly("com.github.Anuken.Mindustry:core:$mindustryVersion")
 
-  implementation("com.github.EB-wilson.UniverseKit:utilities:1.4")
-  implementation("com.github.EB-wilson.UniverseKit:markdown:1.4")
-  implementation("com.github.EB-wilson.UniverseKit:reflection:1.4")
+  implementation("com.github.EB-wilson.UniverseKit:utilities:1.5")
+  implementation("com.github.EB-wilson.UniverseKit:markdown:1.5")
+  implementation("com.github.EB-wilson.UniverseKit:reflection:1.5")
 
   implementation("com.belerweb:pinyin4j:2.5.1")
 

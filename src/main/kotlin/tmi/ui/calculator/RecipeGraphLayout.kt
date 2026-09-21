@@ -42,6 +42,8 @@ object RecipeGraphLayout {
       }
     }
 
+    nodeList.addAll(attachShadowNodes(graph, copyMap))
+
     val layered = nodeList.sortedBy { it.contextDepth }
     val resolved = reduceLongEdges(resolveLoops(layered))
 
@@ -57,21 +59,7 @@ object RecipeGraphLayout {
     return sortedLayers
   }
 
-  /**
-   * 长边压缩：重新分配层号，让**全图连线长度之和**最小（连线每跨一层记 1），
-   * 也就是「长边（跨层连接边）长度最小化」这一步。
-   *
-   * 约束有两条，都是界面语义要求的：
-   * 1. 提供方必须比消费方至少深一层（连线的方向不许反）；
-   * 2. 最终产物（没有下游消费者的节点）必须留在第 0 层 —— [Node.isRoot] 就是 `contextDepth == 0`，
-   *    [RecipeTab] 靠它决定显示目标产量输入框还是倍率。
-   *
-   * 在这两条约束下最小化 Σ(层号差) 是个整数规划，[RecipeLayerAssignment] 用一次最大流
-   * （最大权闭合子图）求出精确最优解；这里只负责把布局节点转成它的邻接表、再把结果写回
-   * `contextDepth`。同一对节点之间按 item 连几条线就算几条。
-   *
-   * @return 传入的 [nodes]（层号已就地更新）。图里仍有环、或者规模超出求解器护栏时保持原层号。
-   */
+  /**进行一次线性规划最小化图中的长边。*/
   private fun reduceLongEdges(nodes: List<Node>): List<Node> {
     if (nodes.size <= 1) return nodes
 
@@ -118,8 +106,14 @@ object RecipeGraphLayout {
 
       for (l in 0..<sorting.size) {
         val node = sorting[l]
-        var o = 0f
         val children = node.children()
+
+        if (children.isEmpty()) {
+          order[l] = l.toFloat()
+          continue
+        }
+
+        var o = 0f
         for (child in children) {
           o += (refIndex[child] ?: -1).toFloat()
         }
@@ -174,6 +168,30 @@ object RecipeGraphLayout {
 
     return nodes
   }
+  private fun shadowInput(consumer: RecNode, item: RecipeItem<*>, shadow: ShadowNode) {
+    consumer.disInput(item)
+    consumer.linkInput(item, shadow)
+  }
+
+  private fun attachShadowNodes(
+    graph: RecipeGraph,
+    copyMap: Map<RecipeGraphNode, RecNode>,
+  ): List<ShadowNode> {
+    val shadows = mutableListOf<ShadowNode>()
+
+    graph.shadowLinks().forEach { link ->
+      val consumer = copyMap[link.consumer] ?: return@forEach
+      val source = copyMap[link.source] ?: return@forEach
+
+      if (consumer.parentsWithItem()[link.item] !== source) return@forEach
+
+      val shadow = ShadowNode(source, ShadowKind.USER)
+      shadowInput(consumer, link.item, shadow)
+      shadows.add(shadow)
+    }
+
+    return shadows
+  }
 
   private fun resolveLoops(nodes: List<Node>): List<Node> {
     val swap = mutableListOf<Node>()
@@ -185,10 +203,9 @@ object RecipeGraphLayout {
       node.parentsWithItem().forEach { (item, parent) ->
         if (parent is RecNode && ((parent.contextDepth < node.contextDepth && parent.findLoop(node)) || parent == node)) {
           val shadowed = shadowedMap.computeIfAbsent(parent) { _ ->
-            ShadowNode(parent).also { swap.add(it) }
+            ShadowNode(parent, ShadowKind.LOOP).also { swap.add(it) }
           }
-          node.disInput(item)
-          node.linkInput(item, shadowed)
+          shadowInput(node, item, shadowed)
 
           standardDepth(swap)
         }
@@ -243,7 +260,7 @@ object RecipeGraphLayout {
     internal var contextDepth = 0
     internal var layerIndex = 0
 
-    val isRoot: Boolean get() = contextDepth == 0
+    open val isRoot: Boolean get() = contextDepth == 0
 
     abstract fun parents(): List<Node>
     abstract fun parentsWithItem(): Map<RecipeItem<*>, Node>
@@ -274,6 +291,8 @@ object RecipeGraphLayout {
     private val outputs = mutableMapOf<RecipeItem<*>, MutableList<Node>>()
     private val inputs = mutableMapOf<RecipeItem<*>, Node>()
 
+    override val isRoot: Boolean get() = targetNode.isFinalProduct()
+
     override fun parents() = inputs.values.toList()
     override fun parentsWithItem() = inputs.toMap()
 
@@ -300,8 +319,17 @@ object RecipeGraphLayout {
     }
   }
 
+  /**影子节点的来源标记。*/
+  enum class ShadowKind {
+    /**断环：[resolveLoops] 为了断开环边自动造出来的，只服务于断环。*/
+    LOOP,
+    /**用户的：由用户登记的 [RecipeGraph.ShadowLink] 创建的副本。*/
+    USER,
+  }
+
   class ShadowNode(
-    val shadowed: RecNode
+    val shadowed: RecNode,
+    val kind: ShadowKind,
   ): RecNode(shadowed.targetNode, shadowed.recipe)
 
   class LineMark(

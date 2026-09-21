@@ -3,10 +3,14 @@ package tmi.ui.calculator
 import arc.math.geom.Vec2
 import tmi.recipe.types.RecipeItem
 
+/**长边在中间层插的那个占位元素：本身没有尺寸，只把两端的悬停监听转交给真正的卡片。
+ *
+ * 两端收 [RecipeGraphElement] 而不是具体的卡片类型：断环影子的某条输出也可能跨好几层，
+ * 于是长边的提供方那端会是 [ShadowTab]。*/
 class LineMark(
   override val node: RecipeGraphLayout.LineMark,
-  val from: RecipeTab,
-  val to: RecipeTab,
+  val from: RecipeGraphElement,
+  val to: RecipeGraphElement,
 ): RecipeGraphElement {
   override val nodeWidth: Float get() = 0f
   override val nodeHeight: Float get() = 0f

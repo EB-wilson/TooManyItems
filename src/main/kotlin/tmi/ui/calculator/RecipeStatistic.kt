@@ -109,12 +109,12 @@ class RecipeStatistic(
     }
   }
 
-  fun resultInputs() = inputs.values().filter { it.amount > 0 }.map { listOf(it) } + inputGroups.filter { !it.first().isOptional }.map { it.toList() }
-  fun resultOptionalInputs() = optionalInputs.values().filter { it.amount > 0 }.map { listOf(it) } + inputGroups.filter { it.first().isOptional }.map { it.toList() }
-  fun resultOutputs() = outputs.values().filter { it.amount > 0 }
-  fun resultRedundant() = redundant.values().filter { it.amount > 0 }.sortedBy { -it.amount }
+  fun resultInputs() = inputs.values().filter { it.amount > 0.00001 }.map { listOf(it) } + inputGroups.filter { !it.first().isOptional }.map { it.toList() }
+  fun resultOptionalInputs() = optionalInputs.values().filter { it.amount > 0.00001 }.map { listOf(it) } + inputGroups.filter { it.first().isOptional }.map { it.toList() }
+  fun resultOutputs() = outputs.values().filter { it.amount > 0.00001 }
+  fun resultRedundant() = redundant.values().filter { it.amount > 0.00001 }.sortedBy { -it.amount }
 
-  fun resultBuildMaterials() = buildMaterials.values().filter { it.amount > 0 }
+  fun resultBuildMaterials() = buildMaterials.values().filter { it.amount > 0.00001 }
 
   @Suppress("UNCHECKED_CAST")
   fun allBlocks(): List<RecipeItemStack<*>> = allRecipes.map {

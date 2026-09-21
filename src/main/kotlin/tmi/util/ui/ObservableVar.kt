@@ -25,3 +25,7 @@ class ObservableVar<V>(
 }
 
 fun <T> observed(value: T) = ObservableVar(value)
+
+fun test(){
+  var s by observed(1)
+}

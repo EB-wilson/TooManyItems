@@ -14,11 +14,16 @@ import tmi.util.Consts
 import tmi.util.set
 import kotlin.math.max
 
-const val SAVE_VERSION = 0
+/**影子连线（[RecipeGraph.ShadowLink]）被写入存档的版本。 */
+const val SHADOW_LINK_VERSION = 1
+
+const val SAVE_VERSION = SHADOW_LINK_VERSION
 
 class RecipeGraph: Iterable<RecipeGraphNode>{
 
   private val recipeNodes = Seq<RecipeGraphNode>()
+
+  private val shadowLinkList = Seq<ShadowLink>()
 
   fun addNode(node: RecipeGraphNode){
     recipeNodes.add(node)
@@ -47,7 +52,105 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
   fun clear(){
     recipeNodes.forEach { it.graph = null }
     recipeNodes.clear()
+    shadowLinkList.clear()
   }
+
+  /**影子连线的伴随数据：把 [consumer] 的 [item] 输入在**布局**里改接到 [source] 的一个副本上。
+   *
+   * 影子节点只是布局阶段的临时节点（[RecipeGraphLayout.ShadowNode]），**不会**作为 [RecipeGraphNode]
+   * 进入本图：真正的连线仍然记在 [consumer] 与 [source] 之间，所以产量、统计与图论结构都不受它影响。
+   * 这里保存的只是「哪一条连线需要影子」，随图一起写出 / 读入（见 [write] / [read]）。
+   *
+   * 影子必然伴生自它登记的那一条连线：连线被断开 / 改接到别处之后，会改连线的那些事务会调用
+   * [pruneShadowLinks] 把记录清掉，不会在上下文里留下指向已断连线的残留。*/
+  class ShadowLink(
+    val source: RecipeGraphNode,
+    val item: RecipeItem<*>,
+    val consumer: RecipeGraphNode,
+  ) {
+    override fun equals(other: Any?): Boolean = other is ShadowLink
+      && source === other.source
+      && consumer === other.consumer
+      && item == other.item
+
+    override fun hashCode(): Int =
+      31*(31*System.identityHashCode(source) + item.hashCode()) + System.identityHashCode(consumer)
+
+    override fun toString(): String =
+      "ShadowLink(source=${source.graphIndex}, item=${item.name}, consumer=${consumer.graphIndex})"
+  }
+
+  /**当前登记的全部影子连线记录。[source] / [consumer] 都已经离开本图的记录会一并返回，
+   * 但它们不会生效（见 [ShadowLink]），也不会被 [write] 写出。*/
+  fun shadowLinks(): List<ShadowLink> = shadowLinkList.toList()
+
+  /**这条连线是否已经登记过影子。*/
+  fun hasShadowLink(source: RecipeGraphNode, item: RecipeItem<*>, consumer: RecipeGraphNode): Boolean =
+    indexOfShadowLink(source, item, consumer) >= 0
+
+  /**登记一条影子连线；同一 (source, item, consumer) 只会有一条，重复登记会被忽略。
+   *
+   * @return 是否真的新增了一条记录。*/
+  fun addShadowLink(link: ShadowLink): Boolean {
+    if (link.source.graph != this || link.consumer.graph != this) return false
+    if (indexOfShadowLink(link.source, link.item, link.consumer) >= 0) return false
+
+    shadowLinkList.add(link)
+    return true
+  }
+
+  /**摘掉一条影子连线记录。
+   *
+   * @return 是否真的摘掉了一条记录。*/
+  fun removeShadowLink(link: ShadowLink): Boolean {
+    val index = indexOfShadowLink(link.source, link.item, link.consumer)
+    if (index < 0) return false
+
+    shadowLinkList.remove(index)
+    return true
+  }
+
+  /**一条影子记录还成立吗：两端都还在本图里，而且这条输入连线确实还接在它的 [ShadowLink.source] 上。*/
+  private fun isShadowLinkValid(link: ShadowLink): Boolean =
+    link.source.graph == this
+      && link.consumer.graph == this
+      && link.consumer.getInput(link.item) === link.source
+
+  /**清掉全部已经失效的影子记录 —— 连线被断开 / 改接到了别处，或者两端已经离开本图。
+   *
+   * 影子只伴生它登记的那一条连线，所以连线一断就不该再留在上下文里。会改连线的那些事务在提交时
+   * 调用它，并把操作前的记录留一份以便回滚（见 `CalculatorTransactions.InputChange`）。
+   *
+   * @return 被清掉的条数。*/
+  fun pruneShadowLinks(): Int {
+    var removed = 0
+    for (i in shadowLinkList.size - 1 downTo 0) {
+      if (isShadowLinkValid(shadowLinkList[i])) continue
+
+      shadowLinkList.remove(i)
+      removed++
+    }
+
+    return removed
+  }
+
+  /**按 (source, item, consumer) 找一条影子连线；节点按身份比较，物品按值比较。*/
+  private fun indexOfShadowLink(
+    source: RecipeGraphNode,
+    item: RecipeItem<*>,
+    consumer: RecipeGraphNode,
+  ): Int {
+    for (i in 0 until shadowLinkList.size) {
+      val link = shadowLinkList[i]
+      if (link.source === source && link.consumer === consumer && link.item == item) return i
+    }
+
+    return -1
+  }
+
+  /**能落盘的影子连线：两端都还在本图里的那些。*/
+  private fun persistableShadowLinks(): List<ShadowLink> =
+    shadowLinkList.toList().filter { it.source.graph == this && it.consumer.graph == this }
 
   fun isEmpty() = recipeNodes.isEmpty
 
@@ -128,6 +231,14 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
         writer.i(parent.graphIndex)
       }
     }
+
+    val shadows = persistableShadowLinks()
+    writer.i(shadows.size)
+    shadows.forEach { link ->
+      writer.i(link.source.graphIndex)
+      writer.str(link.item.name)
+      writer.i(link.consumer.graphIndex)
+    }
   }
 
   fun read(reader: Reads, reversion: Int){
@@ -203,6 +314,31 @@ class RecipeGraph: Iterable<RecipeGraphNode>{
 
         it.node.setInput(item, target)
       }
+    }
+
+    if (reversion >= SHADOW_LINK_VERSION) readShadowLinks(reader, indexMap)
+  }
+
+  /**读取影子连线伴随数据（[SHADOW_LINK_VERSION] 起才有）。两端有一端找不回来的记录直接丢弃：
+   * 那说明存档里的图本身已经不自洽，没必要为了它把整张图判为损坏。*/
+  private fun readShadowLinks(reader: Reads, indexMap: IntMap<RecipeGraphNode>) {
+    val numLinks = reader.i()
+    (0 until numLinks).forEach { _ ->
+      val sourceIndex = reader.i()
+      val item = TooManyItems.itemsManager.getByName<Any>(reader.str())
+      val consumerIndex = reader.i()
+
+      val source = indexMap.get(sourceIndex)
+      val consumer = indexMap.get(consumerIndex)
+
+      if (source == null || consumer == null) {
+        CalculatorLayout.warnOnce(
+          "Shadow link dropped: its ${if (source == null) "source" else "consumer"} node is missing (index $sourceIndex / $consumerIndex)."
+        )
+        return@forEach
+      }
+
+      addShadowLink(ShadowLink(source, item, consumer))
     }
   }
 

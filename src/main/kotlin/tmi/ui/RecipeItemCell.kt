@@ -263,7 +263,7 @@ open class RecipeItemCell(
     updateText = true
   }
 
-  fun setChosenItem(item: RecipeItem<*>) = also {
+  fun setChosenItem(item: RecipeItem<*>): RecipeItemCell = also {
     val index = groupItems.indexOfFirst { it.item == item }
     if (itemIndex < 0) return this
     itemIndex = index

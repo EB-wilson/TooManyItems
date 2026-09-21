@@ -33,15 +33,19 @@ import tmi.recipe.types.RecipeItem
 import tmi.recipe.types.RecipeItemType
 import tmi.ui.*
 import tmi.ui.calculator.RecipeGraphElement.AddRecipeButton
+import tmi.ui.calculator.RecipeGraphLayout.ShadowKind
 import tmi.util.Consts
-import tmi.util.enterSt
-import tmi.util.exitSt
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 class CalculatorView: Table(), CalculatorDialog.TipsProvider {
+  companion object {
+    val statisticDialog = StatisticDialog()
+  }
+
   var isUpdated = false
     private set
   var astringentValid = false
@@ -77,8 +81,19 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
   private val recipeElements = Seq<RecipeGraphElement>()
   private val nodeToElement = ObjectMap<RecipeGraphLayout.Node, RecipeGraphElement>()
 
-  private var hoveringShadow: RecipeTab? = null
-  private val shadowTabs = Seq<RecipeTab>()
+  /**「添加配方」按钮。它是纯界面入口，不是图里的节点：不进 [layers]，因此不参与布局宽度与位置的计算，
+   * 只在首层排完之后贴到首层节点的最右侧（见 [CalculatorLayout.layoutAddButton]）。*/
+  private var addButton: AddRecipeButton? = null
+
+  /**当前悬停到的那张卡片。两者最多只有一个非空 —— 它们决定这一帧画哪几条影子连线。*/
+  private var hoveringShadow: ShadowTab? = null
+  private var hoveringRecipe: RecipeTab? = null
+
+  private val shadowTabs = Seq<ShadowTab>()
+
+  /**影子节点连回真身的虚线；每次布局重算一次，绘制时直接照抄（见 [layoutShadowLines]）。*/
+  private val shadowRoutes = Seq<ShadowRoute>()
+  private val shadowBranches = ObjectMap<ShadowTab, ShadowBranch>()
 
   private val linkLines = Seq<CalculatorLayout.LinkLine>()
   private val layerCenter = Seq<Float>()
@@ -113,6 +128,8 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     }
 
     fun show(node: RecipeGraphNode, item: RecipeItem<*>): Boolean {
+      //只有真身卡片能作为连接目标：影子是另一个类型（[ShadowTab]），压根不在这个列表里 ——
+      //它与真身共用同一个 targetNode，点它等于给真身接线，只会和真身那条候选重复。
       val validNodes = recipeElements
         .filterIsInstance<RecipeTab>()
         .filter { it.node.recipe.containsProduction(item) }
@@ -121,18 +138,35 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
       visible = true
 
       clearChildren()
-      validNodes.forEach { tabs ->
+      validNodes.forEach { tab ->
         val select = Button()
         select.style = Consts.recipeTabSelector
         select.clicked {
-          this@CalculatorView.commitTransaction(
-            CalculatorTransactions.ConnectInput(this@CalculatorView, node, item, tabs.node.targetNode)
-          )
+          val target = tab.node.targetNode
+
+          if (node.getInput(item) != target) {
+            //输入还没接在这张卡片上：这是一次普通连接。
+            this@CalculatorView.commitTransaction(
+              CalculatorTransactions.ConnectInput(this@CalculatorView, node, item, target)
+            )
+          }
+          else if (this@CalculatorView.graph.hasShadowLink(target, item, node)) {
+            //已经接在这张卡片上、而且这条连线正由它的影子呈现：再点一次就是把影子撤掉，恢复直连。
+            this@CalculatorView.commitTransaction(
+              CalculatorTransactions.RemoveShadowNode(this@CalculatorView, node, item, target)
+            )
+          }
+          else {
+            //已经接在这张卡片上：把这条连线收起来，交给它的影子副本呈现。
+            this@CalculatorView.commitTransaction(
+              CalculatorTransactions.MakeShadowNode(this@CalculatorView, node, item, target)
+            )
+          }
           hide()
         }
         select.setBounds(
-          tabs.x - Scl.scl(16f), tabs.y - Scl.scl(16f),
-          tabs.width + Scl.scl(32f), tabs.height + Scl.scl(32f)
+          tab.x - Scl.scl(16f), tab.y - Scl.scl(16f),
+          tab.width + Scl.scl(32f), tab.height + Scl.scl(32f)
         )
         select.addEventBlocker()
         addChild(select)
@@ -142,8 +176,72 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     }
   }
 
+  /**一个影子节点接出来的那条横向支线。*/
+  private class ShadowBranch(val tab: ShadowTab) {
+    var route: ShadowRoute? = null
+    var x = 0f
+    var y = 0f
+  }
+
+  /**同一个真身的全部影子连回真身的一束虚线。
+   *
+   * 它们共用一条竖直**主支** [trunkX]：每条支线从影子横向走到主支上（[ShadowBranch.x] → [trunkX]），
+   * 主支再单独接一条线回真身（[sourceX] / [sourceY]）。多条主支之间用 [lane] 错开 —— 0 是离图最近的
+   * 一条，越大越靠左；分配方式见 [assignShadowLanes]。
+   *
+   * 主支的纵向区间、以及这一束里哪些支线要画，都在绘制时按当前悬停现算（见 `drawShadowLines`）：
+   * 默认只画断环替身，悬停到真身时画出它的全部影子，悬停到某个影子时只画那一条。*/
+  private class ShadowRoute(val source: RecipeGraphLayout.RecNode) {
+    val branches = mutableListOf<ShadowBranch>()
+
+    /**全部横向支线的 y，外加真身那一端；[assignShadowLanes] 用它判断「谁跨过谁」。*/
+    val stubYs = mutableListOf<Float>()
+
+    var lane = 0
+    var trunkX = 0f
+    var topY = 0f
+    var bottomY = 0f
+    var sourceX = 0f
+    var sourceY = 0f
+  }
+
   override fun getTip(): String = Core.bundle["calculator.tips.selectExisted"]
   override fun tipValid(): Boolean = tabSelectors.visible
+
+  /**记下当前悬停到的卡片；两者互斥，后进来的那个把另一个清掉（进出事件可能交错）。*/
+  private fun focusHover(tab: Element) {
+    hoveringShadow = tab as? ShadowTab
+    hoveringRecipe = tab as? RecipeTab
+  }
+
+  /**指针离开 [tab] 时才清空；离开的是别人就不动（避免两个卡片的进出事件互相踩）。*/
+  private fun clearHover(tab: Element) {
+    if (hoveringShadow === tab) hoveringShadow = null
+    if (hoveringRecipe === tab) hoveringRecipe = null
+  }
+
+  /**让这张卡片参与影子连线的悬停显隐（见 `drawShadowLines`）。有两件事必须都做对：
+   *
+   * 1. **卡片自己要可被命中**。卡片是 `Table`，默认 `Touchable.childrenOnly` —— 指针落在它的空白处
+   *    时不会被命中，悬停事件压根不会产生，于是只有移到某个格子（子元素）上才有效果。
+   * 2. **不能用 `Convenients.enterSt`**。它把「从空处进入」的 enter（`fromActor == null`）当成卡片内部
+   *    的移动跳过了，指针从图外挪到卡片上时反而不触发。这里任何一次 enter 都算数。
+   *
+   * exit 只在真的离开整张卡片（去往非子元素）时才清空，所以卡片内部的格子之间移动不会中断悬停。
+   * 两个状态都是立刻写入的：进出事件本来就有先后，延到下一帧反而可能把「进来又出去」记成一直悬停。*/
+  private fun Element.trackShadowHover() {
+    touchable = Touchable.enabled
+
+    addListener(object : InputListener() {
+      override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Element?) {
+        focusHover(this@trackShadowHover)
+      }
+
+      override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Element?) {
+        if (!(toActor?.isDescendantOf(this@trackShadowHover) ?: false)) clearHover(this@trackShadowHover)
+      }
+    })
+  }
 
   fun getBound() = Rect(viewBound).also {
     it.y -= ioList.height
@@ -152,12 +250,106 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
   fun layoutRecipeTabs(){
     CalculatorLayout.layoutNodes(layers, { nodeToElement[it] }, viewBound, layerCenter)
+
+    //添加按钮是纯界面入口，不参与上面的宽度 / 位置计算：这里按排好的首层结果单独摆位。
+    val button = addButton ?: return
+    CalculatorLayout.layoutAddButton(layers, { nodeToElement[it] }, button)
   }
 
   fun layoutLinkLines(){
     CalculatorLayout.layoutLinks(layers, { nodeToElement[it] }, layerCenter, linkLines) { tab, linked, line ->
       tab.setupInputOverListener(line)
       linked.setupOutputOverListener(line)
+    }
+  }
+
+  /**把影子节点连回真身的虚线整理成「一个真身一条主支」。
+   *
+   * 同一个真身的全部影子共用一条竖直**主支**：每个影子先用一条横向支线走到主支上，主支再单独接
+   * 一条线回真身。这样同一真身内部不再有一堆互相平行的竖线；不同真身的主支之间按交叉数错开
+   * （见 [assignShadowLanes]）。
+   *
+   * 这里只把几何算定（主支的横向位置、每条支线的坐标）；**画哪几条**是按当前悬停现算的，
+   * 见 `drawShadowLines`。
+   *
+   * 与 [layoutLinkLines] 一样只在布局阶段算一次，绘制阶段直接照抄结果 —— 节点位置本来就是布局
+   * 阶段定下来的。*/
+  fun layoutShadowLines() {
+    shadowRoutes.clear()
+    shadowBranches.clear()
+    if (shadowTabs.isEmpty) return
+
+    val routes = LinkedHashMap<RecipeGraphLayout.RecNode, ShadowRoute>()
+
+    shadowTabs.forEach { tab ->
+      val shadow = tab.node
+      val real = nodeToElement[shadow.shadowed] ?: return@forEach
+
+      val route = routes.getOrPut(shadow.shadowed) { ShadowRoute(shadow.shadowed).also { shadowRoutes.add(it) } }
+
+      val center = tab.centerOffset()
+      val branch = ShadowBranch(tab)
+      branch.route = route
+      branch.x = center.x + tab.nodeX
+      branch.y = center.y + tab.nodeY
+
+      route.branches.add(branch)
+      route.stubYs.add(branch.y)
+
+      val realCenter = real.centerOffset()
+      route.sourceX = realCenter.x + real.nodeX
+      route.sourceY = realCenter.y + real.nodeY
+
+      shadowBranches.put(tab, branch)
+    }
+
+    shadowRoutes.forEach { route ->
+      route.topY = (route.stubYs + route.sourceY).min()
+      route.bottomY = (route.stubYs + route.sourceY).max()
+    }
+
+    assignShadowLanes()
+
+    shadowRoutes.forEach { route ->
+      route.trunkX = viewBound.x - Scl.scl(CalculatorLayout.SHADOW_SIDE_OFFSET) -
+        Scl.scl(CalculatorLayout.SHADOW_LANE_STEP)*route.lane
+    }
+  }
+
+  /**给每条主支分配左侧偏移量 [ShadowRoute.lane]（0 最靠近图，越大越靠左）。
+   *
+   * 一条横向支线从影子走到自己的主支时会跨过全部**比它更靠近图**的主支；如果被跨过的那条主支的
+   * 纵向区间正好盖住这条支线的 y，就算一次交叉。这里每一档都挑「当前交叉最少」的那条主支放上去，
+   * 让最靠内的几条主支尽量不被跨过。同分时按影子表里的先后顺序取（顺序稳定）。
+   *
+   * 这是个贪心，不保证全局交叉数最少；主支数量很少，够用且结果稳定。*/
+  private fun assignShadowLanes() {
+    val remaining = shadowRoutes.toMutableList()
+    val placed = mutableListOf<ShadowRoute>()
+    var lane = 0
+
+    while (remaining.isNotEmpty()) {
+      var best: ShadowRoute? = null
+      var bestCrossings = Int.MAX_VALUE
+
+      remaining.forEach { route ->
+        var crossings = 0
+        route.stubYs.forEach { y ->
+          placed.forEach { other ->
+            if (y >= other.topY && y <= other.bottomY) crossings++
+          }
+        }
+
+        if (crossings < bestCrossings) {
+          bestCrossings = crossings
+          best = route
+        }
+      }
+
+      val chosen = best ?: break
+      chosen.lane = lane++
+      placed.add(chosen)
+      remaining.remove(chosen)
     }
   }
 
@@ -176,6 +368,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
         layoutRecipeTabs()
         layoutLinkLines()
+        layoutShadowLines()
       }
 
       override fun removeChild(actor: Element?, unfocus: Boolean): Boolean {
@@ -239,51 +432,73 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
         Draw.color()
       }
 
+      /**这一帧该画哪些影子连线。
+       *
+       * 默认只画断环替身：环边的替身是理解这张图的必需品，而用户自己收起来的那些线一旦全画出来
+       * 就是一团乱麻。悬停真身时把它名下全部影子的线摊开；悬停某个影子时只画它那一条。*/
       private fun drawShadowLines() {
-        fun draw(shadow: RecipeTab, offX: Float) {
-          val realNode = (shadow.node as RecipeGraphLayout.ShadowNode).shadowed
-          val realTab = nodeToElement[realNode]
+        val sig = Scl.scl(CalculatorLayout.SHADOW_DASH)
+        val hoveredShadow = hoveringShadow
+        val hoveredReal = hoveringRecipe
 
-          val bx = viewBound.x - Scl.scl(CalculatorLayout.SHADOW_SIDE_OFFSET) - offX
-          val rc = realTab.centerOffset().cpy().add(realTab.nodeX, realTab.nodeY)
-          val sc = shadow.centerOffset().cpy().add(shadow.nodeX, shadow.nodeY)
-
-          val sig = Scl.scl(CalculatorLayout.SHADOW_DASH)
-          Lines.dashLine(
-            x + sc.x, y + sc.y,
-            x + bx, y + sc.y,
-            (abs(bx - sc.x)/sig).roundToInt()
-          )
-          Lines.dashLine(
-            x + bx, y + sc.y,
-            x + bx, y + rc.y,
-            (abs(sc.y - rc.y)/sig).roundToInt()
-          )
-          Lines.dashLine(
-            x + bx, y + rc.y,
-            x + rc.x, y + rc.y,
-            (abs(bx - rc.x)/sig).roundToInt()
-          )
+        /**画一段虚线。[x1] / [y1] / [x2] / [y2] 是相对本元素的坐标。*/
+        fun dash(x1: Float, y1: Float, x2: Float, y2: Float) {
+          val len = max(abs(x2 - x1), abs(y2 - y1))
+          Lines.dashLine(x + x1, y + y1, x + x2, y + y2, (len/sig).roundToInt().coerceAtLeast(1))
         }
 
-        var n = 0
-        shadowTabs.forEachIndexed { i, shadow ->
-          if (shadow == hoveringShadow) {
-            n = i
-            return@forEachIndexed
+        fun isVisible(branch: ShadowBranch, route: ShadowRoute): Boolean = when {
+          //断环替身一直画。
+          branch.tab.kind == ShadowKind.LOOP -> true
+          //悬停某个影子：只画它那一条。
+          hoveredShadow != null -> hoveredShadow === branch.tab
+          //悬停真身：把挂在它名下的影子全部画出来。
+          hoveredReal != null -> nodeToElement[route.source] === hoveredReal
+          else -> false
+        }
+
+        Lines.stroke(Scl.scl(CalculatorLayout.LINE_STROKE))
+        Draw.color(Color.gray)
+
+        shadowRoutes.forEach { route ->
+          //主支的纵向区间只覆盖这一帧真正要画的支线，加上真身那一端 —— 藏起来的支线不会把主支撑长。
+          var top = Float.POSITIVE_INFINITY
+          var bottom = Float.NEGATIVE_INFINITY
+          var any = false
+
+          route.branches.forEach { branch ->
+            if (!isVisible(branch, route)) return@forEach
+
+            any = true
+            if (branch.y < top) top = branch.y
+            if (branch.y > bottom) bottom = branch.y
+
+            dash(branch.x, branch.y, route.trunkX, branch.y)
           }
-          Lines.stroke(Scl.scl(CalculatorLayout.LINE_STROKE))
-          Draw.color(Color.gray)
 
-          draw(shadow, Scl.scl(CalculatorLayout.SHADOW_LANE_STEP)*i)
+          if (!any) return@forEach
+
+          if (route.sourceY < top) top = route.sourceY
+          if (route.sourceY > bottom) bottom = route.sourceY
+
+          dash(route.trunkX, top, route.trunkX, bottom)
+          dash(route.trunkX, route.sourceY, route.sourceX, route.sourceY)
         }
 
-        hoveringShadow?.also { shadow ->
+        //当前悬停到的那一个影子：把它的那条线用强调色重画一遍。起止点与灰色那遍完全一样，
+        //虚线相位因此对齐，不会出现重影。
+        hoveredShadow?.also { shadow ->
+          val branch = shadowBranches.get(shadow) ?: return@also
+          val route = branch.route ?: return@also
+          if (!isVisible(branch, route)) return@also
+
           Lines.stroke(Scl.scl(CalculatorLayout.LINE_STROKE))
           Draw.color(Pal.accent, Color.gray, Mathf.absin(10f, 1f))
 
-          draw(shadow, Scl.scl(CalculatorLayout.SHADOW_LANE_STEP)*n)
+          dash(branch.x, branch.y, route.trunkX, branch.y)
         }
+
+        Draw.color()
       }
     }
   }
@@ -349,8 +564,8 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     graphUpdated()
 
     touchable = Touchable.enabled
-    setPanListener()
     setZoomListener()
+    setPanListener()
 
     addEventBlocker(true){ e -> browsMode && e is InputEvent && e.type == InputEvent.InputEventType.touchDown }
 
@@ -382,7 +597,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
       label.add(Core.bundle["dialog.calculator.statistic"]).color(Pal.accent)
         .padLeft(12f).padRight(12f).growX()
         .labelAlign(Align.center)
-      label.button(Icon.listSmall, Styles.clearNonei){}.size(32f)
+      label.button(Icon.listSmall, Styles.clearNonei, ::showStatistic).size(32f)
     }.pad(8f).padTop(26f).growX()
     ioList.row()
     ioList.image().color(Pal.accent).growX().height(4f).padBottom(8f)
@@ -405,6 +620,10 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     }.pad(8f).growX().fillY()
   }
 
+  fun showStatistic() {
+    statisticDialog.show(statistic = statistic)
+  }
+
   fun rebuildIO() {
     val formatter = AmountFormatter.timedAmountFormatter()
 
@@ -418,10 +637,12 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
     outputs.clearChildren()
     val out = statistic.resultOutputs()
-    val res = statistic.resultRedundant()
+    val red = statistic.resultRedundant()
 
-    (out + res).groupBy { it.item }
-      .map { (k, v) -> RecipeItemStack(k, v.sumOf{ s -> s.amount.toDouble() }.toFloat()) }
+    (out + red).groupBy { it.item }
+      .map { (k, v) ->
+        RecipeItemStack(k, v.sumOf{ s -> s.amount.toDouble() }.toFloat())
+      }
       .filter { it.amount > 0.000001f }
       .forEachIndexed { i, stack ->
         if (i > 0 && i % 6 == 0) outputs.row()
@@ -562,25 +783,31 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     recipeElements.clear()
     nodeToElement.clear()
     shadowTabs.clear()
+    shadowRoutes.clear()
+    shadowBranches.clear()
     hoveringShadow = null
+    hoveringRecipe = null
     graphView.clearChildren()
 
     layers = RecipeGraphLayout.generateLayout(graph)
 
     layers.forEach { layer ->
-      layer.filterIsInstance<RecipeGraphLayout.RecNode>().forEach {
-        val elem = RecipeTab(it, this, it is RecipeGraphLayout.ShadowNode)
+      layer.filterIsInstance<RecipeGraphLayout.RecNode>().forEach { layoutNode ->
+        //影子是真身之外的另一种卡片：它不可编辑，所以是独立类型，只有「点击聚焦真身」这一种交互。
+        if (layoutNode is RecipeGraphLayout.ShadowNode) {
+          val elem = ShadowTab(layoutNode, this)
 
-        if (elem.isShadow) {
-          elem.touchable = Touchable.enabled
-          elem.enterSt { Core.app.post { hoveringShadow = elem } }
-          elem.exitSt { hoveringShadow = null }
-
-          elem.clicked { focusOn((it as RecipeGraphLayout.ShadowNode).shadowed) }
-          elem.getRecipeCells().forEach { c -> c.addEventBlocker() }
+          elem.trackShadowHover()
+          elem.clicked { focusOn(layoutNode.shadowed) }
+          addRecipeTab(elem)
         }
+        else {
+          //悬停真身时把它名下全部影子的连线摊开，见 drawShadowLines。
+          val elem = RecipeTab(layoutNode, this)
 
-        addRecipeTab(elem)
+          elem.trackShadowHover()
+          addRecipeTab(elem)
+        }
       }
     }
 
@@ -588,8 +815,8 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
       layer.filterIsInstance<RecipeGraphLayout.LineMark>().forEach mark@{ mark ->
         val origin = mark.getOriginNode()
         val target = mark.getTargetNode()
-        val from = target?.let { nodeToElement[it] as? RecipeTab }
-        val to = origin?.let { nodeToElement[it] as? RecipeTab }
+        val from = target?.let { nodeToElement[it] }
+        val to = origin?.let { nodeToElement[it] }
 
         if (from == null || to == null) {
           CalculatorLayout.defect("Illegal graph linking (link in or out was null).")
@@ -600,10 +827,11 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
       }
     }
 
+    //添加按钮不参与布局：它不进任何一层，首层的宽度与位置因此完全由真实节点决定。
+    //它的位置在 layoutAddButton 里按首层结果单独贴出来。
     val add = AddRecipeButton(this)
+    addButton = add
     addRecipeTab(add)
-    if (layers.isEmpty()) layers = arrayOf(Seq.with(add.node))
-    else layers.first().add(add.node)
 
     balanceUpdated()
   }
@@ -624,10 +852,14 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     recipeElements.clear()
     nodeToElement.clear()
     shadowTabs.clear()
+    shadowRoutes.clear()
+    shadowBranches.clear()
     hoveringShadow = null
+    hoveringRecipe = null
     linkLines.clear()
     layerCenter.clear()
     layers = arrayOf()
+    addButton = null
     viewBound.setSize(0f)
     if (this::graphView.isInitialized) graphView.clearChildren()
 
@@ -702,10 +934,10 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     statistic.updateStatistic()
     graphView.act(0f) // update the balanced amount
 
-    recipeElements.filterIsInstance<RecipeTab>().forEach {
-      it.invalidate()
-      it.validate()
-      it.pack()
+    //两种卡片的文字都是缓存的，平衡数量一变就要重新刷一遍并重新量尺寸。
+    recipeElements.forEach { element ->
+      if (element is RecipeTab) element.refreshLayout()
+      else if (element is ShadowTab) element.refreshLayout()
     }
 
     graphView.invalidate()
@@ -715,7 +947,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
 
   private fun addRecipeTab(recipeTab: RecipeGraphElement){
     if (recipeTab is Element) graphView.addChild(recipeTab)
-    if (recipeTab is RecipeTab && recipeTab.isShadow) shadowTabs.add(recipeTab)
+    if (recipeTab is ShadowTab) shadowTabs.add(recipeTab)
     recipeElements.add(recipeTab)
     nodeToElement.put(recipeTab.node, recipeTab)
   }
@@ -724,7 +956,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     recipeElements.remove(recipeTab)
     nodeToElement.remove(recipeTab.node)
     if (recipeTab is Element) graphView.removeChild(recipeTab)
-    if (recipeTab is RecipeTab && recipeTab.isShadow) shadowTabs.remove(recipeTab)
+    if (recipeTab is ShadowTab) shadowTabs.remove(recipeTab)
   }
 
   private fun clamp() {
@@ -743,7 +975,7 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     panY = ry - bounds.y - oy
   }
 
-  private fun setZoomListener() {
+  private fun setPanListener() {
     addCaptureListener(object : ElementGestureListener() {
       var panEnable: Boolean = false
 
@@ -781,9 +1013,10 @@ class CalculatorView: Table(), CalculatorDialog.TipsProvider {
     })
   }
 
-  private fun setPanListener() {
+  private fun setZoomListener() {
     addCaptureListener(object : InputListener() {
       override fun scrolled(event: InputEvent, x: Float, y: Float, amountX: Float, amountY: Float): Boolean {
+        zoom.setOrigin(Align.center)
         zoom.setScale(Mathf.clamp(zoom.scaleX - amountY/10f*zoom.scaleX, 0.25f, 1f).also { lastZoom = it })
 
         clamp()

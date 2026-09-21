@@ -151,6 +151,45 @@ object CalculatorLayout {
     }
   }
 
+  /** 把界面上的「添加配方」按钮紧贴到首层最右侧卡片的右边。
+   *
+   * 这个按钮不是图里的节点：它不参与 [layoutNodes] 的宽度扫描、根层均布、消叠与包围盒，只在这一步按
+   * 已经排好的首层结果单独摆位 —— 横向贴在最右卡片右边缘外 [PADDING] 处，纵向与那张卡片对齐
+   * （层内卡片本来就在层带里居中，所以也等同于与首层居中对齐）。
+   *
+   * 首层不一定是最宽的一层：只有一个最终产物时首层只有一张居中的卡片，此时按钮就贴在它右边、可能盖在
+   * 下面更宽的层上方 —— 这是有意的，按钮只跟首层走，不跟整张图的最右边缘走。
+   *
+   * 首层没有可用元素时（空图）退回到原点上方，与它曾经作为唯一根节点时的位置一致。*/
+  fun layoutAddButton(
+    layers: Array<Seq<RecipeGraphLayout.Node>>,
+    elements: (RecipeGraphLayout.Node) -> RecipeGraphElement?,
+    button: RecipeGraphElement,
+  ) {
+    var anchor: RecipeGraphElement? = null
+    var right = Float.NEGATIVE_INFINITY
+
+    layers.firstOrNull()?.forEach { node ->
+      val tab = elements(node) ?: return@forEach
+      val edge = tab.nodeX + tab.nodeWidth
+
+      if (edge > right) {
+        right = edge
+        anchor = tab
+      }
+    }
+
+    val target = anchor
+    if (target == null) {
+      button.nodeX = -button.nodeWidth/2f
+      button.nodeY = -button.nodeHeight
+      return
+    }
+
+    button.nodeX = right + PADDING
+    button.nodeY = target.nodeY + (target.nodeHeight - button.nodeHeight)/2f
+  }
+
   private fun resolveOverlaps(
     overlaps: Seq<RecipeGraphElement>,
     layoutTab: RecipeGraphElement,

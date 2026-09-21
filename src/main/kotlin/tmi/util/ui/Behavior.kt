@@ -38,8 +38,6 @@ class Behavior private constructor(
     }
   }
 
-  var var1 by observed(1)
-
   class BehaviorBuilder {
     private val observedVars = mutableListOf<ObservableVar<*>>()
 
@@ -59,7 +57,6 @@ class Behavior private constructor(
         else throw IllegalArgumentException("Unsupported handle that observe a extend property, property: $property")
       }
     }
-
 
     fun build(): Behavior = Behavior(
       observeVars = observedVars.toList()

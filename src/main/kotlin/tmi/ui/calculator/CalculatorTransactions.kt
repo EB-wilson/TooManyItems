@@ -70,7 +70,11 @@ class CalculatorTransactions private constructor() {
   /**「某个输入连线发生变化」的事务基类。
    *
    * 负责记录被替换 / 被断开的上游卡片（含它在图里的位置与全部连线）：断开连线可能让它变成
-   * 孤立卡片而被自动删除，撤销时必须把它连同连线一起放回去。*/
+   * 孤立卡片而被自动删除，撤销时必须把它连同连线一起放回去。
+   *
+   * 还要负责影子记录的干净：影子只伴生它登记的那一条连线，所以每一次连线变动都由这里统一
+   * 「提交后清掉失效的、回滚时放回操作前的那一批」。子类只要走 [applyInput] / [revertInput]
+   * 两个钩子，就自动带上这个行为，不会漏。*/
   abstract class InputChange(
     view: CalculatorView,
     protected val node: RecipeGraphNode,
@@ -82,6 +86,29 @@ class CalculatorTransactions private constructor() {
     private val oldLinks = old?.let { IncidentLinks(it) }
     private val oldIndex = old?.let { view.graph.toList().indexOf(it) } ?: -1
     private val oldGraphIndex = old?.graphIndex ?: 0
+
+    /**操作前的全部影子记录；连线变动之后失效的那些会被清掉，回滚时再放回。*/
+    private val oldShadows = view.graph.shadowLinks()
+
+    /**子类在这里改连线。*/
+    protected abstract fun applyInput()
+
+    /**子类在这里把连线还原成操作前的样子。*/
+    protected abstract fun revertInput()
+
+    final override fun commit() {
+      applyInput()
+
+      //连线已经不在了 / 改指别处的那条影子记录不该继续留在上下文里。
+      view.graph.pruneShadowLinks()
+    }
+
+    final override fun rollback() {
+      revertInput()
+
+      //连线回来了，操作前那些影子记录也就跟着回来（已经存在会被 addShadowLink 忽略）。
+      oldShadows.forEach { view.graph.addShadowLink(it) }
+    }
 
     /**断开当前输入连线；因此变成孤立卡片的上游节点会被自动删除（与界面原有行为一致）。*/
     protected fun detachInput() {
@@ -150,13 +177,18 @@ class CalculatorTransactions private constructor() {
     private val graphIndex = node.graphIndex
     private val links = IncidentLinks(node)
 
+    /**删除会连带断开这个节点上的全部连线，挂在这些连线上的影子记录也要跟着清掉（回滚时放回）。*/
+    private val shadows = view.graph.shadowLinks()
+
     override fun commit() {
       node.remove()
+      view.graph.pruneShadowLinks()
     }
 
     override fun rollback() {
       insertNode(node, index, graphIndex)
       links.restoreTo(node)
+      shadows.forEach { view.graph.addShadowLink(it) }
     }
   }
 
@@ -167,14 +199,14 @@ class CalculatorTransactions private constructor() {
     item: RecipeItem<*>,
     private val from: RecipeGraphNode,
   ) : InputChange(view, node, item) {
-    override fun commit() {
+    override fun applyInput() {
       if (node.getInput(item) == from) return
 
       detachInput()
       node.setInput(item, from)
     }
 
-    override fun rollback() {
+    override fun revertInput() {
       //先断开新连线（不连锁删除，避免回滚时误删卡片），再恢复原连线。
       node.disInput(item, removeHovering = false)
       restoreInput()
@@ -187,11 +219,11 @@ class CalculatorTransactions private constructor() {
     node: RecipeGraphNode,
     item: RecipeItem<*>,
   ) : InputChange(view, node, item) {
-    override fun commit() {
+    override fun applyInput() {
       detachInput()
     }
 
-    override fun rollback() {
+    override fun revertInput() {
       restoreInput()
     }
   }
@@ -205,7 +237,7 @@ class CalculatorTransactions private constructor() {
   ) : InputChange(view, node, item) {
     private val wasOptional = node.optionals.contains(item)
 
-    override fun commit() {
+    override fun applyInput() {
       if (enabled) {
         node.optionals.add(item)
       }
@@ -215,7 +247,7 @@ class CalculatorTransactions private constructor() {
       }
     }
 
-    override fun rollback() {
+    override fun revertInput() {
       node.optionals.remove(item)
       if (wasOptional) node.optionals.add(item)
 
@@ -266,6 +298,62 @@ class CalculatorTransactions private constructor() {
 
     override fun rollback() {
       node.targetAmount = previous
+    }
+  }
+
+  /**为 [node] 上已经接在 [linkedNode] 上的 [item] 输入建立影子节点：这条连线改由 [linkedNode] 的
+   * 影子副本呈现，源节点也就不再被它压在下面（短边尤其明显，源节点会上提）。
+   *
+   * 影子节点**不是** [RecipeGraphNode]，不会进入 [RecipeGraph]：这里只把「[node] 的 [item] 输入
+   * 应当经由 [linkedNode] 的影子副本呈现」登记成一条 [RecipeGraph.ShadowLink] 伴随数据，
+   * 随图一起写出 / 读入 .shd。真正的连线仍然是 `node ← linkedNode`，所以产量、统计以及
+   * [linkedNode] 的其它连线都不受影响；撤销就是把这条登记摘掉。
+   *
+   * 布局阶段（`RecipeGraphLayout.attachShadowNodes`）只有在连线确实还是这一条时才让影子生效；
+   * 而连线一旦被断开 / 改接到别处，[InputChange] 就会把这条记录清掉（见
+   * [RecipeGraph.pruneShadowLinks]），所以上下文里不会留下指向已断连线的残影。*/
+  class MakeShadowNode(
+    view: CalculatorView,
+    private val node: RecipeGraphNode,
+    private val item: RecipeItem<*>,
+    private val linkedNode: RecipeGraphNode,
+  ): Transaction(view) {
+    private val link = RecipeGraph.ShadowLink(linkedNode, item, node)
+
+    /**这一次提交是否真的新增了记录。这条连线已经有影子时提交是空操作，
+     * 回滚也必须跟着是空操作 —— 否则撤销会把先前那条记录一起摘掉。*/
+    private var added = false
+
+    override fun commit() {
+      added = view.graph.addShadowLink(link)
+    }
+
+    override fun rollback() {
+      if (added) view.graph.removeShadowLink(link)
+    }
+  }
+
+  /**移除 [node] 上 [item] 输入的影子节点，让这条连线恢复成普通的直连。
+   *
+   * 与 [MakeShadowNode] 对称：摘掉 / 放回同一条 [RecipeGraph.ShadowLink] 记录即可，
+   * 连线本身从来没有被动过。*/
+  class RemoveShadowNode(
+    view: CalculatorView,
+    private val node: RecipeGraphNode,
+    private val item: RecipeItem<*>,
+    private val linkedNode: RecipeGraphNode,
+  ): Transaction(view) {
+    private val link = RecipeGraph.ShadowLink(linkedNode, item, node)
+
+    /**这一次提交是否真的摘掉了记录。没有影子时提交是空操作，回滚也必须跟着是空操作。*/
+    private var removed = false
+
+    override fun commit() {
+      removed = view.graph.removeShadowLink(link)
+    }
+
+    override fun rollback() {
+      if (removed) view.graph.addShadowLink(link)
     }
   }
 

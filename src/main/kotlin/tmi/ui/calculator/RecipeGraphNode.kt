@@ -76,6 +76,8 @@ class RecipeGraphNode(
   fun children() = outputs.values().flatMap { it }
   fun childrenWithItem() = outputs.map { it.key to it.value.copy() }.filter { it.second.any() }.sortedBy { it.first }
 
+  fun isFinalProduct() = outputs.values().none { it.size > 0 }
+
   fun isHovering() = inputs.isEmpty && outputs.sumOf { it.value.size } <= 0
 
   fun remove() {

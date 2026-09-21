@@ -11,6 +11,7 @@ import mindustry.world.blocks.environment.OreBlock
 import mindustry.world.blocks.production.BurstDrill
 import mindustry.world.blocks.production.Drill
 import mindustry.world.consumers.ConsumeLiquidBase
+import mindustry.world.consumers.ConsumePower
 import tmi.recipe.Recipe
 import tmi.recipe.RecipeItemGroup
 import tmi.recipe.RecipeType
@@ -57,6 +58,9 @@ open class DrillParser : ConsumerParser<Drill>() {
 
             s.setEfficiency(eff)
               .boostAndConsFormat(eff)
+          }
+          else if (c !is ConsumePower){
+            s.setType(RecipeItemType.ISOLATED)
           }
         }, *content.consumers)
         r

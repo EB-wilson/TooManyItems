@@ -42,3 +42,6 @@ bin/
 ### Mac OS ###
 .DS_Store
 /a/
+
+### Local upstream reference corpus (Arc / Mindustry sources unpacked from Gradle cache) ###
+.refsrc/

@@ -199,7 +199,23 @@ object TmiUI {
 
       // edit
       MenuTab(
-        Core.bundle["dialog.calculator.undo"], "edit", Icon.undo,
+        Core.bundle["dialog.calculator.add"], "edit", Icon.addSmall,
+        group = "edit",
+        valid = { currPage != null }
+      ){ currPage ->
+        val v = currPage!!.view
+        recipesDialog.showWith {
+          callbackRecipe(Icon.add) { rec ->
+            v.commitTransaction(
+              CalculatorTransactions.AddRecipeCard(v, RecipeGraphNode(rec))
+            )
+            hide()
+          }
+          showDoubleRecipe(true)
+        }
+      },
+      MenuTab(
+        Core.bundle["dialog.calculator.undo"], "edit", Icon.undoSmall,
         group = "history",
         keyBind = KeyBinds.undo,
         valid = { currPage?.view?.canUndo == true }
@@ -207,7 +223,7 @@ object TmiUI {
         currPage!!.view.undo()
       },
       MenuTab(
-        Core.bundle["dialog.calculator.redo"], "edit", Icon.redo,
+        Core.bundle["dialog.calculator.redo"], "edit", Icon.redoSmall,
         group = "history",
         keyBind = KeyBinds.redo,
         valid = { currPage?.view?.canRedo == true }
@@ -223,6 +239,13 @@ object TmiUI {
         valid = { currPage != null }
       ){ currPage ->
         currPage!!.view.graphUpdated()
+      },
+      MenuTab(
+        Core.bundle["dialog.calculator.statistic"], "view", Icon.bookSmall,
+        group = "normal",
+        valid = { currPage != null }
+      ){ currPage ->
+        currPage!!.view.showStatistic()
       },
       MenuTab(
         Core.bundle["misc.closeAllPage"], "view",
